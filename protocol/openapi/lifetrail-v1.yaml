@@ -1,0 +1,31 @@
+openapi: 3.1.0
+info:
+  title: LifeTrail API
+  version: v1
+  description: Phase 1 reusable API-v1 contract components.
+paths: {}
+components:
+  schemas:
+    ErrorEnvelope:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message, request_id]
+          properties:
+            code:
+              type: string
+              description: Stable machine-readable API-v1 error code.
+            message:
+              type: string
+              description: Human-readable message; clients must not branch on it.
+            request_id:
+              type: string
+              description: Identifier that correlates the response with server logs.
+            details:
+              type: object
+              description: Optional structured diagnostic detail, such as line, field, and reason.
+              additionalProperties: true

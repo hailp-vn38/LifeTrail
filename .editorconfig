@@ -1,0 +1,36 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+indent_style = space
+indent_size = 2
+trim_trailing_whitespace = true
+
+[*.{c,h,rs}]
+indent_size = 4
+
+[Makefile]
+indent_style = tab
+
+# Canonical imported architecture documents use Markdown hard breaks.
+[docs/project/codebase.md]
+trim_trailing_whitespace = false
+
+[docs/firmware/esp32.md]
+trim_trailing_whitespace = false
+
+[docs/server/architecture.md]
+trim_trailing_whitespace = false
+
+[docs/web/architecture.md]
+trim_trailing_whitespace = false
+
+# These are deliberately invalid wire-byte fixtures.
+[protocol/fixtures/invalid/crlf.ndjson]
+end_of_line = crlf
+trim_trailing_whitespace = false
+
+[protocol/fixtures/invalid/missing-final-lf.ndjson]
+insert_final_newline = false
