@@ -16,4 +16,4 @@ Các boundary thực thi là `firmware/esp32/`, `server/` và `web/`. Chúng kh�
 
 ## Trạng thái
 
-Ticket 01 thiết lập skeleton và contract canonical. GPS collection, storage, sync, database handlers và giao diện Web sẽ được triển khai ở các ticket sau.
+Ticket 02 thiết lập Rust/Axum, PostgreSQL/PostGIS, CLI provisioning và topology local/LAN. GPS collection, storage, đồng bộ Batch và Daily View sẽ được triển khai ở các ticket sau.

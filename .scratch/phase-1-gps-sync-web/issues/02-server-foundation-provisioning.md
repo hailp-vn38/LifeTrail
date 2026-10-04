@@ -1,6 +1,6 @@
 # 02 — Build local server foundation and CLI provisioning
 
-Status: open
+Status: claimed
 Type: task
 Blocked by: 01
 
@@ -26,3 +26,7 @@ Create the local/dev server baseline, database schema, Docker Compose topology, 
 ## Blocked by
 
 01.
+
+## Comments
+
+- Implemented the Rust/Axum foundation, PostGIS migration, single-Owner CLI provisioning, token-digest resolution, local Web read routes, Vite proxy, and same-origin Compose topology. Local Rust tests, strict Clippy, Vite typecheck/build, Compose config, and whitespace checks pass. The real PostGIS integration test is automated in the `server-tests` Compose profile but remains unverified because the local Docker daemon was unavailable; ticket stays `claimed` until that gate runs.

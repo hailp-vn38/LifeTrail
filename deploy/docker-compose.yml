@@ -1,3 +1,59 @@
-# Acceptance topology will be completed with the server and Web implementations.
 name: lifetrail
-services: {}
+services:
+  postgres:
+    image: postgis/postgis:17-3.5
+    environment:
+      POSTGRES_DB: lifetrail
+      POSTGRES_USER: lifetrail
+      POSTGRES_PASSWORD: lifetrail_dev_only
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lifetrail -d lifetrail"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  server:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    environment:
+      LT_DATABASE_URL: postgres://lifetrail:lifetrail_dev_only@postgres:5432/lifetrail
+      LT_BIND_ADDR: 0.0.0.0:8080
+      LT_STATIC_DIR: /app/web
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+
+  server-tests:
+    profiles: ["test"]
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.test
+    environment:
+      LT_TEST_DATABASE_URL: postgres://lifetrail:lifetrail_dev_only@postgres-test:5432/lifetrail_test
+    depends_on:
+      postgres-test:
+        condition: service_healthy
+
+  postgres-test:
+    profiles: ["test"]
+    image: postgis/postgis:17-3.5
+    environment:
+      POSTGRES_DB: lifetrail_test
+      POSTGRES_USER: lifetrail
+      POSTGRES_PASSWORD: lifetrail_dev_only
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lifetrail -d lifetrail_test"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - postgres_test_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
+  postgres_test_data:

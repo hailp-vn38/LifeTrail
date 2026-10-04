@@ -1,0 +1,7 @@
+FROM rust:1.98-bookworm
+WORKDIR /workspace/server
+COPY server/Cargo.toml server/Cargo.lock ./
+COPY server/src ./src
+COPY server/migrations ./migrations
+COPY server/tests ./tests
+CMD ["cargo", "test", "--test", "foundation", "--", "--ignored"]

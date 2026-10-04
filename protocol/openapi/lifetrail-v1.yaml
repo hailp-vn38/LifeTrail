@@ -3,8 +3,57 @@ info:
   title: LifeTrail API
   version: v1
   description: Phase 1 reusable API-v1 contract components.
-paths: {}
+paths:
+  /api/v1/devices:
+    get:
+      summary: List Devices for the local unauthenticated Web.
+      responses:
+        '200':
+          description: Devices in stable creation order.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceList'
+        default:
+          $ref: '#/components/responses/Error'
+  /api/v1/devices/{deviceId}:
+    get:
+      summary: Look up one Device for the local unauthenticated Web.
+      parameters:
+        - name: deviceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Device found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Device'
+        '404':
+          $ref: '#/components/responses/Error'
+  /api/v1/device:
+    get:
+      summary: Resolve the Device represented by a Bearer token.
+      security:
+        - deviceBearer: []
+      responses:
+        '200':
+          description: Authenticated Device.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Device'
+        '401':
+          $ref: '#/components/responses/Error'
 components:
+  securitySchemes:
+    deviceBearer:
+      type: http
+      scheme: bearer
   schemas:
     ErrorEnvelope:
       type: object
@@ -29,3 +78,32 @@ components:
               type: object
               description: Optional structured diagnostic detail, such as line, field, and reason.
               additionalProperties: true
+    Device:
+      type: object
+      additionalProperties: false
+      required: [id, owner_user_id, name]
+      properties:
+        id:
+          type: string
+          format: uuid
+        owner_user_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+    DeviceList:
+      type: object
+      additionalProperties: false
+      required: [devices]
+      properties:
+        devices:
+          type: array
+          items:
+            $ref: '#/components/schemas/Device'
+  responses:
+    Error:
+      description: Canonical API-v1 error envelope.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
