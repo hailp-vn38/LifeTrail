@@ -2,6 +2,7 @@ name: lifetrail
 services:
   postgres:
     image: postgis/postgis:17-3.5
+    platform: linux/amd64
     environment:
       POSTGRES_DB: lifetrail
       POSTGRES_USER: lifetrail
@@ -42,6 +43,7 @@ services:
   postgres-test:
     profiles: ["test"]
     image: postgis/postgis:17-3.5
+    platform: linux/amd64
     environment:
       POSTGRES_DB: lifetrail_test
       POSTGRES_USER: lifetrail

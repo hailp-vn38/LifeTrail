@@ -6,6 +6,7 @@ use lifetrail_server::{
     db,
 };
 use serde::Serialize;
+use std::process::ExitCode;
 use uuid::Uuid;
 
 #[derive(Parser)]
@@ -68,8 +69,18 @@ struct CreatedDevice {
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> ExitCode {
     init_tracing();
+    match run().await {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(error) => {
+            eprintln!("{error}");
+            ExitCode::FAILURE
+        }
+    }
+}
+
+async fn run() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
     let database_url = cli.database_url.ok_or("LT_DATABASE_URL must be set")?;
     let pool = db::connect(&database_url).await?;

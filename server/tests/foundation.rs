@@ -203,5 +203,9 @@ fn assert_cli_fails<const N: usize>(database_url: &str, arguments: [&str; N], ex
         .output()
         .expect("run provisioning CLI");
     assert!(!output.status.success());
-    assert!(String::from_utf8_lossy(&output.stderr).contains(expected));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains(expected),
+        "CLI error did not contain {expected:?}: {stderr}"
+    );
 }

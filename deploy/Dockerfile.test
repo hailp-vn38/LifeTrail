@@ -4,4 +4,5 @@ COPY server/Cargo.toml server/Cargo.lock ./
 COPY server/src ./src
 COPY server/migrations ./migrations
 COPY server/tests ./tests
+RUN cargo test --test foundation --no-run
 CMD ["cargo", "test", "--test", "foundation", "--", "--ignored"]
