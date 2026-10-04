@@ -22,18 +22,12 @@ typedef struct {
 } gga_epoch_t;
 
 typedef struct {
-  bool present;
-  int64_t ts_ms;
-  uint64_t expires_at_ms;
-} emitted_epoch_t;
-
-typedef struct {
   rmc_epoch_t rmc[LT_GPS_CACHE_CAPACITY];
   gga_epoch_t gga[LT_GPS_CACHE_CAPACITY];
-  emitted_epoch_t emitted[LT_GPS_CACHE_CAPACITY];
   lt_gps_record_sink_t record_sink;
   void *record_sink_context;
   lt_gps_diagnostics_t diagnostics;
+  int64_t last_emitted_ts_ms;
 } collector_impl_t;
 
 _Static_assert(sizeof(collector_impl_t) <= sizeof(lt_gps_collector_t),
@@ -66,10 +60,6 @@ static void expire_epochs(collector_impl_t *impl, uint64_t now_ms) {
       impl->gga[index].present = false;
       impl->diagnostics.navigation_epoch_unmatched++;
     }
-    if (impl->emitted[index].present &&
-        now_ms >= impl->emitted[index].expires_at_ms) {
-      impl->emitted[index].present = false;
-    }
   }
 }
 
@@ -95,31 +85,7 @@ static size_t vacant_gga_slot(collector_impl_t *impl) {
   return 0U;
 }
 
-static bool epoch_was_emitted(const collector_impl_t *impl, int64_t ts_ms) {
-  size_t index;
-  for (index = 0U; index < LT_GPS_CACHE_CAPACITY; index++) {
-    if (impl->emitted[index].present && impl->emitted[index].ts_ms == ts_ms) {
-      return true;
-    }
-  }
-  return false;
-}
-
-static void remember_epoch(collector_impl_t *impl, int64_t ts_ms,
-                           uint64_t now_ms) {
-  size_t index;
-  for (index = 0U; index < LT_GPS_CACHE_CAPACITY; index++) {
-    if (!impl->emitted[index].present) {
-      impl->emitted[index] =
-          (emitted_epoch_t){true, ts_ms, now_ms + LT_GPS_EPOCH_CACHE_MS};
-      return;
-    }
-  }
-  impl->emitted[0] =
-      (emitted_epoch_t){true, ts_ms, now_ms + LT_GPS_EPOCH_CACHE_MS};
-}
-
-static void merge_epochs(collector_impl_t *impl, uint64_t now_ms) {
+static void merge_epochs(collector_impl_t *impl) {
   size_t rmc_index;
   size_t gga_index;
 
@@ -145,11 +111,11 @@ static void merge_epochs(collector_impl_t *impl, uint64_t now_ms) {
       record.has_hdop = gga->has_hdop;
       impl->rmc[rmc_index].present = false;
       impl->gga[gga_index].present = false;
-      if (epoch_was_emitted(impl, record.ts_ms)) {
+      if (record.ts_ms <= impl->last_emitted_ts_ms) {
         impl->diagnostics.duplicate_epoch++;
         break;
       }
-      remember_epoch(impl, record.ts_ms, now_ms);
+      impl->last_emitted_ts_ms = record.ts_ms;
       if (impl->record_sink != NULL) {
         impl->record_sink(impl->record_sink_context, &record);
       }
@@ -205,7 +171,7 @@ bool lt_gps_collector_ingest_nmea(lt_gps_collector_t *collector,
   } else {
     return true;
   }
-  merge_epochs(impl, arrival_monotonic_ms);
+  merge_epochs(impl);
   return true;
 }
 

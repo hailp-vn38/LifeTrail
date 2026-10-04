@@ -123,10 +123,12 @@ static void test_duplicate_epoch_never_emits_twice(void) {
                                            fixture("rmc-123519.nmea"), 100U));
   ASSERT_TRUE(lt_gps_collector_ingest_nmea(&collector,
                                            fixture("gga-123519.nmea"), 150U));
-  ASSERT_TRUE(lt_gps_collector_ingest_nmea(&collector,
-                                           fixture("rmc-123519.nmea"), 200U));
-  ASSERT_TRUE(lt_gps_collector_ingest_nmea(&collector,
-                                           fixture("gga-123519.nmea"), 250U));
+  ASSERT_TRUE(
+      lt_gps_collector_ingest_nmea(&collector, fixture("rmc-123519.nmea"),
+                                   LT_GPS_BATCH_DEFAULT_MAX_AGE_MS + 200U));
+  ASSERT_TRUE(
+      lt_gps_collector_ingest_nmea(&collector, fixture("gga-123519.nmea"),
+                                   LT_GPS_BATCH_DEFAULT_MAX_AGE_MS + 250U));
 
   ASSERT_EQ_UINT(1U, capture.count);
   ASSERT_EQ_UINT(1U, lt_gps_collector_diagnostics(&collector).duplicate_epoch);
@@ -233,7 +235,7 @@ static void test_ndjson_is_lf_terminated_and_uuidv4(void) {
       initialize_writer(&capture, &uuid_counter, NULL);
   lt_gps_record_t record = sample_record(INT64_C(1791203719250));
 
-  ASSERT_TRUE(lt_gps_batch_writer_append(&writer, &record, 100U));
+  ASSERT_TRUE(lt_gps_batch_writer_append(&writer, &record));
   ASSERT_EQ_UINT(1U, capture.opened);
   ASSERT_EQ_UINT(1U, capture.appended);
   ASSERT_TRUE(capture.line_lengths[0] > 1U);
@@ -250,11 +252,11 @@ static void test_rotation_happens_before_time_threshold_record(void) {
   lt_gps_batch_writer_t writer =
       initialize_writer(&capture, &uuid_counter, NULL);
   lt_gps_record_t first = sample_record(INT64_C(1791203719250));
-  lt_gps_record_t second = sample_record(INT64_C(1791203720999));
+  lt_gps_record_t second = sample_record(
+      INT64_C(1791203719250) + (int64_t)LT_GPS_BATCH_DEFAULT_MAX_AGE_MS);
 
-  ASSERT_TRUE(lt_gps_batch_writer_append(&writer, &first, 100U));
-  ASSERT_TRUE(lt_gps_batch_writer_append(
-      &writer, &second, LT_GPS_BATCH_DEFAULT_MAX_AGE_MS + 100U));
+  ASSERT_TRUE(lt_gps_batch_writer_append(&writer, &first));
+  ASSERT_TRUE(lt_gps_batch_writer_append(&writer, &second));
 
   ASSERT_EQ_UINT(2U, capture.opened);
   ASSERT_EQ_UINT(2U, capture.appended);
@@ -268,7 +270,7 @@ static void test_rotation_happens_before_next_line_exceeds_byte_limit(void) {
   lt_gps_batch_writer_t initial_writer =
       initialize_writer(&capture, &uuid_counter, NULL);
   lt_gps_record_t first = sample_record(INT64_C(1791203719250));
-  ASSERT_TRUE(lt_gps_batch_writer_append(&initial_writer, &first, 100U));
+  ASSERT_TRUE(lt_gps_batch_writer_append(&initial_writer, &first));
 
   lt_gps_batch_settings_t settings = {
       .max_age_ms = LT_GPS_BATCH_DEFAULT_MAX_AGE_MS,
@@ -278,8 +280,8 @@ static void test_rotation_happens_before_next_line_exceeds_byte_limit(void) {
       initialize_writer(&capture, &uuid_counter, &settings);
   lt_gps_record_t second = sample_record(INT64_C(1791203720999));
 
-  ASSERT_TRUE(lt_gps_batch_writer_append(&writer, &first, 100U));
-  ASSERT_TRUE(lt_gps_batch_writer_append(&writer, &second, 101U));
+  ASSERT_TRUE(lt_gps_batch_writer_append(&writer, &first));
+  ASSERT_TRUE(lt_gps_batch_writer_append(&writer, &second));
 
   ASSERT_EQ_UINT(2U, capture.opened);
   ASSERT_EQ_UINT(2U, capture.appended);
@@ -296,8 +298,8 @@ static void test_batch_rejects_non_increasing_timestamp(void) {
   lt_gps_record_t first = sample_record(INT64_C(1791203719250));
   lt_gps_record_t duplicate = sample_record(INT64_C(1791203719250));
 
-  ASSERT_TRUE(lt_gps_batch_writer_append(&writer, &first, 100U));
-  ASSERT_TRUE(!lt_gps_batch_writer_append(&writer, &duplicate, 101U));
+  ASSERT_TRUE(lt_gps_batch_writer_append(&writer, &first));
+  ASSERT_TRUE(!lt_gps_batch_writer_append(&writer, &duplicate));
   ASSERT_EQ_UINT(1U, capture.opened);
   ASSERT_EQ_UINT(1U, capture.appended);
 }

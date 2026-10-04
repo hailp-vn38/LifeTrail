@@ -44,5 +44,4 @@ void lt_gps_batch_writer_init(lt_gps_batch_writer_t *writer,
                               lt_gps_batch_sink_t sink);
 
 bool lt_gps_batch_writer_append(lt_gps_batch_writer_t *writer,
-                                const lt_gps_record_t *record,
-                                uint64_t arrival_monotonic_ms);
+                                const lt_gps_record_t *record);

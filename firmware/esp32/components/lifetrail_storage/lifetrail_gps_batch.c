@@ -10,7 +10,7 @@ typedef struct {
   lt_gps_batch_id_source_t id_source;
   void *id_source_context;
   lt_gps_batch_sink_t sink;
-  uint64_t first_arrival_ms;
+  int64_t first_ts_ms;
   int64_t last_ts_ms;
   size_t byte_length;
   bool active;
@@ -92,7 +92,7 @@ static void format_uuid_v4(const uint8_t bytes[16], char destination[37]) {
   destination[output_index] = '\0';
 }
 
-static bool open_batch(writer_impl_t *impl, uint64_t arrival_monotonic_ms) {
+static bool open_batch(writer_impl_t *impl, int64_t first_ts_ms) {
   uint8_t random_bytes[16];
   char batch_id[37];
 
@@ -107,7 +107,7 @@ static bool open_batch(writer_impl_t *impl, uint64_t arrival_monotonic_ms) {
     return false;
   }
   impl->active = true;
-  impl->first_arrival_ms = arrival_monotonic_ms;
+  impl->first_ts_ms = first_ts_ms;
   impl->byte_length = 0U;
   impl->last_ts_ms = 0;
   return true;
@@ -132,8 +132,7 @@ void lt_gps_batch_writer_init(lt_gps_batch_writer_t *writer,
 }
 
 bool lt_gps_batch_writer_append(lt_gps_batch_writer_t *writer,
-                                const lt_gps_record_t *record,
-                                uint64_t arrival_monotonic_ms) {
+                                const lt_gps_record_t *record) {
   writer_impl_t *impl = writer_impl(writer);
   char line[512];
   size_t line_length;
@@ -151,9 +150,8 @@ bool lt_gps_batch_writer_append(lt_gps_batch_writer_t *writer,
     return false;
   }
   must_rotate = impl->active &&
-                ((arrival_monotonic_ms >= impl->first_arrival_ms &&
-                  arrival_monotonic_ms - impl->first_arrival_ms >=
-                      impl->settings.max_age_ms) ||
+                (record->ts_ms - impl->first_ts_ms >=
+                     (int64_t)impl->settings.max_age_ms ||
                  line_length > impl->settings.max_bytes - impl->byte_length);
   if (must_rotate) {
     if (impl->sink.rotate == NULL || !impl->sink.rotate(impl->sink.context)) {
@@ -161,7 +159,7 @@ bool lt_gps_batch_writer_append(lt_gps_batch_writer_t *writer,
     }
     impl->active = false;
   }
-  if (!impl->active && !open_batch(impl, arrival_monotonic_ms)) {
+  if (!impl->active && !open_batch(impl, record->ts_ms)) {
     return false;
   }
   if (!impl->sink.append_line(impl->sink.context, line, line_length)) {
