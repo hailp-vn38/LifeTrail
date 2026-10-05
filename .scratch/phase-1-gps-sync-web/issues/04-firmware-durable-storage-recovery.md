@@ -1,6 +1,6 @@
 # 04 — Implement manifest-backed batch durability, recovery, and SD capacity policy
 
-Status: open
+Status: resolved
 Type: task
 Blocked by: 03
 
@@ -26,3 +26,21 @@ Make microSD storage preserve unacknowledged GPS history across reboot/power los
 ## Blocked by
 
 03.
+
+## Comments
+
+Implemented manifest-backed durable batch storage behind `lifetrail_storage`:
+
+- Batch files now transition from `.ndjson.open` through an fsynced immutable
+  manifest to verified `.ndjson.ready`, and successful acknowledgement moves
+  only the data file to `.ndjson.acked`.
+- Boot recovery verifies canonical `gps/1` bytes and manifest metadata, trims
+  only an unterminated final `.open` tail, rebuilds a missing ready manifest,
+  and moves malformed, mismatched, or orphaned artifacts into Quarantine.
+- Storage health reports recovery, rebuild, Quarantine, cleanup, free-space,
+  low-space, and pause state. Cleanup is restricted to ACKed files; the
+  16/4/8 MiB hysteresis and 24-hour ACK retention policy are enforced.
+
+Host CMake/CTest passed both `gps_epoch_batch_tests` and
+`batch_store_tests`. Native ESP-IDF/SD-card execution remains unverified in
+this environment.
