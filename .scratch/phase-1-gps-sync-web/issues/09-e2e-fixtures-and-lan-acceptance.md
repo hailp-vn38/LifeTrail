@@ -1,6 +1,6 @@
 # 09 — Prove offline-to-web LAN acceptance
 
-Status: open
+Status: claimed
 Type: task
 Blocked by: 04, 06, 08
 
@@ -26,3 +26,21 @@ Create reproducible fixtures, simulator support where useful, and the documented
 ## Blocked by
 
 04, 06, 08.
+
+## Comments
+
+Implemented the repeatable host/Compose portion:
+
+- `tools/batch_acceptance.py` inspects immutable ready/manifest pairs and can
+  either commit-then-replay a new Batch or verify a previously committed Batch
+  remains `duplicate: true` without reserializing its body.
+- `tools/verify_single_origin.py`, a server regression test, and the Compose
+  run verify the built SPA and canonical Daily View URL are served from the
+  same origin; the server now returns `200` for that canonical URL.
+- `docs/development/phase-1-lan-acceptance.md` records the exact physical
+  Device procedure and evidence required for the remaining acceptance gates.
+
+Automated source, firmware-host, Compose, PostGIS, and Web checks passed.
+No physical ESP32, GNSS, microSD, outdoor recording, power-cycle, or second
+LAN client was available in this run. The ticket remains `claimed` until that
+evidence is captured; it is not resolved by simulator or source-level tests.

@@ -32,6 +32,7 @@ pub struct AppState {
 pub(crate) struct RequestId(pub(crate) String);
 
 pub fn router(state: AppState, static_dir: PathBuf) -> Router {
+    let daily_view_index = static_dir.join("index.html");
     let api = Router::new()
         .route("/v1/devices", get(list_devices))
         .route("/v1/devices/{device_id}", get(get_device))
@@ -46,6 +47,10 @@ pub fn router(state: AppState, static_dir: PathBuf) -> Router {
         .route("/health/live", get(live))
         .route("/health/ready", get(ready))
         .nest("/api", api)
+        .route_service(
+            "/devices/{device_id}/day/{date}",
+            ServeFile::new(daily_view_index),
+        )
         .fallback_service(
             ServeDir::new(&static_dir)
                 .append_index_html_on_directories(true)

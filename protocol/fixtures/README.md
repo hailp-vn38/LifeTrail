@@ -14,3 +14,5 @@ Fixtures are raw bytes, not examples to be reserialized. Validators on firmware 
 | `replay/same-id-body-a.ndjson` and `replay/same-id-body-b.ndjson` | With the shared batch ID in `same-id-headers.md`, body A commits first and body B must return `409 batch_conflict`. |
 
 Every `.ndjson` fixture is intentionally small so it can be loaded by ESP-IDF and host/server test harnesses without a parser or SDK dependency. Line ending verification must happen before JSON parsing.
+
+The paired ready-body/manifest fixture used by the LAN acceptance tool is under [`../../tools/fixtures/lan-acceptance/`](../../tools/fixtures/lan-acceptance/).
