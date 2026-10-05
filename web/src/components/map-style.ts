@@ -1,7 +1,7 @@
 import type { StyleSpecification } from "maplibre-gl";
 
 const DEFAULT_MAPTILER_STYLE_URL =
-  "https://api.maptiler.com/maps/streets-v2/style.json";
+  "https://api.maptiler.com/maps/hybrid/style.json";
 
 export const EMPTY_MAP_STYLE: StyleSpecification = {
   version: 8,

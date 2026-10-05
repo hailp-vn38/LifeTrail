@@ -37,6 +37,7 @@ const { MockMap } = vi.hoisted(() => {
     cameraForBounds() {
       return undefined;
     }
+    addControl = vi.fn();
     remove() {
       this.removed = true;
     }
@@ -51,6 +52,7 @@ vi.mock("maplibre-gl", () => ({
     }
   },
   Map: MockMap,
+  NavigationControl: class {},
 }));
 
 import RouteMap from "./RouteMap.vue";
@@ -126,8 +128,13 @@ describe("RouteMap", () => {
     const layerIds = map.addedLayers.map((layer) => (layer as { id: string }).id);
     expect(layerIds).toContain("daily-route-full-line");
     expect(layerIds).toContain("daily-route-progress-line");
-    expect(layerIds).toContain("daily-route-current-point");
-    expect(layerIds).toContain("daily-route-current-halo");
+    expect(layerIds).toContain("daily-route-current-dot");
+    expect(layerIds).toContain("daily-route-current-arrow");
+    expect(layerIds).toContain("daily-route-progress-glow");
+
+    // Heading-up compass is added top-left.
+    expect(map.addControl).toHaveBeenCalledTimes(1);
+    expect(map.addControl).toHaveBeenCalledWith(expect.anything(), "top-left");
     expect(map.fitBounds).toHaveBeenCalled();
 
     wrapper.unmount();
@@ -162,13 +169,12 @@ describe("RouteMap", () => {
     expect(coordinates[2][0]).toBeCloseTo(106.7005 + (0.0005 * 12) / 22, 9);
     expect(coordinates[2][1]).toBeCloseTo(10.7764 + (0.0006 * 12) / 22, 9);
     const currentCalls = (currentSource?.setData as ReturnType<typeof vi.fn>).mock.calls;
-    const currentData = currentCalls[currentCalls.length - 1][0] as FeatureCollection<Polygon>;
-    // Heading puck: a FeatureCollection with halo + puck triangles.
+    const currentData = currentCalls[currentCalls.length - 1][0] as FeatureCollection;
+    // Heading puck: a blue dot (Point) plus a white heading arrow (Polygon).
     expect(currentData.type).toBe("FeatureCollection");
     expect(currentData.features).toHaveLength(2);
-    expect(currentData.features[0].geometry.type).toBe("Polygon");
-    expect(currentData.features[1].geometry.type).toBe("Polygon");
-    expect(currentData.features[1]?.properties?.halo).toBe(false);
+    expect(currentData.features[0]?.geometry.type).toBe("Point");
+    expect(currentData.features[1]?.geometry.type).toBe("Polygon");
 
     wrapper.unmount();
   });

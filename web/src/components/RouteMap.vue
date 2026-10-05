@@ -1,6 +1,11 @@
 <script setup lang="ts">
 import type { Feature, FeatureCollection, LineString, Point, Polygon } from "geojson";
-import { LngLatBounds, Map as MapLibreMap, type GeoJSONSource } from "maplibre-gl";
+import {
+  LngLatBounds,
+  Map as MapLibreMap,
+  NavigationControl,
+  type GeoJSONSource,
+} from "maplibre-gl";
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import type { DailyView } from "../api/daily-views";
 import {
@@ -43,8 +48,9 @@ const LAYER_FULL = "daily-route-full-line";
 const LAYER_PROGRESS = "daily-route-progress-line";
 const LAYER_START = "daily-route-start-point";
 const LAYER_END = "daily-route-end-point";
-const LAYER_CURRENT_HALO = "daily-route-current-halo";
-const LAYER_CURRENT = "daily-route-current-point";
+const LAYER_PROGRESS_GLOW = "daily-route-progress-glow";
+const LAYER_CURRENT_DOT = "daily-route-current-dot";
+const LAYER_CURRENT_ARROW = "daily-route-current-arrow";
 
 const ISSUE_TEXT: Record<PlaybackValidationError, string> = {
   "not-linestring": "Dữ liệu route không hợp lệ nên không thể phát lại.",
@@ -107,21 +113,30 @@ function pointFeature(coordinate: MapCoordinate): Feature<Point> {
 }
 
 /**
- * Heading-aware current position marker (navigation puck): a triangle flat
- * on the map pointing along the bearing, with a slightly larger white halo
- * triangle beneath it. Under the course-up follow camera the triangle
- * always points up-screen along the direction of travel; no sprite or
- * glyph assets are needed.
+ * Heading-aware current position marker (navigation puck) matching the
+ * course-up design: a blue dot with a white arrow pointing along the
+ * bearing. The arrow is a flat triangle on the map, so under the course-up
+ * camera it always points up-screen along the direction of travel. No
+ * sprite or glyph assets are needed.
  */
-function puckFeatures(position: MapCoordinate, bearing: number): FeatureCollection<Polygon> {
-  const triangle = (lengthM: number, halo: boolean): Feature<Polygon> => ({
-    type: "Feature",
-    properties: { halo },
-    geometry: { type: "Polygon", coordinates: [headingPuckRing(position, bearing, lengthM)] },
-  });
+function puckFeatures(position: MapCoordinate, bearing: number): FeatureCollection {
   return {
     type: "FeatureCollection",
-    features: [triangle(34, true), triangle(26, false)],
+    features: [
+      {
+        type: "Feature",
+        properties: { kind: "dot" },
+        geometry: { type: "Point", coordinates: position },
+      },
+      {
+        type: "Feature",
+        properties: { kind: "arrow" },
+        geometry: {
+          type: "Polygon",
+          coordinates: [headingPuckRing(position, bearing, 22)],
+        },
+      },
+    ],
   };
 }
 
@@ -147,6 +162,17 @@ function addRouteLayers(map: MapLibreMap) {
       data: lineFeature([startCoordinate, startCoordinate]),
     });
     map.addLayer({
+      id: LAYER_PROGRESS_GLOW,
+      type: "line",
+      source: SOURCE_PROGRESS,
+      paint: {
+        "line-color": "#60a5fa",
+        "line-width": 12,
+        "line-opacity": 0.45,
+        "line-blur": 5,
+      },
+    });
+    map.addLayer({
       id: LAYER_PROGRESS,
       type: "line",
       source: SOURCE_PROGRESS,
@@ -157,18 +183,23 @@ function addRouteLayers(map: MapLibreMap) {
       data: puckFeatures(startCoordinate, 0),
     });
     map.addLayer({
-      id: LAYER_CURRENT_HALO,
-      type: "fill",
+      id: LAYER_CURRENT_DOT,
+      type: "circle",
       source: SOURCE_CURRENT,
-      filter: ["==", ["get", "halo"], true],
-      paint: { "fill-color": "#ffffff", "fill-opacity": 0.92 },
+      filter: ["==", ["get", "kind"], "dot"],
+      paint: {
+        "circle-radius": 13,
+        "circle-color": "#2563eb",
+        "circle-stroke-width": 3,
+        "circle-stroke-color": "#ffffff",
+      },
     });
     map.addLayer({
-      id: LAYER_CURRENT,
+      id: LAYER_CURRENT_ARROW,
       type: "fill",
       source: SOURCE_CURRENT,
-      filter: ["==", ["get", "halo"], false],
-      paint: { "fill-color": "#f97316" },
+      filter: ["==", ["get", "kind"], "arrow"],
+      paint: { "fill-color": "#ffffff" },
     });
   }
   if (start) {
@@ -219,7 +250,7 @@ function fitRoute(map: MapLibreMap) {
 
 function setSourceData(
   sourceId: string,
-  data: Feature<LineString> | Feature<Point> | FeatureCollection<Polygon>,
+  data: Feature<LineString> | Feature<Point> | FeatureCollection,
 ) {
   const source = map?.getSource(sourceId) as GeoJSONSource | undefined;
   source?.setData(data);
@@ -303,6 +334,12 @@ onMounted(() => {
     }),
     ...camera,
   });
+  // Heading-up compass: rotates with the map bearing so it always shows
+  // the current direction of travel. Clicking it resets to north-up.
+  map.addControl(
+    new NavigationControl({ showCompass: true, showZoom: false, visualizePitch: true }),
+    "top-left",
+  );
 
   const input = playbackInput.value;
   if (input?.ok) {
@@ -365,4 +402,27 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .route-map { min-height: 26rem; width: 100%; }
+</style>
+
+<style>
+/* Dark circular heading-up compass matching the course-up design. */
+.route-playback .maplibregl-ctrl-top-left {
+  margin: 12px 0 0 12px;
+}
+.route-playback .maplibregl-ctrl-group {
+  background: rgba(15, 23, 42, 0.92);
+  border-radius: 9999px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+}
+.route-playback .maplibregl-ctrl-group button {
+  width: 44px;
+  height: 44px;
+  border-radius: 9999px;
+}
+.route-playback .maplibregl-ctrl-group button + button {
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+.route-playback .maplibregl-ctrl-compass .maplibregl-ctrl-icon {
+  filter: invert(1) brightness(1.15);
+}
 </style>
