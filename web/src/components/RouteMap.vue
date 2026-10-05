@@ -1,13 +1,14 @@
 <script setup lang="ts">
-import type { Feature, FeatureCollection, LineString, Point, Polygon } from "geojson";
+import type { Feature, FeatureCollection, LineString, Point } from "geojson";
 import {
   LngLatBounds,
   Map as MapLibreMap,
   NavigationControl,
+  type ExpressionSpecification,
   type GeoJSONSource,
 } from "maplibre-gl";
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
-import type { DailyView } from "../api/daily-views";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import type { DailyView } from "../api/queries/daily-view.query";
 import {
   FollowCamera,
   followOffsetYPx,
@@ -33,7 +34,10 @@ import type {
   PlaybackPoint,
   PlaybackState,
 } from "../map/route-playback/types";
-import RoutePlaybackControls from "./RoutePlaybackControls.vue";
+import PlaybackBar from "../features/playback/components/PlaybackBar.vue";
+import type { PlaybackSpeed } from "../features/playback/playback.types";
+import { useMapStore } from "../stores/map.store";
+import { usePlaybackStore } from "../stores/playback.store";
 import { initialMapCamera, routeFitOptions } from "./map-camera";
 import { initializeWhenMapLoaded } from "./map-lifecycle";
 import { resolveMapStyle } from "./map-style";
@@ -64,11 +68,16 @@ const ISSUE_TEXT: Record<PlaybackValidationError, string> = {
 const props = defineProps<{ dailyView: DailyView }>();
 const mapElement = ref<HTMLDivElement>();
 
+const mapStore = useMapStore();
+const playbackStore = usePlaybackStore();
+
 let map: MapLibreMap | undefined;
 let controller: PlaybackController | undefined;
 let followCamera: FollowCamera | undefined;
 let playbackPoints: PlaybackPoint[] = [];
 let lastFrameState: PlaybackState = "idle";
+let lastPosition: MapCoordinate | null = null;
+let lastBearing = 0;
 
 const mapReady = ref(false);
 const playbackState = ref<PlaybackState>("idle");
@@ -96,6 +105,16 @@ function routeCoordinates(): MapCoordinate[] {
   );
 }
 
+function startCoordinate(): MapCoordinate | undefined {
+  const coordinates = props.dailyView.start?.geometry.coordinates;
+  return Array.isArray(coordinates) ? (coordinates as MapCoordinate) : undefined;
+}
+
+function endCoordinate(): MapCoordinate | undefined {
+  const coordinates = props.dailyView.end?.geometry.coordinates;
+  return Array.isArray(coordinates) ? (coordinates as MapCoordinate) : undefined;
+}
+
 function lineFeature(coordinates: MapCoordinate[]): Feature<LineString> {
   return {
     type: "Feature",
@@ -104,12 +123,32 @@ function lineFeature(coordinates: MapCoordinate[]): Feature<LineString> {
   };
 }
 
-function pointFeature(coordinate: MapCoordinate): Feature<Point> {
+/**
+ * Start/end point tagged with the timeline event id. The shared selection
+ * store (`selectedEventId`) is the only bridge between Timeline and Map:
+ * clicking a map point writes the id, clicking a timeline item writes the
+ * id, and each side reacts independently.
+ */
+function eventPointFeature(feature: Feature<Point>, eventId: string): Feature<Point> {
   return {
-    type: "Feature",
-    properties: {},
-    geometry: { type: "Point", coordinates: coordinate },
+    ...feature,
+    properties: { ...(feature.properties ?? {}), eventId },
   };
+}
+
+function selectionRadiusExpression(selectedId: string | null): ExpressionSpecification {
+  return ["case", ["==", ["get", "eventId"], selectedId ?? "__none__"], 11, 7];
+}
+
+function applySelectionHighlight(): void {
+  if (!map) return;
+  const selectedId = mapStore.selectedEventId;
+  if (props.dailyView.start) {
+    map.setPaintProperty(LAYER_START, "circle-radius", selectionRadiusExpression(selectedId));
+  }
+  if (props.dailyView.end) {
+    map.setPaintProperty(LAYER_END, "circle-radius", selectionRadiusExpression(selectedId));
+  }
 }
 
 /**
@@ -203,7 +242,10 @@ function addRouteLayers(map: MapLibreMap) {
     });
   }
   if (start) {
-    map.addSource(SOURCE_START, { type: "geojson", data: start });
+    map.addSource(SOURCE_START, {
+      type: "geojson",
+      data: eventPointFeature(start, "start"),
+    });
     map.addLayer({
       id: LAYER_START,
       type: "circle",
@@ -217,7 +259,10 @@ function addRouteLayers(map: MapLibreMap) {
     });
   }
   if (end) {
-    map.addSource(SOURCE_END, { type: "geojson", data: end });
+    map.addSource(SOURCE_END, {
+      type: "geojson",
+      data: eventPointFeature(end, "end"),
+    });
     map.addLayer({
       id: LAYER_END,
       type: "circle",
@@ -259,6 +304,13 @@ function setSourceData(
 function applyFrame(frame: PlaybackFrame) {
   playbackState.value = frame.state;
   routeTimeMs.value = frame.routeTimeMs;
+  lastPosition = frame.position;
+  lastBearing = frame.bearing;
+  playbackStore.setFrame(frame.state, frame.routeTimeMs);
+
+  if (frame.state === "finished") {
+    playbackStore.setCameraFollow(false);
+  }
 
   if (map) {
     setSourceData(
@@ -267,7 +319,7 @@ function applyFrame(frame: PlaybackFrame) {
     );
     setSourceData(SOURCE_CURRENT, puckFeatures(frame.position, frame.bearing));
 
-    if (frame.state === "playing" && followCamera) {
+    if (frame.state === "playing" && followCamera && playbackStore.cameraFollow) {
       // Course-Up Follow Camera with Look-Ahead: the camera aims at a point
       // ahead on the route while the puck stays on the current GPS fix.
       const target: FollowTarget = {
@@ -292,6 +344,7 @@ function applyFrame(frame: PlaybackFrame) {
 
 function handleOverviewReady() {
   if (!map) return;
+  playbackStore.setCameraFollow(false);
   const bounds = routeBounds(playbackPoints);
   if (bounds) {
     overviewCamera(map, bounds);
@@ -299,6 +352,7 @@ function handleOverviewReady() {
 }
 
 function handlePlay() {
+  playbackStore.setCameraFollow(true);
   controller?.play();
 }
 
@@ -316,15 +370,53 @@ function handleSeek(timeMs: number) {
 
 function handleSpeedChange(speed: number) {
   playbackSpeed.value = speed;
+  playbackStore.setSpeed(speed as PlaybackSpeed);
   controller?.setSpeed(speed);
 }
+
+function handleToggleFollow() {
+  if (!map) return;
+  if (playbackStore.cameraFollow) {
+    playbackStore.setCameraFollow(false);
+    return;
+  }
+  playbackStore.setCameraFollow(true);
+  if (followCamera && lastPosition) {
+    followCamera.enter({ position: lastPosition, lookAhead: lastPosition, bearing: lastBearing });
+  } else if (lastPosition) {
+    map.easeTo({ center: lastPosition, zoom: 15, duration: 600 });
+  }
+}
+
+/** Manual map interaction always drops out of camera-follow mode. */
+function handleManualInteraction() {
+  playbackStore.setCameraFollow(false);
+}
+
+/** Timeline (or playback) selection -> map highlight + flyTo. */
+watch(
+  () => mapStore.selectedEventId,
+  (selectedId) => {
+    if (!map || !mapReady.value) return;
+    applySelectionHighlight();
+    const target =
+      selectedId === "start"
+        ? startCoordinate()
+        : selectedId === "end"
+          ? endCoordinate()
+          : undefined;
+    if (target) {
+      map.easeTo({ center: target, duration: 600 });
+    }
+  },
+);
 
 onMounted(() => {
   if (!mapElement.value) return;
   const camera = initialMapCamera({
     routeCoordinates: routeCoordinates(),
-    startCoordinate: props.dailyView.start?.geometry.coordinates as MapCoordinate | undefined,
-    endCoordinate: props.dailyView.end?.geometry.coordinates as MapCoordinate | undefined,
+    startCoordinate: startCoordinate(),
+    endCoordinate: endCoordinate(),
   });
   map = new MapLibreMap({
     container: mapElement.value,
@@ -351,6 +443,10 @@ onMounted(() => {
       speed: playbackSpeed.value,
       events: { onFrame: applyFrame, onOverviewReady: handleOverviewReady },
     });
+    playbackStore.initialize({
+      startTimeMs: input.points[0].recordedAtMs,
+      endTimeMs: input.points[input.points.length - 1].recordedAtMs,
+    });
   }
 
   initializeWhenMapLoaded(map, () => {
@@ -363,6 +459,12 @@ onMounted(() => {
         offsetYPx: followOffsetYPx(activeMap.getContainer().clientHeight),
       });
     }
+    // Map -> selection store (the other half of the Timeline <-> Map bridge).
+    activeMap.on("click", LAYER_START, () => mapStore.selectEvent("start"));
+    activeMap.on("click", LAYER_END, () => mapStore.selectEvent("end"));
+    activeMap.on("dragstart", handleManualInteraction);
+    activeMap.on("zoomstart", handleManualInteraction);
+    activeMap.on("rotatestart", handleManualInteraction);
     mapReady.value = true;
   });
 });
@@ -373,6 +475,8 @@ onBeforeUnmount(() => {
   followCamera?.dispose();
   followCamera = undefined;
   playbackPoints = [];
+  mapStore.clearSelection();
+  playbackStore.reset();
   map?.remove();
   map = undefined;
 });
@@ -381,7 +485,7 @@ onBeforeUnmount(() => {
 <template>
   <div class="route-playback">
     <div ref="mapElement" class="route-map" aria-label="Bản đồ Daily Route" />
-    <RoutePlaybackControls
+    <PlaybackBar
       v-if="dailyView.route"
       :state="playbackState"
       :speed="playbackSpeed"
@@ -391,17 +495,31 @@ onBeforeUnmount(() => {
       :timezone="dailyView.timezone"
       :map-ready="mapReady"
       :disabled-reason="disabledReason"
+      :camera-follow="playbackStore.cameraFollow"
       @play="handlePlay"
       @pause="handlePause"
       @restart="handleRestart"
       @seek="handleSeek"
       @speed-change="handleSpeedChange"
+      @toggle-follow="handleToggleFollow"
     />
   </div>
 </template>
 
 <style scoped>
-.route-map { min-height: 26rem; width: 100%; }
+.route-playback {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.route-map {
+  width: 100%;
+  height: clamp(26rem, 62dvh, 46rem);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  overflow: hidden;
+  background: #eef2f7;
+}
 </style>
 
 <style>
