@@ -22,11 +22,11 @@ curl --fail http://localhost:8080/health/ready
 
 ## 2. Create an Owner and simulated Device
 
-The database is internal to Compose, so run the provisioning CLI in the server container:
+The database is internal to Compose, so run the provisioning CLI in the server container. The image installs the binary at `/usr/local/bin/lifetrail-server`:
 
 ```sh
 docker compose -f deploy/docker-compose.yml exec server \
-  /app/lifetrail-server owner create \
+  /usr/local/bin/lifetrail-server owner create \
   --display-name "Simulated Owner" \
   --timezone Asia/Ho_Chi_Minh
 ```
@@ -35,7 +35,7 @@ Copy the returned Owner UUID, then create the Device:
 
 ```sh
 docker compose -f deploy/docker-compose.yml exec server \
-  /app/lifetrail-server device create \
+  /usr/local/bin/lifetrail-server device create \
   --owner-id <owner-uuid> \
   --name "Simulated GPS"
 ```
