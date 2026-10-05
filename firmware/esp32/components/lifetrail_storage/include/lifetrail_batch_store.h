@@ -7,6 +7,7 @@
 #include "lifetrail_gps_batch.h"
 
 #define LT_BATCH_STORE_PATH_MAX 256U
+#define LT_BATCH_STORE_READY_PATH_MAX (LT_BATCH_STORE_PATH_MAX + 50U)
 #define LT_BATCH_STORE_LOW_SPACE_BYTES (UINT64_C(16) * 1024U * 1024U)
 #define LT_BATCH_STORE_PAUSE_BYTES (UINT64_C(4) * 1024U * 1024U)
 #define LT_BATCH_STORE_RESUME_BYTES (UINT64_C(8) * 1024U * 1024U)
@@ -51,7 +52,12 @@ bool lt_batch_store_init(lt_batch_store_t *store,
 lt_gps_batch_sink_t lt_batch_store_writer_sink(lt_batch_store_t *store);
 bool lt_batch_store_mark_acked(lt_batch_store_t *store,
                                const char batch_id[37]);
+bool lt_batch_store_quarantine(lt_batch_store_t *store,
+                               const char batch_id[37]);
 bool lt_batch_store_next_ready(lt_batch_store_t *store,
                                lt_batch_store_ready_t *ready);
+bool lt_batch_store_ready_path(const lt_batch_store_t *store,
+                               const lt_batch_store_ready_t *ready,
+                               char path[LT_BATCH_STORE_READY_PATH_MAX]);
 void lt_batch_store_maintain(lt_batch_store_t *store);
 lt_batch_store_health_t lt_batch_store_health(const lt_batch_store_t *store);

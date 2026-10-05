@@ -35,3 +35,22 @@ target_include_directories(batch_store_tests PRIVATE
 target_compile_features(batch_store_tests PRIVATE c_std_11)
 target_compile_options(batch_store_tests PRIVATE -Wall -Wextra -Werror -pedantic)
 add_test(NAME batch_store_tests COMMAND batch_store_tests)
+
+add_executable(provisioning_sync_tests
+    ../components/lifetrail_storage/lifetrail_gps_batch.c
+    ../components/lifetrail_storage/lifetrail_batch_store.c
+    ../components/lifetrail_storage/lifetrail_sha256.c
+    ../components/lifetrail_provisioning/lifetrail_provisioning.c
+    ../components/lifetrail_sync/lifetrail_sync.c
+    ../components/lifetrail_sync/lifetrail_sync_ack.c
+    tests/test_provisioning_sync.c)
+
+target_include_directories(provisioning_sync_tests PRIVATE
+    ../components/lifetrail_gps/include
+    ../components/lifetrail_storage/include
+    ../components/lifetrail_provisioning/include
+    ../components/lifetrail_sync/include)
+
+target_compile_features(provisioning_sync_tests PRIVATE c_std_11)
+target_compile_options(provisioning_sync_tests PRIVATE -Wall -Wextra -Werror -pedantic)
+add_test(NAME provisioning_sync_tests COMMAND provisioning_sync_tests)

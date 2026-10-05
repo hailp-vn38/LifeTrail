@@ -1,6 +1,6 @@
 # 06 — Implement serial provisioning and resilient single-flight LAN sync
 
-Status: open
+Status: resolved
 Type: task
 Blocked by: 04, 05
 
@@ -26,3 +26,15 @@ Provision a Device over serial and synchronize verified ready Batches from SD to
 ## Blocked by
 
 04, 05.
+
+## Comments
+
+Implemented NVS-backed serial provisioning (`wifi`, `api`, `token`, `status`,
+and explicit `factory-reset`) without coupling GPS/storage to Wi-Fi state.
+Added a single-flight sync core and ESP HTTP adapter: it streams verified SD
+bytes with the manifest headers, strictly validates the semantic ACK, retains
+ready data on transport failure, blocks on auth, quarantines terminal client
+errors, and applies backoff with jitter or `Retry-After`.
+
+Host CTest passed 3/3 and ESP-IDF 6.1 `idf.py build` passed. Hardware serial,
+Wi-Fi, SD, and LAN-server execution remain separate acceptance gates.

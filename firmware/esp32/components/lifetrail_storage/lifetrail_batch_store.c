@@ -415,6 +415,31 @@ bool lt_batch_store_mark_acked(lt_batch_store_t *store, const char batch_id[37])
   return rename(ready, acked) == 0;
 }
 
+bool lt_batch_store_quarantine(lt_batch_store_t *store, const char batch_id[37]) {
+  store_impl_t *impl;
+  char ready[LT_BATCH_STORE_FILE_PATH_MAX];
+  struct stat info;
+  if (store == NULL || !valid_batch_id(batch_id)) return false;
+  impl = store_impl(store);
+  if (!make_path(impl, batch_id, ".ndjson.ready", ready)) return false;
+  quarantine(impl, batch_id);
+  if (stat(ready, &info) == 0) return false;
+  impl->health.quarantined++;
+  return true;
+}
+
+bool lt_batch_store_ready_path(const lt_batch_store_t *store,
+                               const lt_batch_store_ready_t *ready,
+                               char path[LT_BATCH_STORE_READY_PATH_MAX]) {
+  char internal[LT_BATCH_STORE_FILE_PATH_MAX];
+  if (store == NULL || ready == NULL || path == NULL ||
+      !valid_batch_id(ready->batch_id)) return false;
+  if (!make_path(const_store_impl(store), ready->batch_id, ".ndjson.ready", internal) ||
+      strlen(internal) >= LT_BATCH_STORE_READY_PATH_MAX) return false;
+  memcpy(path, internal, strlen(internal) + 1U);
+  return true;
+}
+
 bool lt_batch_store_next_ready(lt_batch_store_t *store, lt_batch_store_ready_t *ready) {
   store_impl_t *impl;
   DIR *directory;
