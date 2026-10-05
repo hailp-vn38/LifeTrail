@@ -1,6 +1,6 @@
 # 07 — Implement timezone-aware raw Daily View and OpenAPI artifact
 
-Status: claimed
+Status: resolved
 Type: task
 Blocked by: 02, 05
 
@@ -30,4 +30,4 @@ Expose a stable, typed read model for one Device/Owner-local day without introdu
 ## Comments
 
 - This implementation adds the timezone-aware raw Daily View, typed OpenAPI v1 artifact, and PostGIS integration coverage for DST boundaries, cross-Batch ordering, empty/one/multiple point distances, and missing Devices.
-- Local gates passed: `cargo fmt`, `cargo test --all-targets`, strict Clippy, OpenAPI YAML parse, and `git diff --check`. The ignored PostGIS integration test remains unverified because Docker Desktop failed before execution with a host-side read-only/I/O error in BuildKit/containerd.
+- Gates passed: `cargo fmt`, `cargo test --all-targets`, strict Clippy, OpenAPI YAML parse, `git diff --check`, and `docker compose -f deploy/docker-compose.yml --profile test run --rm server-tests cargo test --tests -- --ignored` (Daily View, provisioning, and ingestion PostGIS integration tests all passed).
