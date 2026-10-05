@@ -6,6 +6,7 @@
 pub mod app;
 pub mod auth;
 pub mod config;
+pub mod daily_view;
 pub mod db;
 pub mod error;
 pub mod ingestion;

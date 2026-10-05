@@ -17,6 +17,7 @@ use tower_http::{
 use uuid::Uuid;
 
 use crate::{
+    daily_view,
     db::{self, Device},
     error::ApiError,
     ingestion,
@@ -34,6 +35,7 @@ pub fn router(state: AppState, static_dir: PathBuf) -> Router {
     let api = Router::new()
         .route("/v1/devices", get(list_devices))
         .route("/v1/devices/{device_id}", get(get_device))
+        .route("/v1/devices/{device_id}/days/{date}", get(daily_view::get))
         .route("/v1/device", get(authenticated_device))
         .route("/v1/device/batches", post(ingestion::ingest_batch))
         .fallback(api_not_found)

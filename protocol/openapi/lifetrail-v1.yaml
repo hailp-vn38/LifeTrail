@@ -77,6 +77,34 @@ paths:
                 $ref: '#/components/schemas/Device'
         '404':
           $ref: '#/components/responses/Error'
+  /api/v1/devices/{deviceId}/days/{date}:
+    get:
+      summary: Read the raw Daily View for one Device Owner-local calendar day.
+      parameters:
+        - name: deviceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: date
+          in: path
+          required: true
+          description: Owner-local ISO 8601 calendar date.
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Raw GPS projection for the requested Owner-local day, including an empty response when no route points exist.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DailyView'
+        '400':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
   /api/v1/device:
     get:
       summary: Resolve the Device represented by a Bearer token.
@@ -151,6 +179,93 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Device'
+    DailyView:
+      type: object
+      additionalProperties: false
+      required: [device_id, date, timezone, processing_state, summary, route, start, end]
+      properties:
+        device_id: { type: string, format: uuid }
+        date: { type: string, format: date }
+        timezone: { type: string, description: Device Owner IANA timezone. }
+        processing_state: { type: string, enum: [raw] }
+        summary:
+          $ref: '#/components/schemas/DailySummary'
+        route:
+          oneOf:
+            - $ref: '#/components/schemas/LineStringFeature'
+            - type: 'null'
+        start:
+          oneOf:
+            - $ref: '#/components/schemas/PointFeature'
+            - type: 'null'
+        end:
+          oneOf:
+            - $ref: '#/components/schemas/PointFeature'
+            - type: 'null'
+    DailySummary:
+      type: object
+      additionalProperties: false
+      required: [point_count, distance_m, duration_s, first_fix_at, last_fix_at]
+      properties:
+        point_count: { type: integer, minimum: 0 }
+        distance_m: { type: number, format: double, minimum: 0 }
+        duration_s: { type: integer, minimum: 0 }
+        first_fix_at:
+          oneOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        last_fix_at:
+          oneOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+    PointGeometry:
+      type: object
+      additionalProperties: false
+      required: [type, coordinates]
+      properties:
+        type: { type: string, enum: [Point] }
+        coordinates:
+          type: array
+          minItems: 2
+          maxItems: 2
+          items: { type: number, format: double }
+    LineStringGeometry:
+      type: object
+      additionalProperties: false
+      required: [type, coordinates]
+      properties:
+        type: { type: string, enum: [LineString] }
+        coordinates:
+          type: array
+          minItems: 2
+          items:
+            type: array
+            minItems: 2
+            maxItems: 2
+            items: { type: number, format: double }
+    LineStringFeature:
+      type: object
+      additionalProperties: false
+      required: [type, properties, geometry]
+      properties:
+        type: { type: string, enum: [Feature] }
+        properties: { type: object, additionalProperties: false }
+        geometry: { $ref: '#/components/schemas/LineStringGeometry' }
+    PointFeature:
+      type: object
+      additionalProperties: false
+      required: [type, properties, geometry]
+      properties:
+        type: { type: string, enum: [Feature] }
+        properties:
+          type: object
+          additionalProperties: false
+          required: [recorded_at]
+          properties:
+            recorded_at: { type: string, format: date-time }
+        geometry: { $ref: '#/components/schemas/PointGeometry' }
   responses:
     Error:
       description: Canonical API-v1 error envelope.
