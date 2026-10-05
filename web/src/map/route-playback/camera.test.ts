@@ -51,17 +51,21 @@ describe("FollowCamera", () => {
     return new FollowCamera(map, { now: () => nowMs });
   }
 
-  it("enters follow mode with a close navigation-like view", () => {
+  function target(position: [number, number], lookAhead: [number, number], bearing: number) {
+    return { position, lookAhead, bearing };
+  }
+
+  it("enters follow mode aiming at the look-ahead point", () => {
     const map = mockMap();
-    cameraFor(asFollowableMap(map)).enter([106.7, 10.776], 90);
+    cameraFor(asFollowableMap(map)).enter(target([106.7, 10.776], [106.7002, 10.7762], 90));
 
     expect(map.easeTo).toHaveBeenCalledTimes(1);
     expect(map.easeTo).toHaveBeenCalledWith({
-      center: [106.7, 10.776],
+      center: [106.7002, 10.7762],
       zoom: FOLLOW_ZOOM,
       pitch: FOLLOW_PITCH,
       bearing: 90,
-      offset: [0, 80],
+      offset: [0, 120],
       duration: 700,
     });
     expect(FOLLOW_ZOOM).toBeCloseTo(16.5, 1);
@@ -71,31 +75,31 @@ describe("FollowCamera", () => {
   it("throttles follow updates instead of easing on every frame", () => {
     const map = mockMap();
     const camera = cameraFor(asFollowableMap(map));
-    camera.enter([106.7, 10.776], 0);
+    camera.enter(target([106.7, 10.776], [106.7002, 10.7762], 0));
     map.easeTo.mockClear();
 
     nowMs = 100;
-    camera.update([106.7001, 10.7761], 10);
+    camera.update(target([106.7001, 10.7761], [106.7003, 10.7763], 10));
     expect(map.easeTo).not.toHaveBeenCalled();
 
     nowMs = 200;
-    camera.update([106.7002, 10.7762], 20);
+    camera.update(target([106.7002, 10.7762], [106.7004, 10.7764], 20));
     expect(map.easeTo).toHaveBeenCalledTimes(1);
     expect(map.easeTo).toHaveBeenCalledWith(
       expect.objectContaining({
-        center: [106.7002, 10.7762],
+        center: [106.7004, 10.7764],
         zoom: FOLLOW_ZOOM,
         pitch: FOLLOW_PITCH,
         bearing: 20,
-        offset: [0, 80],
-        duration: 320,
+        offset: [0, 120],
+        duration: 500,
       }),
     );
   });
 
   it("normalizes the bearing", () => {
     const map = mockMap();
-    cameraFor(asFollowableMap(map)).enter([106.7, 10.776], 405);
+    cameraFor(asFollowableMap(map)).enter(target([106.7, 10.776], [106.7002, 10.7762], 405));
     expect(map.easeTo).toHaveBeenCalledWith(expect.objectContaining({ bearing: 45 }));
   });
 
@@ -113,7 +117,7 @@ describe("FollowCamera", () => {
       expect(prefersReducedMotion()).toBe(true);
 
       const map = mockMap();
-      cameraFor(asFollowableMap(map)).enter([106.7, 10.776], 0);
+      cameraFor(asFollowableMap(map)).enter(target([106.7, 10.776], [106.7002, 10.7762], 0));
       expect(map.easeTo).toHaveBeenCalledWith(expect.objectContaining({ duration: 0 }));
     } finally {
       w.matchMedia = original;
@@ -122,12 +126,13 @@ describe("FollowCamera", () => {
 });
 
 describe("followOffsetYPx", () => {
-  it("keeps the point below center with a responsive bound", () => {
-    expect(followOffsetYPx(800)).toBe(80);
-    expect(followOffsetYPx(400)).toBe(48);
-    // Narrow layouts still keep a usable minimum.
-    expect(followOffsetYPx(200)).toBe(32);
-    expect(followOffsetYPx(Number.NaN)).toBe(80);
+  it("places the marker at roughly 65% of the viewport height", () => {
+    expect(followOffsetYPx(800)).toBe(120);
+    expect(followOffsetYPx(900)).toBe(135);
+    expect(followOffsetYPx(400)).toBe(64);
+    // Very tall layouts are capped.
+    expect(followOffsetYPx(1600)).toBe(160);
+    expect(followOffsetYPx(Number.NaN)).toBe(120);
   });
 });
 

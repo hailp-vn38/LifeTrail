@@ -3,9 +3,25 @@ import { normalizeBearing, type RouteBounds } from "./geometry";
 import type { MapCoordinate } from "./types";
 
 /**
- * Camera policy for route playback. MapLibre GL JS is the camera API;
- * no second camera abstraction is introduced here. No playback clock either:
- * throttling uses a caller-injectable clock only.
+ * Course-Up Follow Camera with Look-Ahead.
+ *
+ * During playback the camera tracks the route instead of the map staying
+ * static while a marker moves across it:
+ *
+ * - `bearing` follows the GPS course, so the road ahead always points up
+ *   on screen (course-up / heading-up);
+ * - `center` aims at a look-ahead point ahead on the route (not the
+ *   current GPS fix), so the viewer sees more of the road about to be
+ *   travelled;
+ * - the current-position (heading puck) marker sits below the camera
+ *   center, at roughly 65% of the viewport height.
+ *
+ * When playback ends the camera exits follow mode: bearing and pitch
+ * reset to 0 and the full route is framed again.
+ *
+ * MapLibre GL JS is the camera API; no second camera abstraction is
+ * introduced here. No playback clock either: throttling uses a
+ * caller-injectable clock only.
  */
 
 /** Minimal surface of MapLibreMap used by the camera policy (mockable in tests). */
@@ -36,10 +52,12 @@ export interface PaddingOptions {
 
 export const FOLLOW_ZOOM = 16.5;
 export const FOLLOW_PITCH = 45;
+/** Default distance ahead on the route the camera aims at, in meters. */
+export const LOOK_AHEAD_DISTANCE_M = 30;
 /** How often the follow camera may start a new transition. */
 export const FOLLOW_UPDATE_INTERVAL_MS = 200;
 /** Follow transition length, slightly longer than the update interval for smoothness. */
-export const FOLLOW_TRANSITION_MS = 320;
+export const FOLLOW_TRANSITION_MS = 500;
 /** Transition into follow mode when playback starts. */
 export const FOLLOW_ENTER_TRANSITION_MS = 700;
 /** Hold the final frame before zooming out to the overview. */
@@ -58,13 +76,26 @@ export function prefersReducedMotion(): boolean {
 }
 
 /**
- * Vertical offset (px) that keeps the moving point slightly below the viewport
- * center so more of the route ahead stays visible. Bounded by viewport height
- * for narrow/mobile layouts; the exact value should be verified visually.
+ * Vertical offset (px) applied to the follow camera center so the heading
+ * puck lands at roughly 65% of the viewport height (screen center is 50%).
+ * Combined with the look-ahead target this keeps the upcoming road in the
+ * upper part of the screen. Bounded for very small/large viewports.
  */
 export function followOffsetYPx(viewportHeightPx: number): number {
-  if (!Number.isFinite(viewportHeightPx) || viewportHeightPx <= 0) return 80;
-  return Math.min(80, Math.max(32, Math.round(viewportHeightPx * 0.12)));
+  if (!Number.isFinite(viewportHeightPx) || viewportHeightPx <= 0) return 120;
+  return Math.min(160, Math.max(64, Math.round(viewportHeightPx * 0.15)));
+}
+
+/**
+ * Follow target for one camera update.
+ *
+ * `position` is the current GPS fix (the heading puck stays here);
+ * `lookAhead` is the point ahead on the route the camera aims at.
+ */
+export interface FollowTarget {
+  position: MapCoordinate;
+  lookAhead: MapCoordinate;
+  bearing: number;
 }
 
 export interface FollowCameraOptions {
@@ -93,38 +124,38 @@ export class FollowCamera {
   ) {
     this.zoom = options.zoom ?? FOLLOW_ZOOM;
     this.pitch = options.pitch ?? FOLLOW_PITCH;
-    this.offsetYPx = options.offsetYPx ?? 80;
+    this.offsetYPx = options.offsetYPx ?? 120;
     this.updateIntervalMs = options.updateIntervalMs ?? FOLLOW_UPDATE_INTERVAL_MS;
     this.transitionMs = options.transitionMs ?? FOLLOW_TRANSITION_MS;
     this.now = options.now ?? (() => performance.now());
   }
 
-  /** Transition from the overview into follow mode at the given position. */
-  enter(position: MapCoordinate, bearing: number): void {
+  /** Transition from the overview into follow mode at the given target. */
+  enter(target: FollowTarget): void {
     this.lastUpdateMs = this.now();
     this.map.easeTo({
-      center: position,
+      center: target.lookAhead,
       zoom: this.zoom,
       pitch: this.pitch,
-      bearing: normalizeBearing(bearing),
+      bearing: normalizeBearing(target.bearing),
       offset: [0, this.offsetYPx],
       duration: this.transitionDuration(FOLLOW_ENTER_TRANSITION_MS),
     });
   }
 
   /**
-   * Nudge the follow camera toward the moving position. Safe to call on every
+   * Nudge the follow camera toward the moving target. Safe to call on every
    * animation frame: at most one transition starts per update interval.
    */
-  update(position: MapCoordinate, bearing: number): void {
+  update(target: FollowTarget): void {
     const now = this.now();
     if (now - this.lastUpdateMs < this.updateIntervalMs) return;
     this.lastUpdateMs = now;
     this.map.easeTo({
-      center: position,
+      center: target.lookAhead,
       zoom: this.zoom,
       pitch: this.pitch,
-      bearing: normalizeBearing(bearing),
+      bearing: normalizeBearing(target.bearing),
       offset: [0, this.offsetYPx],
       duration: this.transitionDuration(this.transitionMs),
     });

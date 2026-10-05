@@ -34,6 +34,88 @@ export function normalizeBearing(degrees: number): number {
 }
 
 /**
+ * Destination point: travel `distanceM` from `from` along `bearingDeg`.
+ * Used to build heading-aware marker geometry and look-ahead targets.
+ */
+export function destinationPoint(
+  from: MapCoordinate,
+  bearingDeg: number,
+  distanceM: number,
+): MapCoordinate {
+  if (!(distanceM > 0)) {
+    return [from[0], from[1]];
+  }
+  const angular = distanceM / EARTH_RADIUS_M;
+  const theta = toRadians(bearingDeg);
+  const phi1 = toRadians(from[1]);
+  const lambda1 = toRadians(from[0]);
+  const sinPhi2 =
+    Math.sin(phi1) * Math.cos(angular) +
+    Math.cos(phi1) * Math.sin(angular) * Math.cos(theta);
+  const phi2 = Math.asin(Math.min(Math.max(sinPhi2, -1), 1));
+  const lambda2 =
+    lambda1 +
+    Math.atan2(
+      Math.sin(theta) * Math.sin(angular) * Math.cos(phi1),
+      Math.cos(angular) - Math.sin(phi1) * Math.sin(phi2),
+    );
+  return [toDegrees(lambda2), toDegrees(phi2)];
+}
+
+/**
+ * Point `distanceM` ahead of `position`, walking forward along the route
+ * from `vertexIndex`. Clamps to the final coordinate when the route ends
+ * sooner. This is the look-ahead camera target: the camera aims ahead of
+ * the marker so the upcoming road stays visible.
+ */
+export function pointAheadOnRoute(
+  points: PlaybackPoint[],
+  vertexIndex: number,
+  position: MapCoordinate,
+  distanceM: number,
+): MapCoordinate {
+  if (!(distanceM > 0) || points.length === 0) {
+    return [position[0], position[1]];
+  }
+  let remaining = distanceM;
+  let cursor: MapCoordinate = [position[0], position[1]];
+  const lastIndex = points.length - 1;
+  for (let i = Math.max(vertexIndex, 0); i < lastIndex; i += 1) {
+    const next = points[i + 1].coordinate;
+    const legM = haversineDistanceM(cursor, next);
+    if (legM >= remaining) {
+      const ratio = legM === 0 ? 1 : remaining / legM;
+      return [
+        cursor[0] + (next[0] - cursor[0]) * ratio,
+        cursor[1] + (next[1] - cursor[1]) * ratio,
+      ];
+    }
+    remaining -= legM;
+    cursor = [next[0], next[1]];
+  }
+  const last = points[lastIndex].coordinate;
+  return [last[0], last[1]];
+}
+
+/**
+ * Navigation-puck triangle as a closed GeoJSON linear ring, centered near
+ * `position` and pointing along `bearingDeg`. Rendered flat on the map
+ * (fill layer), so under a course-up camera it always points up-screen
+ * along the direction of travel — a heading-aware marker with no sprites
+ * or glyph dependencies.
+ */
+export function headingPuckRing(
+  position: MapCoordinate,
+  bearingDeg: number,
+  lengthM = 26,
+): MapCoordinate[] {
+  const tip = destinationPoint(position, bearingDeg, lengthM * 0.55);
+  const left = destinationPoint(position, bearingDeg + 150, lengthM * 0.5);
+  const right = destinationPoint(position, bearingDeg - 150, lengthM * 0.5);
+  return [tip, left, right, tip];
+}
+
+/**
  * Compass bearing from `from` to `to` in degrees, normalized to [0, 360).
  * Returns `null` when the two points are closer than MIN_BEARING_DISTANCE_M,
  * so callers keep their previous stable bearing instead of flipping on jitter.

@@ -1,5 +1,6 @@
 import { mount } from "@vue/test-utils";
 import { describe, expect, it, vi, beforeEach } from "vitest";
+import type { Feature, FeatureCollection, LineString, Polygon } from "geojson";
 import type { DailyView } from "../api/daily-views";
 
 const { MockMap } = vi.hoisted(() => {
@@ -126,6 +127,7 @@ describe("RouteMap", () => {
     expect(layerIds).toContain("daily-route-full-line");
     expect(layerIds).toContain("daily-route-progress-line");
     expect(layerIds).toContain("daily-route-current-point");
+    expect(layerIds).toContain("daily-route-current-halo");
     expect(map.fitBounds).toHaveBeenCalled();
 
     wrapper.unmount();
@@ -149,7 +151,8 @@ describe("RouteMap", () => {
     expect(progressSource?.setData).toHaveBeenCalled();
     expect(currentSource?.setData).toHaveBeenCalled();
 
-    const progressData = (progressSource?.setData as ReturnType<typeof vi.fn>).mock.calls.at(-1)[0];
+    const progressCalls = (progressSource?.setData as ReturnType<typeof vi.fn>).mock.calls;
+    const progressData = progressCalls[progressCalls.length - 1][0] as Feature<LineString>;
     expect(progressData.geometry.type).toBe("LineString");
     // Seek to 50% of 30s = 15s, inside the 3s..25s segment at ratio 12/22.
     const coordinates = progressData.geometry.coordinates;
@@ -158,8 +161,14 @@ describe("RouteMap", () => {
     expect(coordinates[1]).toEqual(COORDINATES[1]);
     expect(coordinates[2][0]).toBeCloseTo(106.7005 + (0.0005 * 12) / 22, 9);
     expect(coordinates[2][1]).toBeCloseTo(10.7764 + (0.0006 * 12) / 22, 9);
-    const currentData = (currentSource?.setData as ReturnType<typeof vi.fn>).mock.calls.at(-1)[0];
-    expect(currentData.geometry.type).toBe("Point");
+    const currentCalls = (currentSource?.setData as ReturnType<typeof vi.fn>).mock.calls;
+    const currentData = currentCalls[currentCalls.length - 1][0] as FeatureCollection<Polygon>;
+    // Heading puck: a FeatureCollection with halo + puck triangles.
+    expect(currentData.type).toBe("FeatureCollection");
+    expect(currentData.features).toHaveLength(2);
+    expect(currentData.features[0].geometry.type).toBe("Polygon");
+    expect(currentData.features[1].geometry.type).toBe("Polygon");
+    expect(currentData.features[1]?.properties?.halo).toBe(false);
 
     wrapper.unmount();
   });

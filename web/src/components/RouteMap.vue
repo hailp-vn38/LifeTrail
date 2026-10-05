@@ -1,15 +1,22 @@
 <script setup lang="ts">
-import type { Feature, LineString, Point } from "geojson";
+import type { Feature, FeatureCollection, LineString, Point, Polygon } from "geojson";
 import { LngLatBounds, Map as MapLibreMap, type GeoJSONSource } from "maplibre-gl";
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import type { DailyView } from "../api/daily-views";
 import {
   FollowCamera,
   followOffsetYPx,
+  LOOK_AHEAD_DISTANCE_M,
   overviewCamera,
+  type FollowTarget,
 } from "../map/route-playback/camera";
 import { PlaybackController } from "../map/route-playback/controller";
-import { progressCoordinates, routeBounds } from "../map/route-playback/geometry";
+import {
+  headingPuckRing,
+  pointAheadOnRoute,
+  progressCoordinates,
+  routeBounds,
+} from "../map/route-playback/geometry";
 import {
   buildPlaybackInput,
   routeDurationMs,
@@ -36,6 +43,7 @@ const LAYER_FULL = "daily-route-full-line";
 const LAYER_PROGRESS = "daily-route-progress-line";
 const LAYER_START = "daily-route-start-point";
 const LAYER_END = "daily-route-end-point";
+const LAYER_CURRENT_HALO = "daily-route-current-halo";
 const LAYER_CURRENT = "daily-route-current-point";
 
 const ISSUE_TEXT: Record<PlaybackValidationError, string> = {
@@ -98,6 +106,25 @@ function pointFeature(coordinate: MapCoordinate): Feature<Point> {
   };
 }
 
+/**
+ * Heading-aware current position marker (navigation puck): a triangle flat
+ * on the map pointing along the bearing, with a slightly larger white halo
+ * triangle beneath it. Under the course-up follow camera the triangle
+ * always points up-screen along the direction of travel; no sprite or
+ * glyph assets are needed.
+ */
+function puckFeatures(position: MapCoordinate, bearing: number): FeatureCollection<Polygon> {
+  const triangle = (lengthM: number, halo: boolean): Feature<Polygon> => ({
+    type: "Feature",
+    properties: { halo },
+    geometry: { type: "Polygon", coordinates: [headingPuckRing(position, bearing, lengthM)] },
+  });
+  return {
+    type: "FeatureCollection",
+    features: [triangle(34, true), triangle(26, false)],
+  };
+}
+
 function addRouteLayers(map: MapLibreMap) {
   const route = props.dailyView.route;
   const start = props.dailyView.start;
@@ -125,17 +152,23 @@ function addRouteLayers(map: MapLibreMap) {
       source: SOURCE_PROGRESS,
       paint: { "line-color": "#2563eb", "line-width": 5.5, "line-opacity": 1 },
     });
-    map.addSource(SOURCE_CURRENT, { type: "geojson", data: pointFeature(startCoordinate) });
+    map.addSource(SOURCE_CURRENT, {
+      type: "geojson",
+      data: puckFeatures(startCoordinate, 0),
+    });
+    map.addLayer({
+      id: LAYER_CURRENT_HALO,
+      type: "fill",
+      source: SOURCE_CURRENT,
+      filter: ["==", ["get", "halo"], true],
+      paint: { "fill-color": "#ffffff", "fill-opacity": 0.92 },
+    });
     map.addLayer({
       id: LAYER_CURRENT,
-      type: "circle",
+      type: "fill",
       source: SOURCE_CURRENT,
-      paint: {
-        "circle-radius": 8,
-        "circle-color": "#f97316",
-        "circle-stroke-width": 2.5,
-        "circle-stroke-color": "#ffffff",
-      },
+      filter: ["==", ["get", "halo"], false],
+      paint: { "fill-color": "#f97316" },
     });
   }
   if (start) {
@@ -184,7 +217,10 @@ function fitRoute(map: MapLibreMap) {
   map.fitBounds(bounds, routeFitOptions);
 }
 
-function setSourceData(sourceId: string, data: Feature<LineString> | Feature<Point>) {
+function setSourceData(
+  sourceId: string,
+  data: Feature<LineString> | Feature<Point> | FeatureCollection<Polygon>,
+) {
   const source = map?.getSource(sourceId) as GeoJSONSource | undefined;
   source?.setData(data);
 }
@@ -198,13 +234,25 @@ function applyFrame(frame: PlaybackFrame) {
       SOURCE_PROGRESS,
       lineFeature(progressCoordinates(playbackPoints, frame.vertexIndex, frame.position)),
     );
-    setSourceData(SOURCE_CURRENT, pointFeature(frame.position));
+    setSourceData(SOURCE_CURRENT, puckFeatures(frame.position, frame.bearing));
 
     if (frame.state === "playing" && followCamera) {
+      // Course-Up Follow Camera with Look-Ahead: the camera aims at a point
+      // ahead on the route while the puck stays on the current GPS fix.
+      const target: FollowTarget = {
+        position: frame.position,
+        lookAhead: pointAheadOnRoute(
+          playbackPoints,
+          frame.vertexIndex,
+          frame.position,
+          LOOK_AHEAD_DISTANCE_M,
+        ),
+        bearing: frame.bearing,
+      };
       if (lastFrameState !== "playing") {
-        followCamera.enter(frame.position, frame.bearing);
+        followCamera.enter(target);
       } else {
-        followCamera.update(frame.position, frame.bearing);
+        followCamera.update(target);
       }
     }
   }

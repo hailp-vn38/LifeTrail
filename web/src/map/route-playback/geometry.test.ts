@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   bearingBetween,
+  destinationPoint,
   haversineDistanceM,
+  headingPuckRing,
   normalizeBearing,
+  pointAheadOnRoute,
   progressCoordinates,
   routeBounds,
 } from "./geometry";
@@ -101,5 +104,76 @@ describe("progressCoordinates", () => {
       [106.7, 10.776],
       [106.7005, 10.7764],
     ]);
+  });
+});
+
+describe("destinationPoint", () => {
+  it("travels north for bearing 0", () => {
+    const [lon, lat] = destinationPoint([106.7, 10.776], 0, 111_194.9);
+    expect(lon).toBeCloseTo(106.7, 4);
+    expect(lat).toBeCloseTo(11.776, 3);
+  });
+
+  it("travels east for bearing 90", () => {
+    const [lon, lat] = destinationPoint([106.7, 10.776], 90, 10_000);
+    expect(lon).toBeGreaterThan(106.7);
+    expect(lat).toBeCloseTo(10.776, 4);
+  });
+
+  it("stays put for zero distance", () => {
+    expect(destinationPoint([106.7, 10.776], 45, 0)).toEqual([106.7, 10.776]);
+  });
+});
+
+describe("pointAheadOnRoute", () => {
+  // Straight north line: each degree of latitude is ~111.2 km.
+  const line: PlaybackPoint[] = [0, 1_000, 2_000, 3_000].map((recordedAtMs, index) => ({
+    coordinate: [106.7, 10.776 + index * 0.001] as MapCoordinate,
+    recordedAtMs,
+  }));
+  const start: MapCoordinate = [106.7, 10.776];
+
+  it("walks forward along the route from the current position", () => {
+    // 30 m ahead from the start of the first segment.
+    const ahead = pointAheadOnRoute(line, 0, start, 30);
+    expect(ahead[0]).toBeCloseTo(106.7, 6);
+    expect(ahead[1]).toBeCloseTo(10.776 + 30 / 111_194.9, 6);
+  });
+
+  it("continues across vertices", () => {
+    // 150 m ahead crosses the first vertex (~111.2 m away).
+    const ahead = pointAheadOnRoute(line, 0, start, 150);
+    expect(ahead[1]).toBeCloseTo(10.776 + 150 / 111_194.9, 6);
+  });
+
+  it("clamps to the final coordinate when the route ends sooner", () => {
+    const ahead = pointAheadOnRoute(line, 2, [106.7, 10.778], 10_000);
+    expect(ahead).toEqual([106.7, 10.779]);
+  });
+
+  it("returns the position for non-positive distances", () => {
+    expect(pointAheadOnRoute(line, 0, start, 0)).toEqual(start);
+  });
+});
+
+describe("headingPuckRing", () => {
+  it("builds a closed triangle pointing along the bearing", () => {
+    const ring = headingPuckRing([106.7, 10.776], 0);
+    expect(ring).toHaveLength(4);
+    expect(ring[0]).toEqual(ring[3]);
+    const [tip, left, right] = ring;
+    // Tip is north of the position; base corners are south of the tip.
+    expect(tip[1]).toBeGreaterThan(10.776);
+    expect(left[1]).toBeLessThan(tip[1]);
+    expect(right[1]).toBeLessThan(tip[1]);
+    expect(left[0]).toBeGreaterThan(tip[0]);
+    expect(right[0]).toBeLessThan(tip[0]);
+  });
+
+  it("rotates with the bearing", () => {
+    const east = headingPuckRing([106.7, 10.776], 90);
+    const [tip] = east;
+    expect(tip[0]).toBeGreaterThan(106.7);
+    expect(tip[1]).toBeCloseTo(10.776, 4);
   });
 });
