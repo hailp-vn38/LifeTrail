@@ -1,0 +1,39 @@
+/* Typography scale for the light, clean Option 2 UI. */
+:root {
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
+  --font-size-md: 1rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.375rem;
+  --font-size-2xl: 1.75rem;
+
+  --line-height-tight: 1.25;
+  --line-height-normal: 1.5;
+}
+
+.page-title {
+  font-size: var(--font-size-xl);
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  line-height: var(--line-height-tight);
+}
+
+.section-title {
+  font-size: var(--font-size-sm);
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.text-muted {
+  color: var(--color-text-muted);
+}
+
+.text-sm {
+  font-size: var(--font-size-sm);
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}

@@ -1,0 +1,49 @@
+/* MapLibre container and control styling for the light UI. */
+
+.map-container {
+  position: relative;
+  width: 100%;
+  min-height: 26rem;
+  height: clamp(26rem, 62dvh, 46rem);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  background: #eef2f7;
+  box-shadow: var(--shadow-card);
+}
+
+.map-container .maplibregl-canvas:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+/* Light control group matching the Option 2 surfaces. */
+.map-container .maplibregl-ctrl-group {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+
+.map-container .maplibregl-ctrl-group button {
+  background: transparent;
+}
+
+.map-container .maplibregl-ctrl-group button:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+.map-attribution {
+  position: absolute;
+  right: 0.5rem;
+  bottom: 0.5rem;
+  z-index: 2;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  background: rgba(255, 255, 255, 0.85);
+  border-radius: var(--radius-sm);
+  padding: 0.125rem 0.5rem;
+  pointer-events: none;
+}

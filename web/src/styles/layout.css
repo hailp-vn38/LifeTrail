@@ -1,0 +1,84 @@
+/* Application shell layout: persistent sidebar + topbar + content. */
+
+.app-shell {
+  display: grid;
+  grid-template-columns: var(--sidebar-width) 1fr;
+  min-height: 100dvh;
+}
+
+.app-shell.sidebar-collapsed {
+  grid-template-columns: var(--sidebar-collapsed-width) 1fr;
+}
+
+.app-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 100dvh;
+}
+
+.app-content {
+  flex: 1;
+  min-width: 0;
+  padding: 1.5rem;
+}
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  max-width: 1200px;
+}
+
+.page--wide {
+  max-width: none;
+}
+
+/* Daily Map workspace: map area + right timeline column. */
+.daily-map-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--timeline-width);
+  gap: 1rem;
+  align-items: stretch;
+}
+
+.map-column {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.timeline-column {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+/* Tablet: collapsed sidebar + narrower timeline. */
+@media (max-width: 1279px) {
+  .app-shell {
+    grid-template-columns: var(--sidebar-collapsed-width) 1fr;
+  }
+
+  .daily-map-workspace {
+    grid-template-columns: minmax(0, 1fr) 280px;
+  }
+}
+
+/* Mobile: no permanent sidebar; bottom navigation instead. */
+@media (max-width: 767px) {
+  .app-shell,
+  .app-shell.sidebar-collapsed {
+    grid-template-columns: 1fr;
+  }
+
+  .app-content {
+    padding: 1rem 1rem 5.5rem;
+  }
+
+  .daily-map-workspace {
+    grid-template-columns: 1fr;
+  }
+}
