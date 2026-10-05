@@ -1,0 +1,100 @@
+#!/usr/bin/env bash
+# Manage the local LifeTrail Compose applications.
+set -euo pipefail
+
+readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+readonly REPOSITORY_DIR="$(cd -- "$SCRIPT_DIR/.." && pwd)"
+readonly COMPOSE_FILE="$REPOSITORY_DIR/deploy/docker-compose.yml"
+
+usage() {
+  cat <<'EOF'
+Usage: scripts/lifetrail <command> [app]
+
+Commands:
+  start [all|server|web|postgres]    Build if needed and start an app.
+  stop [all|server|web|postgres]     Stop an app without removing its data.
+  restart [all|server|web|postgres]  Restart an app.
+  status                              Show Compose application status.
+  logs [all|server|web|postgres]     Follow application logs.
+  build                               Build the server image (which includes the web app).
+  test                                Check that the web/server endpoint responds at :8080.
+
+`web` is an alias for `server`: the server image builds and serves the web app.
+EOF
+}
+
+compose() {
+  docker compose -f "$COMPOSE_FILE" "$@"
+}
+
+app_service() {
+  case "${1:-all}" in
+    all) printf '%s\n' "" ;;
+    server|web) printf '%s\n' "server" ;;
+    postgres) printf '%s\n' "postgres" ;;
+    *)
+      printf 'Unknown app: %s\n' "$1" >&2
+      usage >&2
+      exit 2
+      ;;
+  esac
+}
+
+command="${1:-}"
+app="${2:-all}"
+
+case "$command" in
+  start)
+    service="$(app_service "$app")"
+    if [[ -n "$service" ]]; then
+      compose up -d "$service"
+    else
+      compose up -d
+    fi
+    ;;
+  stop)
+    service="$(app_service "$app")"
+    if [[ -n "$service" ]]; then
+      compose stop "$service"
+    else
+      compose stop
+    fi
+    ;;
+  restart)
+    service="$(app_service "$app")"
+    if [[ -n "$service" ]]; then
+      compose restart "$service"
+    else
+      compose restart
+    fi
+    ;;
+  status)
+    [[ $# -eq 1 ]] || { usage >&2; exit 2; }
+    compose ps
+    ;;
+  logs)
+    service="$(app_service "$app")"
+    if [[ -n "$service" ]]; then
+      compose logs --follow "$service"
+    else
+      compose logs --follow
+    fi
+    ;;
+  build)
+    [[ $# -eq 1 ]] || { usage >&2; exit 2; }
+    compose build server
+    ;;
+  test)
+    [[ $# -eq 1 ]] || { usage >&2; exit 2; }
+    curl --fail --silent --show-error --max-time 10 \
+      --output /dev/null --write-out 'LifeTrail web/server: HTTP %{http_code}\n' \
+      http://localhost:8080/
+    ;;
+  -h|--help|help)
+    usage
+    ;;
+  *)
+    usage >&2
+    exit 2
+    ;;
+esac
