@@ -388,8 +388,14 @@ function handleToggleFollow() {
   }
 }
 
-/** Manual map interaction always drops out of camera-follow mode. */
-function handleManualInteraction() {
+/**
+ * A real user gesture drops out of camera-follow mode.
+ * Programmatic camera moves (follow-camera easeTo, fitBounds, re-center)
+ * also emit start events but carry no `originalEvent` — ignore those so
+ * our own camera work doesn't cancel follow mode.
+ */
+function handleManualInteraction(event: { originalEvent?: unknown }) {
+  if (!event.originalEvent) return;
   playbackStore.setCameraFollow(false);
 }
 
@@ -460,8 +466,14 @@ onMounted(() => {
       });
     }
     // Map -> selection store (the other half of the Timeline <-> Map bridge).
-    activeMap.on("click", LAYER_START, () => mapStore.selectEvent("start"));
-    activeMap.on("click", LAYER_END, () => mapStore.selectEvent("end"));
+    // The start/end layers are only added when the daily view has those
+    // events (see addRouteLayers), so only wire their click handlers then.
+    if (props.dailyView.start) {
+      activeMap.on("click", LAYER_START, () => mapStore.selectEvent("start"));
+    }
+    if (props.dailyView.end) {
+      activeMap.on("click", LAYER_END, () => mapStore.selectEvent("end"));
+    }
     activeMap.on("dragstart", handleManualInteraction);
     activeMap.on("zoomstart", handleManualInteraction);
     activeMap.on("rotatestart", handleManualInteraction);

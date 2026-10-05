@@ -19,8 +19,11 @@ export interface SystemStatus {
  */
 export async function getSystemStatus(): Promise<SystemStatus> {
   try {
-    const { data } = await api.GET("/api/v1/devices");
-    return { ok: true, deviceCount: data?.devices.length ?? null, checkedAt: Date.now() };
+    const { data, error, response } = await api.GET("/api/v1/devices");
+    // openapi-fetch does not throw on HTTP errors — it populates `error`.
+    // Only report ok when the response actually succeeded with a body.
+    const ok = !error && response.ok && data != null;
+    return { ok, deviceCount: ok ? data.devices.length : null, checkedAt: Date.now() };
   } catch {
     return { ok: false, deviceCount: null, checkedAt: Date.now() };
   }
