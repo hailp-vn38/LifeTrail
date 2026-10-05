@@ -16,17 +16,23 @@ Các boundary thực thi là `firmware/esp32/`, `server/` và `web/`. Chúng kh�
 
 ## Chạy local
 
-`scripts/lifetrail` là điểm vào để quản lý Compose local. `server` build và phục vụ luôn ứng dụng `web`, nên `web` là alias của `server`.
+`scripts/lifetrail` là điểm vào để quản lý Compose local. Ba service runtime:
+
+```text
+web       Nginx + Vue SPA đã build, giữ host port 8080, proxy /api/* về server
+server    Rust/Axum API, chỉ chạy trên Docker network nội bộ (server:8080)
+postgres  PostgreSQL/PostGIS, chỉ chạy trên Docker network nội bộ
+```
 
 ```sh
-scripts/lifetrail start server
+scripts/lifetrail start all
 scripts/lifetrail status
 scripts/lifetrail test
-scripts/lifetrail logs server
+scripts/lifetrail logs web
 scripts/lifetrail stop all
 ```
 
-Web và API cùng chạy tại `http://localhost:8080`. Lệnh `stop` không xóa volume PostgreSQL.
+Web và API cùng origin tại `http://localhost:8080` (Nginx phục vụ `/` và proxy `/api/*`). Lệnh `stop` không xóa volume PostgreSQL.
 
 ## Trạng thái
 

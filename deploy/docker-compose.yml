@@ -18,19 +18,27 @@ services:
   server:
     build:
       context: ..
-      dockerfile: deploy/Dockerfile
-      args:
-        VITE_MAP_STYLE_URL: ${VITE_MAP_STYLE_URL:-}
-        VITE_MAPTILER_KEY: ${VITE_MAPTILER_KEY:-}
+      dockerfile: deploy/server.Dockerfile
     environment:
       LT_DATABASE_URL: postgres://lifetrail:lifetrail_dev_only@postgres:5432/lifetrail
       LT_BIND_ADDR: 0.0.0.0:8080
-      LT_STATIC_DIR: /app/web
     depends_on:
       postgres:
         condition: service_healthy
+    expose:
+      - "8080"
+
+  web:
+    build:
+      context: ..
+      dockerfile: deploy/web.Dockerfile
+      args:
+        VITE_MAP_STYLE_URL: ${VITE_MAP_STYLE_URL:-}
+        VITE_MAPTILER_KEY: ${VITE_MAPTILER_KEY:-}
+    depends_on:
+      - server
     ports:
-      - "8080:8080"
+      - "8080:80"
 
   server-tests:
     profiles: ["test"]

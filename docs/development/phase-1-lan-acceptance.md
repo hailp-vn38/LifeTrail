@@ -22,14 +22,18 @@ Choose the host's reachable LAN address and retain it for the run; `LAN_IP` must
 ```sh
 export LAN_IP=192.168.1.50
 docker compose -f deploy/docker-compose.yml up --build -d
-curl --fail "http://${LAN_IP}:8080/health/ready"
+curl --fail "http://${LAN_IP}:8080/"
+curl --fail "http://${LAN_IP}:8080/api/v1/devices"
 python3 tools/verify_single_origin.py \
   --origin "http://${LAN_IP}:8080" \
   --device-id f273162b-31a4-42db-a0a0-32f342e72a27 \
   --date 2026-10-04
 ```
 
-The Compose image builds `web/` and the Rust server serves it from the same origin. Repeat the verifier from a second LAN machine. Do not use the Vite development address for this gate.
+The `web` service (Nginx) serves the built SPA and reverse-proxies `/api/*`
+to the Rust server, keeping one origin. The API check through Nginx proves the
+full `web → server → postgres` path. Repeat the verifier from a second LAN
+machine. Do not use the Vite development address for this gate.
 
 ## Physical Device run
 

@@ -419,7 +419,15 @@ Có thể mở rộng thêm:
                                │
                                ▼
                     ┌──────────────────────┐
+                    │  LifeTrail Server    │
+                    │  (Rust/Axum, API)    │
+                    └──────────┬───────────┘
+                               │  Docker network
+                               │  (`/api/*` reverse proxy)
+                               ▼
+                    ┌──────────────────────┐
                     │    LifeTrail Web     │
+                    │  (Nginx + Vue SPA)   │
                     │                      │
                     │ Timeline             │
                     │ Map                  │
@@ -427,6 +435,10 @@ Có thể mở rộng thêm:
                     │ Audio                │
                     └──────────────────────┘
 ```
+
+The `web` service (Nginx) owns the public LAN port `8080` and serves the
+SPA; the Rust server is API-only on the internal Compose network and no
+longer builds or serves web assets.
 
 ---
 
@@ -1005,9 +1017,11 @@ Một thay đổi nên có ADR nếu nó làm thay đổi một trong các đi�
 
 ```text
 Firmware ──HTTPS/protocol──► Server ──REST/SSE/OpenAPI──► Web
+Browser/ESP32 ──HTTP :8080──► Web (Nginx) ──/api/* proxy──► Server
 
 Firmware ─X─ import Server source
 Server   ─X─ import Web source
+Server   ─X─ build/serve Web assets (production)
 Web      ─X─ access Database trực tiếp
 ```
 
