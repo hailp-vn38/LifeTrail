@@ -1,0 +1,121 @@
+{
+  "schema": "gps/1",
+  "date": "2026-10-05",
+  "timezone": "Asia/Ho_Chi_Minh",
+  "start_local": "2026-10-05T08:00:00+07:00",
+  "end_local": "2026-10-05T09:13:45+07:00",
+  "duration_s": 4425,
+  "moving_s": 3210,
+  "stopped_s": 1215,
+  "record_count": 4426,
+  "batch_count": 15,
+  "raw_daily_distance_m": 3644.2,
+  "ground_truth_trip_distance_m": 3617.6,
+  "batches": [
+    {
+      "batch_id": "180aef71-6607-4c76-89e5-9c2cdc8ae1ea",
+      "body": "batches/180aef71-6607-4c76-89e5-9c2cdc8ae1ea.ndjson.ready",
+      "manifest": "batches/180aef71-6607-4c76-89e5-9c2cdc8ae1ea.manifest",
+      "record_count": 300,
+      "byte_length": 44278
+    },
+    {
+      "batch_id": "9fad089a-993d-428f-82c9-3d9293dc6853",
+      "body": "batches/9fad089a-993d-428f-82c9-3d9293dc6853.ndjson.ready",
+      "manifest": "batches/9fad089a-993d-428f-82c9-3d9293dc6853.manifest",
+      "record_count": 300,
+      "byte_length": 44306
+    },
+    {
+      "batch_id": "e4dae083-b04c-4e20-a581-77373a15cf65",
+      "body": "batches/e4dae083-b04c-4e20-a581-77373a15cf65.ndjson.ready",
+      "manifest": "batches/e4dae083-b04c-4e20-a581-77373a15cf65.manifest",
+      "record_count": 300,
+      "byte_length": 44345
+    },
+    {
+      "batch_id": "01119841-0092-421d-b989-d8e7dda37c79",
+      "body": "batches/01119841-0092-421d-b989-d8e7dda37c79.ndjson.ready",
+      "manifest": "batches/01119841-0092-421d-b989-d8e7dda37c79.manifest",
+      "record_count": 300,
+      "byte_length": 44166
+    },
+    {
+      "batch_id": "05df3ed9-f17f-4c34-b5f4-cb4b02ca2577",
+      "body": "batches/05df3ed9-f17f-4c34-b5f4-cb4b02ca2577.ndjson.ready",
+      "manifest": "batches/05df3ed9-f17f-4c34-b5f4-cb4b02ca2577.manifest",
+      "record_count": 300,
+      "byte_length": 44085
+    },
+    {
+      "batch_id": "a5f86edc-046e-43b9-a582-550a02b2eed9",
+      "body": "batches/a5f86edc-046e-43b9-a582-550a02b2eed9.ndjson.ready",
+      "manifest": "batches/a5f86edc-046e-43b9-a582-550a02b2eed9.manifest",
+      "record_count": 300,
+      "byte_length": 44478
+    },
+    {
+      "batch_id": "dbdcbf91-d20d-4eab-8e47-41896c2008a4",
+      "body": "batches/dbdcbf91-d20d-4eab-8e47-41896c2008a4.ndjson.ready",
+      "manifest": "batches/dbdcbf91-d20d-4eab-8e47-41896c2008a4.manifest",
+      "record_count": 300,
+      "byte_length": 44413
+    },
+    {
+      "batch_id": "b3cdd4d9-65ab-4aa0-aec5-67942a1a4bdc",
+      "body": "batches/b3cdd4d9-65ab-4aa0-aec5-67942a1a4bdc.ndjson.ready",
+      "manifest": "batches/b3cdd4d9-65ab-4aa0-aec5-67942a1a4bdc.manifest",
+      "record_count": 300,
+      "byte_length": 44060
+    },
+    {
+      "batch_id": "b927dbe1-a61c-4eb1-b488-1d38aeda85b4",
+      "body": "batches/b927dbe1-a61c-4eb1-b488-1d38aeda85b4.ndjson.ready",
+      "manifest": "batches/b927dbe1-a61c-4eb1-b488-1d38aeda85b4.manifest",
+      "record_count": 300,
+      "byte_length": 44536
+    },
+    {
+      "batch_id": "8b0ef332-4f43-4efb-b531-0b6000b9bccc",
+      "body": "batches/8b0ef332-4f43-4efb-b531-0b6000b9bccc.ndjson.ready",
+      "manifest": "batches/8b0ef332-4f43-4efb-b531-0b6000b9bccc.manifest",
+      "record_count": 300,
+      "byte_length": 44307
+    },
+    {
+      "batch_id": "794d03ab-2aa9-4db3-89d4-2ffef57d2d9e",
+      "body": "batches/794d03ab-2aa9-4db3-89d4-2ffef57d2d9e.ndjson.ready",
+      "manifest": "batches/794d03ab-2aa9-4db3-89d4-2ffef57d2d9e.manifest",
+      "record_count": 300,
+      "byte_length": 44147
+    },
+    {
+      "batch_id": "58ded0f9-5512-4343-a56b-d858d4e53148",
+      "body": "batches/58ded0f9-5512-4343-a56b-d858d4e53148.ndjson.ready",
+      "manifest": "batches/58ded0f9-5512-4343-a56b-d858d4e53148.manifest",
+      "record_count": 300,
+      "byte_length": 44377
+    },
+    {
+      "batch_id": "2652acf0-e406-4b16-b4f1-8f6f186b4a42",
+      "body": "batches/2652acf0-e406-4b16-b4f1-8f6f186b4a42.ndjson.ready",
+      "manifest": "batches/2652acf0-e406-4b16-b4f1-8f6f186b4a42.manifest",
+      "record_count": 300,
+      "byte_length": 44513
+    },
+    {
+      "batch_id": "5c4c113d-eb2d-42bf-bc19-3f145a1af253",
+      "body": "batches/5c4c113d-eb2d-42bf-bc19-3f145a1af253.ndjson.ready",
+      "manifest": "batches/5c4c113d-eb2d-42bf-bc19-3f145a1af253.manifest",
+      "record_count": 300,
+      "byte_length": 44583
+    },
+    {
+      "batch_id": "6125b590-f0c1-45b3-af2e-a37a20a9cb40",
+      "body": "batches/6125b590-f0c1-45b3-af2e-a37a20a9cb40.ndjson.ready",
+      "manifest": "batches/6125b590-f0c1-45b3-af2e-a37a20a9cb40.manifest",
+      "record_count": 226,
+      "byte_length": 33489
+    }
+  ]
+}

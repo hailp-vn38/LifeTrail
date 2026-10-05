@@ -1,4 +1,5 @@
 import type { StyleSpecification } from "maplibre-gl";
+import { mapStylePreset, type MapStyleId } from "../map/style-presets";
 
 const DEFAULT_MAPTILER_STYLE_URL =
   "https://api.maptiler.com/maps/hybrid/style.json";
@@ -16,6 +17,7 @@ export const EMPTY_MAP_STYLE: StyleSpecification = {
 };
 
 interface MapStyleConfiguration {
+  presetId?: MapStyleId;
   styleUrl?: string;
   mapTilerKey?: string;
 }
@@ -31,8 +33,13 @@ function isConfiguredKey(key: string | null): boolean {
 export function resolveMapStyle({
   styleUrl,
   mapTilerKey,
+  presetId = "configured",
 }: MapStyleConfiguration): string | StyleSpecification {
-  const url = new URL(styleUrl || DEFAULT_MAPTILER_STYLE_URL);
+  const preset = mapStylePreset(presetId);
+  if (preset.provider === "VersaTiles" && preset.url) {
+    return `${import.meta.env.BASE_URL.replace(/\/$/, "")}${preset.url}`;
+  }
+  const url = new URL(preset.url || styleUrl || DEFAULT_MAPTILER_STYLE_URL);
   if (!isMapTilerUrl(url)) return url.toString();
 
   if (mapTilerKey) url.searchParams.set("key", mapTilerKey);

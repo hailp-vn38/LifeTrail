@@ -1,0 +1,7 @@
+batch_id=e4dae083-b04c-4e20-a581-77373a15cf65
+schema=gps/1
+byte_length=44345
+sha256=fd99642e6ca1a7737d65875f2bd3e5d967cf027dbced84d8afd7f0c3d99a945d
+record_count=300
+first_ts_ms=1791162600000
+last_ts_ms=1791162899000

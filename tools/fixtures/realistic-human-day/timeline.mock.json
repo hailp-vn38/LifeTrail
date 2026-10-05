@@ -1,0 +1,472 @@
+{
+  "schema": "lifetrail/simulated-timeline/1",
+  "note": "Ground truth sidecar. Phase 1 server ingests only gps/1; trips/stops/timeline are future derived data.",
+  "trips": [
+    {
+      "id": "a5b5a18d-1f8c-5739-b875-701a619e0a7b",
+      "segment_key": "trip_01",
+      "start_at": "2026-10-05T01:00:00Z",
+      "end_at": "2026-10-05T01:09:30Z",
+      "duration_s": 570,
+      "expected_distance_m": 563.7,
+      "label": "Ben Thanh -> Nguyen Hue"
+    },
+    {
+      "id": "81f4953e-6270-51da-b69f-662b3a7de42e",
+      "segment_key": "trip_02",
+      "start_at": "2026-10-05T01:17:30Z",
+      "end_at": "2026-10-05T01:24:00Z",
+      "duration_s": 390,
+      "expected_distance_m": 367.3,
+      "label": "Nguyen Hue -> City Hall"
+    },
+    {
+      "id": "932db17f-97b6-58f0-ba41-6a8dc3080ebd",
+      "segment_key": "trip_03",
+      "start_at": "2026-10-05T01:27:00Z",
+      "end_at": "2026-10-05T01:33:00Z",
+      "duration_s": 360,
+      "expected_distance_m": 367.3,
+      "label": "Return to Nguyen Hue over same path"
+    },
+    {
+      "id": "a2271575-d135-5886-8e50-fbb7a5034fd3",
+      "segment_key": "trip_04",
+      "start_at": "2026-10-05T01:34:15Z",
+      "end_at": "2026-10-05T01:46:15Z",
+      "duration_s": 720,
+      "expected_distance_m": 877.8,
+      "label": "City block loop - pass 1"
+    },
+    {
+      "id": "e9e1e389-dbdb-5ff3-ba44-a26a445f365b",
+      "segment_key": "trip_05",
+      "start_at": "2026-10-05T01:52:15Z",
+      "end_at": "2026-10-05T02:02:45Z",
+      "duration_s": 630,
+      "expected_distance_m": 877.8,
+      "label": "City block loop - repeated pass 2"
+    },
+    {
+      "id": "a394bc5a-27c5-587f-af1b-ff8680306eb5",
+      "segment_key": "trip_06",
+      "start_at": "2026-10-05T02:02:45Z",
+      "end_at": "2026-10-05T02:11:45Z",
+      "duration_s": 540,
+      "expected_distance_m": 563.7,
+      "label": "Nguyen Hue -> Ben Thanh"
+    }
+  ],
+  "stops": [
+    {
+      "id": "73ba9aff-5dd5-538d-a7ae-4eeec88c2efd",
+      "segment_key": "stop_01",
+      "start_at": "2026-10-05T01:09:30Z",
+      "end_at": "2026-10-05T01:17:30Z",
+      "duration_s": 480,
+      "center": {
+        "type": "Point",
+        "coordinates": [
+          106.70296,
+          10.77443
+        ]
+      },
+      "radius_m": 2.0,
+      "label": "Coffee / stationary at Nguyen Hue"
+    },
+    {
+      "id": "7dd1aefc-a810-5254-986d-844ce0ecdace",
+      "segment_key": "stop_02",
+      "start_at": "2026-10-05T01:24:00Z",
+      "end_at": "2026-10-05T01:27:00Z",
+      "duration_s": 180,
+      "center": {
+        "type": "Point",
+        "coordinates": [
+          106.70325,
+          10.77772
+        ]
+      },
+      "radius_m": 2.0,
+      "label": "Short stop near City Hall"
+    },
+    {
+      "id": "38a32f12-9d24-5af3-bcbd-12ada5d38ac0",
+      "segment_key": "stop_03",
+      "start_at": "2026-10-05T01:33:00Z",
+      "end_at": "2026-10-05T01:34:15Z",
+      "duration_s": 75,
+      "center": {
+        "type": "Point",
+        "coordinates": [
+          106.70296,
+          10.77443
+        ]
+      },
+      "radius_m": 2.0,
+      "label": "Brief wait before continuing"
+    },
+    {
+      "id": "b7991019-ad75-579f-a61a-3b8c96cd53b8",
+      "segment_key": "stop_04",
+      "start_at": "2026-10-05T01:46:15Z",
+      "end_at": "2026-10-05T01:52:15Z",
+      "duration_s": 360,
+      "center": {
+        "type": "Point",
+        "coordinates": [
+          106.70296,
+          10.77443
+        ]
+      },
+      "radius_m": 2.0,
+      "label": "Second coffee / stationary"
+    },
+    {
+      "id": "a02adb04-54a8-575a-89ef-a840b0c7b35b",
+      "segment_key": "stop_05",
+      "start_at": "2026-10-05T02:11:45Z",
+      "end_at": "2026-10-05T02:13:45Z",
+      "duration_s": 120,
+      "center": {
+        "type": "Point",
+        "coordinates": [
+          106.69812,
+          10.77275
+        ]
+      },
+      "radius_m": 2.0,
+      "label": "End of walk / stationary"
+    }
+  ],
+  "timeline_events": [
+    {
+      "id": "6c5c4408-2ba2-55e9-acca-8abb4841ef65",
+      "event_type": "TRIP_START",
+      "occurred_at": "2026-10-05T01:00:00Z",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          106.69812,
+          10.77275
+        ]
+      },
+      "metadata": {
+        "segment_key": "trip_01",
+        "label": "Ben Thanh -> Nguyen Hue"
+      },
+      "source_type": "simulator",
+      "source_id": "a5b5a18d-1f8c-5739-b875-701a619e0a7b",
+      "algorithm_version": "fixture-ground-truth-v1"
+    },
+    {
+      "id": "19a809af-2cb9-564e-b93c-b62e60b1414a",
+      "event_type": "TRIP_END",
+      "occurred_at": "2026-10-05T01:09:30Z",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          106.702964,
+          10.774436
+        ]
+      },
+      "metadata": {
+        "segment_key": "trip_01",
+        "label": "Ben Thanh -> Nguyen Hue"
+      },
+      "source_type": "simulator",
+      "source_id": "a5b5a18d-1f8c-5739-b875-701a619e0a7b",
+      "algorithm_version": "fixture-ground-truth-v1"
+    },
+    {
+      "id": "fc7cf897-d54e-5ad7-8af2-e425128eee1f",
+      "event_type": "STOP",
+      "occurred_at": "2026-10-05T01:09:30Z",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          106.70296,
+          10.77443
+        ]
+      },
+      "metadata": {
+        "segment_key": "stop_01",
+        "duration_s": 480,
+        "label": "Coffee / stationary at Nguyen Hue"
+      },
+      "source_type": "simulator",
+      "source_id": "73ba9aff-5dd5-538d-a7ae-4eeec88c2efd",
+      "algorithm_version": "fixture-ground-truth-v1"
+    },
+    {
+      "id": "3ad6cf06-c471-5563-afe7-29d645dc5afa",
+      "event_type": "TRIP_START",
+      "occurred_at": "2026-10-05T01:17:30Z",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          106.70296,
+          10.77443
+        ]
+      },
+      "metadata": {
+        "segment_key": "trip_02",
+        "label": "Nguyen Hue -> City Hall"
+      },
+      "source_type": "simulator",
+      "source_id": "81f4953e-6270-51da-b69f-662b3a7de42e",
+      "algorithm_version": "fixture-ground-truth-v1"
+    },
+    {
+      "id": "49145dc1-9f54-538f-a483-5138ab64759b",
+      "event_type": "TRIP_END",
+      "occurred_at": "2026-10-05T01:24:00Z",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          106.703256,
+          10.777725
+        ]
+      },
+      "metadata": {
+        "segment_key": "trip_02",
+        "label": "Nguyen Hue -> City Hall"
+      },
+      "source_type": "simulator",
+      "source_id": "81f4953e-6270-51da-b69f-662b3a7de42e",
+      "algorithm_version": "fixture-ground-truth-v1"
+    },
+    {
+      "id": "f360db14-1431-53d1-9245-d5712b44bd06",
+      "event_type": "STOP",
+      "occurred_at": "2026-10-05T01:24:00Z",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          106.70325,
+          10.77772
+        ]
+      },
+      "metadata": {
+        "segment_key": "stop_02",
+        "duration_s": 180,
+        "label": "Short stop near City Hall"
+      },
+      "source_type": "simulator",
+      "source_id": "7dd1aefc-a810-5254-986d-844ce0ecdace",
+      "algorithm_version": "fixture-ground-truth-v1"
+    },
+    {
+      "id": "eaf7e359-579f-5e9f-9312-81edcde94ece",
+      "event_type": "TRIP_START",
+      "occurred_at": "2026-10-05T01:27:00Z",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          106.70325,
+          10.77772
+        ]
+      },
+      "metadata": {
+        "segment_key": "trip_03",
+        "label": "Return to Nguyen Hue over same path"
+      },
+      "source_type": "simulator",
+      "source_id": "932db17f-97b6-58f0-ba41-6a8dc3080ebd",
+      "algorithm_version": "fixture-ground-truth-v1"
+    },
+    {
+      "id": "3550247f-6d63-556b-ad9c-32ac50549805",
+      "event_type": "TRIP_END",
+      "occurred_at": "2026-10-05T01:33:00Z",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          106.702967,
+          10.774434
+        ]
+      },
+      "metadata": {
+        "segment_key": "trip_03",
+        "label": "Return to Nguyen Hue over same path"
+      },
+      "source_type": "simulator",
+      "source_id": "932db17f-97b6-58f0-ba41-6a8dc3080ebd",
+      "algorithm_version": "fixture-ground-truth-v1"
+    },
+    {
+      "id": "f2e313c0-25c7-5e4b-8327-88a6a3cda36d",
+      "event_type": "STOP",
+      "occurred_at": "2026-10-05T01:33:00Z",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          106.70296,
+          10.77443
+        ]
+      },
+      "metadata": {
+        "segment_key": "stop_03",
+        "duration_s": 75,
+        "label": "Brief wait before continuing"
+      },
+      "source_type": "simulator",
+      "source_id": "38a32f12-9d24-5af3-bcbd-12ada5d38ac0",
+      "algorithm_version": "fixture-ground-truth-v1"
+    },
+    {
+      "id": "836cd898-0f86-5d23-ba19-14a14227215f",
+      "event_type": "TRIP_START",
+      "occurred_at": "2026-10-05T01:34:15Z",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          106.70296,
+          10.77443
+        ]
+      },
+      "metadata": {
+        "segment_key": "trip_04",
+        "label": "City block loop - pass 1"
+      },
+      "source_type": "simulator",
+      "source_id": "a2271575-d135-5886-8e50-fbb7a5034fd3",
+      "algorithm_version": "fixture-ground-truth-v1"
+    },
+    {
+      "id": "81bac872-97e7-53ac-800b-5a97ea380c90",
+      "event_type": "TRIP_END",
+      "occurred_at": "2026-10-05T01:46:15Z",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          106.702965,
+          10.774432
+        ]
+      },
+      "metadata": {
+        "segment_key": "trip_04",
+        "label": "City block loop - pass 1"
+      },
+      "source_type": "simulator",
+      "source_id": "a2271575-d135-5886-8e50-fbb7a5034fd3",
+      "algorithm_version": "fixture-ground-truth-v1"
+    },
+    {
+      "id": "c9f333a9-af18-58aa-ae22-9fa4f3ecf013",
+      "event_type": "STOP",
+      "occurred_at": "2026-10-05T01:46:15Z",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          106.70296,
+          10.77443
+        ]
+      },
+      "metadata": {
+        "segment_key": "stop_04",
+        "duration_s": 360,
+        "label": "Second coffee / stationary"
+      },
+      "source_type": "simulator",
+      "source_id": "b7991019-ad75-579f-a61a-3b8c96cd53b8",
+      "algorithm_version": "fixture-ground-truth-v1"
+    },
+    {
+      "id": "23852b98-cb5a-5984-a392-ecda74108841",
+      "event_type": "TRIP_START",
+      "occurred_at": "2026-10-05T01:52:15Z",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          106.70296,
+          10.77443
+        ]
+      },
+      "metadata": {
+        "segment_key": "trip_05",
+        "label": "City block loop - repeated pass 2"
+      },
+      "source_type": "simulator",
+      "source_id": "e9e1e389-dbdb-5ff3-ba44-a26a445f365b",
+      "algorithm_version": "fixture-ground-truth-v1"
+    },
+    {
+      "id": "8d0637f9-e5cf-5505-9b02-61ddca854a09",
+      "event_type": "TRIP_END",
+      "occurred_at": "2026-10-05T02:02:45Z",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          106.70296,
+          10.77443
+        ]
+      },
+      "metadata": {
+        "segment_key": "trip_05",
+        "label": "City block loop - repeated pass 2"
+      },
+      "source_type": "simulator",
+      "source_id": "e9e1e389-dbdb-5ff3-ba44-a26a445f365b",
+      "algorithm_version": "fixture-ground-truth-v1"
+    },
+    {
+      "id": "c62ef39d-4696-57b0-b48c-73c41536fd63",
+      "event_type": "TRIP_START",
+      "occurred_at": "2026-10-05T02:02:45Z",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          106.70296,
+          10.77443
+        ]
+      },
+      "metadata": {
+        "segment_key": "trip_06",
+        "label": "Nguyen Hue -> Ben Thanh"
+      },
+      "source_type": "simulator",
+      "source_id": "a394bc5a-27c5-587f-af1b-ff8680306eb5",
+      "algorithm_version": "fixture-ground-truth-v1"
+    },
+    {
+      "id": "b5b1397d-22d5-5440-88de-f12309f5fb09",
+      "event_type": "TRIP_END",
+      "occurred_at": "2026-10-05T02:11:45Z",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          106.698121,
+          10.772749
+        ]
+      },
+      "metadata": {
+        "segment_key": "trip_06",
+        "label": "Nguyen Hue -> Ben Thanh"
+      },
+      "source_type": "simulator",
+      "source_id": "a394bc5a-27c5-587f-af1b-ff8680306eb5",
+      "algorithm_version": "fixture-ground-truth-v1"
+    },
+    {
+      "id": "7514eafb-a8d9-5602-9644-fec9fc163c05",
+      "event_type": "STOP",
+      "occurred_at": "2026-10-05T02:11:45Z",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          106.69812,
+          10.77275
+        ]
+      },
+      "metadata": {
+        "segment_key": "stop_05",
+        "duration_s": 120,
+        "label": "End of walk / stationary"
+      },
+      "source_type": "simulator",
+      "source_id": "a02adb04-54a8-575a-89ef-a840b0c7b35b",
+      "algorithm_version": "fixture-ground-truth-v1"
+    }
+  ]
+}

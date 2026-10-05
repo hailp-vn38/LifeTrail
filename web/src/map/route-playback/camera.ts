@@ -14,7 +14,7 @@ import type { MapCoordinate } from "./types";
  *   current GPS fix), so the viewer sees more of the road about to be
  *   travelled;
  * - the current-position (heading puck) marker sits below the camera
- *   center, at roughly 65% of the viewport height.
+ *   center, at roughly 70% of the viewport height.
  *
  * When playback ends the camera exits follow mode: bearing and pitch
  * reset to 0 and the full route is framed again.
@@ -50,10 +50,12 @@ export interface PaddingOptions {
   left: number;
 }
 
-export const FOLLOW_ZOOM = 16.5;
-export const FOLLOW_PITCH = 45;
+export const FOLLOW_ZOOM = 17;
+export const FOLLOW_PITCH = 55;
 /** Default distance ahead on the route the camera aims at, in meters. */
-export const LOOK_AHEAD_DISTANCE_M = 30;
+export const LOOK_AHEAD_DISTANCE_M = 40;
+/** Wall-clock smoothing: stable at different frame rates and playback speeds. */
+export const BEARING_SMOOTHING_MS = 400;
 /** How often the follow camera may start a new transition. */
 export const FOLLOW_UPDATE_INTERVAL_MS = 200;
 /** Follow transition length, slightly longer than the update interval for smoothness. */
@@ -63,7 +65,7 @@ export const FOLLOW_ENTER_TRANSITION_MS = 700;
 /** Hold the final frame before zooming out to the overview. */
 export const FINISH_HOLD_MS = 700;
 /** Overview transition back to the whole route. */
-export const OVERVIEW_TRANSITION_MS = 1600;
+export const OVERVIEW_TRANSITION_MS = 1800;
 export const OVERVIEW_MAX_ZOOM = 15;
 export const OVERVIEW_PADDING: PaddingOptions = { top: 64, right: 48, bottom: 96, left: 48 };
 
@@ -77,7 +79,8 @@ export function prefersReducedMotion(): boolean {
 
 /**
  * Vertical offset (px) applied to the follow camera center so the heading
- * puck lands at roughly 65% of the viewport height (screen center is 50%).
+ * look-ahead center sits below screen center; the puck lands around 70%
+ * depending on the projected distance to the look-ahead point.
  * Combined with the look-ahead target this keeps the upcoming road in the
  * upper part of the screen. Bounded for very small/large viewports.
  */
@@ -117,6 +120,7 @@ export class FollowCamera {
   private readonly transitionMs: number;
   private readonly now: () => number;
   private lastUpdateMs = Number.NEGATIVE_INFINITY;
+  private bearing = 0;
 
   constructor(
     private readonly map: FollowableMap,
@@ -133,11 +137,12 @@ export class FollowCamera {
   /** Transition from the overview into follow mode at the given target. */
   enter(target: FollowTarget): void {
     this.lastUpdateMs = this.now();
+    this.bearing = normalizeBearing(target.bearing);
     this.map.easeTo({
       center: target.lookAhead,
       zoom: this.zoom,
       pitch: this.pitch,
-      bearing: normalizeBearing(target.bearing),
+      bearing: this.bearing,
       offset: [0, this.offsetYPx],
       duration: this.transitionDuration(FOLLOW_ENTER_TRANSITION_MS),
     });
@@ -150,12 +155,16 @@ export class FollowCamera {
   update(target: FollowTarget): void {
     const now = this.now();
     if (now - this.lastUpdateMs < this.updateIntervalMs) return;
+    const elapsed = now - this.lastUpdateMs;
+    const delta = ((target.bearing - this.bearing + 540) % 360 + 360) % 360 - 180;
+    const weight = 1 - Math.exp(-elapsed / BEARING_SMOOTHING_MS);
+    this.bearing = normalizeBearing(this.bearing + delta * weight);
     this.lastUpdateMs = now;
     this.map.easeTo({
       center: target.lookAhead,
       zoom: this.zoom,
       pitch: this.pitch,
-      bearing: normalizeBearing(target.bearing),
+      bearing: this.bearing,
       offset: [0, this.offsetYPx],
       duration: this.transitionDuration(this.transitionMs),
     });

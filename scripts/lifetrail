@@ -34,11 +34,13 @@ EOF
 }
 
 compose() {
+  local -a env_file_args=()
+
   if [[ -f "$WEB_ENV_FILE" ]]; then
-    docker compose --env-file "$WEB_ENV_FILE" -f "$COMPOSE_FILE" "$@"
-  else
-    docker compose -f "$COMPOSE_FILE" "$@"
+    env_file_args=(--env-file "$WEB_ENV_FILE")
   fi
+
+  docker compose "${env_file_args[@]}" -f "$COMPOSE_FILE" "$@"
 }
 
 app_service() {

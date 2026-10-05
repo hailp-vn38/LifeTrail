@@ -3,6 +3,7 @@ import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { createPinia } from "pinia";
 import type { Feature, FeatureCollection, LineString, Polygon } from "geojson";
 import type { DailyView } from "../api/queries/daily-view.query";
+import { MAP_STYLE_STORAGE_KEY, useMapPreferencesStore } from "../stores/map-preferences.store";
 
 const { MockMap } = vi.hoisted(() => {
   class MockSource {
@@ -16,6 +17,17 @@ const { MockMap } = vi.hoisted(() => {
     easeTo = vi.fn();
     fitBounds = vi.fn();
     stop = vi.fn();
+    dragRotate = { isEnabled: vi.fn(() => true), disable: vi.fn(), enable: vi.fn() };
+    touchPitch = { isEnabled: vi.fn(() => true), disable: vi.fn(), enable: vi.fn() };
+    getMinPitch = vi.fn(() => 0);
+    getMaxPitch = vi.fn(() => 60);
+    setMinPitch = vi.fn();
+    setMaxPitch = vi.fn();
+    setStyle = vi.fn(() => {
+      this.sources.clear();
+      this.addedLayers = [];
+    });
+    getStyle = vi.fn(() => ({ version: 8, sources: {}, layers: [] }));
     constructor(public readonly options: unknown) {
       MockMap.instances.push(this);
     }
@@ -35,9 +47,7 @@ const { MockMap } = vi.hoisted(() => {
     getContainer() {
       return { clientHeight: 600 };
     }
-    cameraForBounds() {
-      return undefined;
-    }
+    cameraForBounds = vi.fn((): { center: [number, number]; zoom: number } | undefined => undefined);
     addControl = vi.fn();
     on = vi.fn();
     off = vi.fn();
@@ -50,6 +60,9 @@ const { MockMap } = vi.hoisted(() => {
 });
 
 vi.mock("maplibre-gl", () => ({
+  LngLat: class {
+    static convert(input: [number, number]) { return { lng: input[0], lat: input[1] }; }
+  },
   LngLatBounds: class {
     extend() {
       return this;
@@ -118,14 +131,94 @@ function mountRouteMap(dailyView: DailyView) {
 }
 
 beforeEach(() => {
+  localStorage.clear();
   MockMap.instances.length = 0;
 });
 
 afterEach(() => {
   vi.useRealTimers();
+  vi.unstubAllEnvs();
 });
 
 describe("RouteMap", () => {
+  it("opens the saved 3D style with a tilted camera", () => {
+    vi.stubEnv("VITE_MAPTILER_KEY", "test-key");
+    localStorage.setItem(MAP_STYLE_STORAGE_KEY, "streets-3d");
+    const wrapper = mountRouteMap(dailyViewFixture(TIMESTAMPS));
+    expect(lastMap().options).toMatchObject({
+      style: "https://api.maptiler.com/maps/streets-v4/style.json?key=test-key", pitch: 55,
+    });
+    expect(lastMap().fitBounds.mock.calls.at(-1)?.[1]).toMatchObject({ pitch: 55 });
+    wrapper.unmount();
+  });
+
+  it("restores route sources and the playback position after replacing the style", async () => {
+    vi.stubEnv("VITE_MAPTILER_KEY", "test-key");
+    const wrapper = mountRouteMap(dailyViewFixture(TIMESTAMPS));
+    try {
+      await wrapper.vm.$nextTick();
+      await wrapper.find('button[aria-label="Phát"]').trigger("click");
+      await wrapper.find('input[type="range"]').setValue("500");
+      const map = lastMap();
+      const previousPuck = map.sources.get("daily-route-current")?.setData.mock.calls.at(-1)?.[0];
+      useMapPreferencesStore().selectStyle("streets-3d");
+      await wrapper.vm.$nextTick();
+      expect(map.setStyle).toHaveBeenCalledWith("https://api.maptiler.com/maps/streets-v4/style.json?key=test-key", { diff: false });
+      expect(wrapper.find('button[aria-label="Phát"]').attributes("disabled")).toBeDefined();
+      const loaded = map.on.mock.calls.find(([event]) => event === "style.load")?.[1];
+      loaded();
+      await wrapper.vm.$nextTick();
+      expect(map.sources.has("daily-route-full")).toBe(true);
+      expect(map.sources.get("daily-route-current")?.setData).toHaveBeenLastCalledWith(previousPuck);
+      expect(map.easeTo.mock.calls.at(-1)?.[0]).toMatchObject({ pitch: 55 });
+      expect(wrapper.find('button[aria-label="Phát"]').attributes("disabled")).toBeUndefined();
+    } finally {
+      wrapper.unmount();
+    }
+  });
+  it("holds the final navigation frame then returns to a top-down route overview", async () => {
+    vi.useFakeTimers();
+    const wrapper = mountRouteMap(dailyViewFixture(TIMESTAMPS));
+    try {
+      await wrapper.vm.$nextTick();
+      const map = lastMap();
+      map.cameraForBounds.mockReturnValue({ center: [106.7007, 10.7767], zoom: 14 });
+      await wrapper.find('button[aria-label="Phát"]').trigger("click");
+      vi.advanceTimersByTime(30_016);
+      expect(map.easeTo.mock.calls.at(-1)?.[0]).toMatchObject({
+        center: COORDINATES.at(-1), pitch: 55, zoom: 17,
+      });
+      expect(map.cameraForBounds).not.toHaveBeenCalled();
+      expect(map.dragRotate.enable).toHaveBeenCalled();
+      vi.advanceTimersByTime(700);
+      expect(map.easeTo.mock.calls.at(-1)?.[0]).toMatchObject({
+        center: [106.7007, 10.7767], pitch: 0, bearing: 0, zoom: 14, duration: 1800,
+      });
+    } finally {
+      wrapper.unmount();
+    }
+  });
+
+  it("releases navigation controls when a user gesture exits follow mode", async () => {
+    vi.useFakeTimers();
+    const wrapper = mountRouteMap(dailyViewFixture(TIMESTAMPS));
+    try {
+      await wrapper.vm.$nextTick();
+      await wrapper.find('button[aria-label="Phát"]').trigger("click");
+      const map = lastMap();
+      const dragHandler = map.on.mock.calls.find(([event]) => event === "dragstart")?.[1];
+      dragHandler({ originalEvent: new Event("mousedown") });
+      expect(map.dragRotate.enable).toHaveBeenCalled();
+      expect(map.touchPitch.enable).toHaveBeenCalled();
+      expect(map.setMinPitch).toHaveBeenLastCalledWith(0);
+      map.easeTo.mockClear();
+      vi.advanceTimersByTime(1000);
+      expect(map.easeTo).not.toHaveBeenCalled();
+    } finally {
+      wrapper.unmount();
+    }
+  });
+
   it("rotates the UI camera on a densely sampled turn and follows the final position", async () => {
     vi.useFakeTimers();
     const coordinates = [
@@ -142,13 +235,14 @@ describe("RouteMap", () => {
       await wrapper.vm.$nextTick();
       await wrapper.find('button[aria-label="Phát"]').trigger("click");
       const map = lastMap();
-      expect(map.easeTo.mock.calls.at(-1)?.[0].bearing).toBeCloseTo(90, 1);
+      expect(map.easeTo.mock.calls.at(-1)?.[0].bearing).toBeGreaterThan(90);
+      expect(map.easeTo.mock.calls.at(-1)?.[0].bearing).toBeLessThan(180);
 
       vi.advanceTimersByTime(10_240);
-      expect(map.easeTo.mock.calls.at(-1)?.[0].bearing).toBeCloseTo(180, 1);
+      expect(map.easeTo.mock.calls.at(-1)?.[0].bearing).toBeGreaterThan(170);
       vi.advanceTimersByTime(9_800);
       expect(map.easeTo.mock.calls.at(-1)?.[0]).toMatchObject({
-        center: coordinates.at(-1), bearing: 180, pitch: 45,
+        center: coordinates.at(-1), bearing: 180, pitch: 55,
       });
     } finally {
       wrapper.unmount();
@@ -163,7 +257,7 @@ describe("RouteMap", () => {
     map.easeTo.mockClear();
     await wrapper.find('input[type="range"]').setValue("500");
     expect(map.easeTo).toHaveBeenCalledWith(expect.objectContaining({
-      bearing: expect.any(Number), pitch: 45, zoom: 16.5,
+      bearing: expect.any(Number), pitch: 55, zoom: 17,
       center: expect.any(Array),
     }));
     const center = map.easeTo.mock.calls.at(-1)?.[0].center;
@@ -247,9 +341,15 @@ describe("RouteMap", () => {
 
     await wrapper.find('button[aria-label="Phát"]').trigger("click");
     expect(wrapper.find('button[aria-label="Tạm dừng"]').exists()).toBe(true);
+    expect(lastMap().dragRotate.disable).toHaveBeenCalled();
+    expect(lastMap().touchPitch.disable).toHaveBeenCalled();
+    expect(lastMap().setMinPitch).toHaveBeenCalledWith(55);
 
     await wrapper.find('button[aria-label="Tạm dừng"]').trigger("click");
     expect(wrapper.find('button[aria-label="Phát"]').exists()).toBe(true);
+    expect(lastMap().dragRotate.enable).toHaveBeenCalled();
+    expect(lastMap().touchPitch.enable).toHaveBeenCalled();
+    expect(lastMap().setMinPitch).toHaveBeenLastCalledWith(0);
 
     wrapper.unmount();
   });

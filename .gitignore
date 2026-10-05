@@ -4,6 +4,7 @@
 .vscode/
 *.swp
 *~
+__pycache__/
 
 # Firmware build products and device-local configuration
 firmware/esp32/build/

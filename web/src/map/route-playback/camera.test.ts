@@ -68,8 +68,8 @@ describe("FollowCamera", () => {
       offset: [0, 120],
       duration: 700,
     });
-    expect(FOLLOW_ZOOM).toBeCloseTo(16.5, 1);
-    expect(FOLLOW_PITCH).toBe(45);
+    expect(FOLLOW_ZOOM).toBeCloseTo(17, 1);
+    expect(FOLLOW_PITCH).toBe(55);
   });
 
   it("throttles follow updates instead of easing on every frame", () => {
@@ -90,7 +90,7 @@ describe("FollowCamera", () => {
         center: [106.7004, 10.7764],
         zoom: FOLLOW_ZOOM,
         pitch: FOLLOW_PITCH,
-        bearing: 20,
+        bearing: expect.closeTo(20 * (1 - Math.exp(-0.5)), 5),
         offset: [0, 120],
         duration: 500,
       }),
@@ -101,6 +101,23 @@ describe("FollowCamera", () => {
     const map = mockMap();
     cameraFor(asFollowableMap(map)).enter(target([106.7, 10.776], [106.7002, 10.7762], 405));
     expect(map.easeTo).toHaveBeenCalledWith(expect.objectContaining({ bearing: 45 }));
+  });
+
+  it("smooths across north along the short arc and resets on seek", () => {
+    const map = mockMap();
+    const camera = cameraFor(asFollowableMap(map));
+    camera.enter(target([0, 0], [0, 1], 358));
+    nowMs = 200;
+    camera.update(target([0, 0], [0, 1], 2));
+    const bearing = map.easeTo.mock.calls.at(-1)?.[0].bearing;
+    expect(bearing).toBeGreaterThan(358);
+    expect(bearing).toBeLessThan(360);
+    nowMs = 400;
+    camera.update(target([0, 0], [0, 1], 2));
+    expect(map.easeTo.mock.calls.at(-1)?.[0].bearing).toBeLessThan(2);
+
+    camera.enter(target([0, 0], [1, 0], 90));
+    expect(map.easeTo.mock.calls.at(-1)?.[0].bearing).toBe(90);
   });
 
   it("stops camera animation on dispose", () => {
@@ -126,7 +143,7 @@ describe("FollowCamera", () => {
 });
 
 describe("followOffsetYPx", () => {
-  it("places the marker at roughly 65% of the viewport height", () => {
+  it("offsets the look-ahead center below mid-screen within viewport limits", () => {
     expect(followOffsetYPx(800)).toBe(120);
     expect(followOffsetYPx(900)).toBe(135);
     expect(followOffsetYPx(400)).toBe(64);
@@ -153,7 +170,7 @@ describe("overviewCamera", () => {
       zoom: 14,
       bearing: 0,
       pitch: 0,
-      duration: 1600,
+      duration: 1800,
     });
   });
 
