@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
 # Manage the local LifeTrail Compose applications.
+#
+# Topology:
+#   web       Nginx + built Vue SPA, owns host port 8080, proxies /api/* to server
+#   server    Rust/Axum API, internal Compose network only (server:8080)
+#   postgres  PostgreSQL/PostGIS, internal only
 set -euo pipefail
 
 readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
@@ -11,15 +16,19 @@ usage() {
 Usage: scripts/lifetrail <command> [app]
 
 Commands:
-  start [all|server|web|postgres]    Build if needed and start an app.
-  stop [all|server|web|postgres]     Stop an app without removing its data.
-  restart [all|server|web|postgres]  Restart an app.
+  start [all|web|server|postgres]    Build if needed and start an app.
+  stop [all|web|server|postgres]     Stop an app without removing its data.
+  restart [all|web|server|postgres]  Restart an app.
   status                              Show Compose application status.
-  logs [all|server|web|postgres]     Follow application logs.
-  build                               Build the server image (which includes the web app).
-  test                                Check that the web/server endpoint responds at :8080.
+  logs [all|web|server|postgres]     Follow application logs.
+  build [all|web|server]              Build images (default: web and server).
+  test                                Check the public web entrypoint and the
+                                      API path through Nginx at :8080.
 
-`web` is an alias for `server`: the server image builds and serves the web app.
+Examples:
+  scripts/lifetrail start all
+  scripts/lifetrail logs web
+  VITE_MAPTILER_KEY=... scripts/lifetrail build web
 EOF
 }
 
@@ -30,8 +39,7 @@ compose() {
 app_service() {
   case "${1:-all}" in
     all) printf '%s\n' "" ;;
-    server|web) printf '%s\n' "server" ;;
-    postgres) printf '%s\n' "postgres" ;;
+    web|server|postgres) printf '%s\n' "$1" ;;
     *)
       printf 'Unknown app: %s\n' "$1" >&2
       usage >&2
@@ -81,14 +89,25 @@ case "$command" in
     fi
     ;;
   build)
-    [[ $# -eq 1 ]] || { usage >&2; exit 2; }
-    compose build server
+    case "$app" in
+      all) compose build web server ;;
+      web) compose build web ;;
+      server) compose build server ;;
+      *)
+        printf 'Unknown build target: %s\n' "$app" >&2
+        usage >&2
+        exit 2
+        ;;
+    esac
     ;;
   test)
     [[ $# -eq 1 ]] || { usage >&2; exit 2; }
     curl --fail --silent --show-error --max-time 10 \
-      --output /dev/null --write-out 'LifeTrail web/server: HTTP %{http_code}\n' \
+      --output /dev/null --write-out 'LifeTrail web: HTTP %{http_code}\n' \
       http://localhost:8080/
+    curl --fail --silent --show-error --max-time 10 \
+      --output /dev/null --write-out 'LifeTrail api (through Nginx): HTTP %{http_code}\n' \
+      http://localhost:8080/api/v1/devices
     ;;
   -h|--help|help)
     usage

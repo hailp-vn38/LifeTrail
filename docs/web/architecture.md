@@ -1,11 +1,12 @@
 # LifeTrail — Web Architecture Specification
 
-> **Status:** Proposed implementation baseline  
+> **Status:** Approved implementation baseline  
 > **Project:** LifeTrail  
 > **Scope:** `web/`  
 > **Framework:** Vue 3 + TypeScript  
 > **Map:** MapLibre GL JS  
-> **Last reviewed:** 2026-10-04
+> **UI baseline:** Option 2 — Light, Clean, 2D Map, Right Timeline  
+> **Last reviewed:** 2026-10-05
 
 ---
 
@@ -54,6 +55,36 @@ LifeTrail Server
                           │
                   configurable basemap
 ```
+
+## 2.1 Deployment topology
+
+The web app is a **dedicated Docker service** (`web`: Nginx + built Vue SPA),
+not embedded in the Rust server image:
+
+```text
+Browser / ESP32
+       │
+       │ http://<LAN-IP>:8080
+       ▼
+┌───────────────────────────────┐
+│ web (Nginx)                   │
+│ /           → Vue SPA         │
+│ /assets/*   → static assets   │
+│ /api/*      → proxy → server  │
+└──────────────┬────────────────┘
+               │ Docker network (server:8080)
+               ▼
+┌───────────────────────────────┐
+│ server (Rust + Axum, API only)│
+└──────────────┬────────────────┘
+               ▼
+┌───────────────────────────────┐
+│ postgres (PostgreSQL+PostGIS) │
+└───────────────────────────────┘
+```
+
+`web` owns host port `8080`; `server` is only reachable on the Compose
+network. The ESP32 ingest URL `POST /api/v1/device/batches` is unchanged.
 
 Daily view nên đi theo một read-model duy nhất:
 
@@ -478,53 +509,76 @@ web/src/
 ├── App.vue
 │
 ├── app/
+│   ├── bootstrap.ts
 │   ├── router.ts
-│   ├── query-client.ts
-│   └── bootstrap.ts
+│   ├── routes.ts
+│   └── query-client.ts
 │
 ├── api/
 │   ├── client.ts
+│   ├── query-keys.ts
 │   ├── generated/
+│   │   └── lifetrail-v1.d.ts
 │   ├── queries/
-│   │   ├── device.queries.ts
-│   │   ├── day.queries.ts
-│   │   └── timeline.queries.ts
-│   └── mutations/
-│       └── settings.mutations.ts
+│   │   ├── devices.query.ts
+│   │   ├── daily-view.query.ts
+│   │   └── health.query.ts
+│   └── errors/
+│       └── api-error.ts
 │
-├── features/
-│   ├── auth/
-│   ├── devices/
-│   ├── daily-view/
-│   ├── map/
-│   ├── timeline/
-│   ├── trips/
-│   ├── stops/
-│   └── media/
+├── layouts/
+│   └── AppLayout.vue
 │
 ├── components/
-│   ├── base/
-│   └── layout/
+│   ├── ui/            # AppButton, AppCard, AppBadge, AppSkeleton, ...
+│   ├── layout/        # AppSidebar, AppTopbar, PageHeader, ...
+│   └── RouteMap.vue   # daily map canvas (map instance lifecycle owner)
 │
+├── features/
+│   ├── overview/pages/OverviewPage.vue
+│   ├── devices/
+│   │   ├── pages/DeviceListPage.vue, DeviceDetailPage.vue
+│   │   └── components/DeviceCard.vue, DeviceStatus.vue
+│   ├── daily-map/
+│   │   ├── pages/DailyMapPage.vue
+│   │   ├── components/DailyMapHeader.vue, DailyMapCanvas.vue, ...
+│   │   └── composables/useDailyMap.ts
+│   ├── timeline/
+│   │   ├── pages/TimelinePage.vue
+│   │   └── components/TimelinePanel.vue, TimelineList.vue, ...
+│   ├── playback/
+│   │   ├── components/PlaybackBar.vue
+│   │   └── playback.types.ts
+│   ├── reports/pages/ReportsPage.vue
+│   └── settings/pages/SettingsPage.vue
+│
+├── map/               # MapLibre core: route-playback camera/controller/geometry
 ├── stores/
 │   ├── ui.store.ts
-│   └── preferences.store.ts
+│   ├── map.store.ts        # selectedEventId — Timeline <-> Map bridge
+│   └── playback.store.ts   # Phase 2 playback state model
 │
 ├── composables/
-│   ├── useSse.ts
-│   ├── useSelectedEvent.ts
+│   ├── useMediaQuery.ts
 │   └── useTimezone.ts
 │
 ├── lib/
 │   ├── date.ts
+│   ├── format.ts
 │   ├── geo.ts
-│   └── errors.ts
+│   └── assert.ts
 │
 ├── styles/
-│   ├── tokens.css
+│   ├── tokens.css     # Option 2 design tokens
+│   ├── reset.css
+│   ├── typography.css
+│   ├── layout.css
+│   ├── map.css
 │   └── main.css
 │
 └── types/
+    ├── map.ts
+    └── timeline.ts
 ```
 
 Feature folder sở hữu UI và logic theo use case.
@@ -957,9 +1011,12 @@ Rust :8080
 Production:
 
 ```text
-Caddy/Nginx
-├── /      → static Vue dist
-└── /api   → Rust server
+web (Nginx)
+├── /           → static Vue dist (+ SPA fallback for deep links)
+├── /assets/*   → static assets
+└── /api/*      → reverse proxy → server:8080 (Compose network)
+
+server (Rust) no longer builds or serves web assets.
 ```
 
 ---
@@ -1397,3 +1454,42 @@ Configurable basemap style URL
 Hosted tiles initially
 Self-host tiles later
 ```
+
+---
+
+# 38. Option 2 UI baseline (2026-10)
+
+The application shell follows **Option 2**: light, clean, 2D map, right
+timeline.
+
+```text
+AppLayout
+├── AppSidebar (224px; persistent; Overview / Daily Map / Timeline /
+│               Devices / Reports / Settings; system status footer)
+└── AppMain
+    ├── AppTopbar (page title, API status badge)
+    └── RouterView
+        └── DailyMapPage (primary product screen)
+            ├── DailyMapHeader (device selector, date picker, refresh)
+            ├── DailyMapWorkspace
+            │   ├── MapArea (LifeTrailMap + MapControls + PlaybackBar)
+            │   └── TimelinePanel (Start/End in Phase 1; TimelineStats)
+            └── loading / empty / 404 / error states
+```
+
+Rules:
+
+- the sidebar stays mounted across page navigation; the active entry uses a
+  soft blue background;
+- `selectedEventId` in `stores/map.store.ts` is the only Timeline ↔ Map
+  bridge — no direct component-to-component calls;
+- `stores/playback.store.ts` holds the Phase 2 playback model
+  (`status`, `currentTimeMs`, `startTimeMs`, `endTimeMs`, `speed`,
+  `cameraFollow`, `selectedEventId`); animation frames stay in the
+  `PlaybackController`/map composables;
+- remote state → TanStack Vue Query; URL state → Vue Router; shared UI
+  state → Pinia; map renderer state → the MapLibre instance;
+- no heavy component framework; styling is CSS variables + Grid/Flexbox +
+  Lucide icons;
+- responsive: `≥1280px` full shell, `768–1279px` collapsed icon rail,
+  `<768px` bottom navigation with the timeline stacked under the map.

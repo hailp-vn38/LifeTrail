@@ -20,7 +20,7 @@ async fn built_web_and_canonical_daily_url_are_served_from_the_server_origin() {
     let pool = PgPoolOptions::new()
         .connect_lazy("postgres://lifetrail:lifetrail@127.0.0.1/lifetrail")
         .expect("create lazy pool");
-    let app = app::router(AppState { db: pool }, static_dir.clone());
+    let app = app::router(AppState { db: pool }, Some(static_dir.clone()));
 
     assert_html(app.clone(), "/").await;
     assert_asset(app.clone()).await;

@@ -3,7 +3,10 @@ use std::{env, net::SocketAddr, path::PathBuf};
 #[derive(Clone, Debug)]
 pub struct Config {
     pub bind_addr: SocketAddr,
-    pub static_dir: PathBuf,
+    /// Directory of built web assets. `None` in the default deployment
+    /// topology, where Nginx (the `web` service) serves the SPA and the
+    /// Rust server only answers `/api/*` and `/health/*`.
+    pub static_dir: Option<PathBuf>,
 }
 
 impl Config {
@@ -12,9 +15,7 @@ impl Config {
             .unwrap_or_else(|_| "0.0.0.0:8080".to_owned())
             .parse()
             .map_err(|_| ConfigError::InvalidBindAddress)?;
-        let static_dir = env::var("LT_STATIC_DIR")
-            .map(PathBuf::from)
-            .unwrap_or_else(|_| PathBuf::from("../web/dist"));
+        let static_dir = env::var("LT_STATIC_DIR").ok().map(PathBuf::from);
 
         Ok(Self {
             bind_addr,

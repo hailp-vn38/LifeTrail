@@ -31,8 +31,7 @@ pub struct AppState {
 #[derive(Clone)]
 pub(crate) struct RequestId(pub(crate) String);
 
-pub fn router(state: AppState, static_dir: PathBuf) -> Router {
-    let daily_view_index = static_dir.join("index.html");
+pub fn router(state: AppState, static_dir: Option<PathBuf>) -> Router {
     let api = Router::new()
         .route("/v1/devices", get(list_devices))
         .route("/v1/devices/{device_id}", get(get_device))
@@ -43,19 +42,29 @@ pub fn router(state: AppState, static_dir: PathBuf) -> Router {
         .method_not_allowed_fallback(api_method_not_allowed)
         .with_state(state.clone());
 
-    Router::new()
+    let mut router = Router::new()
         .route("/health/live", get(live))
         .route("/health/ready", get(ready))
-        .nest("/api", api)
-        .route_service(
-            "/devices/{device_id}/day/{date}",
-            ServeFile::new(daily_view_index),
-        )
-        .fallback_service(
-            ServeDir::new(&static_dir)
-                .append_index_html_on_directories(true)
-                .not_found_service(ServeFile::new(static_dir.join("index.html"))),
-        )
+        .nest("/api", api);
+
+    // Static web hosting is opt-in. In the default deployment topology the
+    // `web` service (Nginx) serves the SPA and reverse-proxies `/api/*`,
+    // so the Rust server runs API-only without `LT_STATIC_DIR`.
+    if let Some(static_dir) = static_dir {
+        let daily_view_index = static_dir.join("index.html");
+        router = router
+            .route_service(
+                "/devices/{device_id}/day/{date}",
+                ServeFile::new(daily_view_index),
+            )
+            .fallback_service(
+                ServeDir::new(&static_dir)
+                    .append_index_html_on_directories(true)
+                    .not_found_service(ServeFile::new(static_dir.join("index.html"))),
+            );
+    }
+
+    router
         .with_state(state)
         .layer(TraceLayer::new_for_http().make_span_with(|request: &Request<_>| {
             let request_id = request

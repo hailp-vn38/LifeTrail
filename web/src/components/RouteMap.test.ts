@@ -1,7 +1,8 @@
 import { mount } from "@vue/test-utils";
 import { describe, expect, it, vi, beforeEach } from "vitest";
+import { createPinia } from "pinia";
 import type { Feature, FeatureCollection, LineString, Polygon } from "geojson";
-import type { DailyView } from "../api/daily-views";
+import type { DailyView } from "../api/queries/daily-view.query";
 
 const { MockMap } = vi.hoisted(() => {
   class MockSource {
@@ -38,6 +39,9 @@ const { MockMap } = vi.hoisted(() => {
       return undefined;
     }
     addControl = vi.fn();
+    on = vi.fn();
+    off = vi.fn();
+    setPaintProperty = vi.fn();
     remove() {
       this.removed = true;
     }
@@ -106,13 +110,20 @@ function lastMap(): InstanceType<typeof MockMap> {
   return instances[instances.length - 1];
 }
 
+function mountRouteMap(dailyView: DailyView) {
+  return mount(RouteMap, {
+    props: { dailyView },
+    global: { plugins: [createPinia()] },
+  });
+}
+
 beforeEach(() => {
   MockMap.instances.length = 0;
 });
 
 describe("RouteMap", () => {
   it("initializes the map with full, progress and current sources", () => {
-    const wrapper = mount(RouteMap, { props: { dailyView: dailyViewFixture(TIMESTAMPS) } });
+    const wrapper = mountRouteMap(dailyViewFixture(TIMESTAMPS));
 
     const map = lastMap();
     expect(map).toBeDefined();
@@ -141,7 +152,7 @@ describe("RouteMap", () => {
   });
 
   it("updates source data on playback frames instead of re-creating layers", async () => {
-    const wrapper = mount(RouteMap, { props: { dailyView: dailyViewFixture(TIMESTAMPS) } });
+    const wrapper = mountRouteMap(dailyViewFixture(TIMESTAMPS));
     await wrapper.vm.$nextTick();
     const map = lastMap();
     const layerCount = map.addedLayers.length;
@@ -180,7 +191,7 @@ describe("RouteMap", () => {
   });
 
   it("pauses playback from the controls", async () => {
-    const wrapper = mount(RouteMap, { props: { dailyView: dailyViewFixture(TIMESTAMPS) } });
+    const wrapper = mountRouteMap(dailyViewFixture(TIMESTAMPS));
     await wrapper.vm.$nextTick();
 
     await wrapper.find('button[aria-label="Phát"]').trigger("click");
@@ -193,7 +204,7 @@ describe("RouteMap", () => {
   });
 
   it("disposes playback and removes the map on unmount", async () => {
-    const wrapper = mount(RouteMap, { props: { dailyView: dailyViewFixture(TIMESTAMPS) } });
+    const wrapper = mountRouteMap(dailyViewFixture(TIMESTAMPS));
     await wrapper.vm.$nextTick();
     const map = lastMap();
 
@@ -205,9 +216,7 @@ describe("RouteMap", () => {
   });
 
   it("renders the static route when timestamps are invalid", () => {
-    const wrapper = mount(RouteMap, {
-      props: { dailyView: dailyViewFixture(undefined) },
-    });
+    const wrapper = mountRouteMap(dailyViewFixture(undefined));
 
     const map = lastMap();
     expect(map.sources.has("daily-route-full")).toBe(true);
