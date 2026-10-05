@@ -23,8 +23,9 @@ web/.env
 web/.env.*
 !web/.env.example
 
-# Runtime data, logs, and generated reports
+# Runtime data, logs, generated fixtures, and reports
 data/
 runtime/
+tools/fixtures/simulated-route/
 *.log
 coverage/

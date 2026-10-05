@@ -19,6 +19,9 @@ services:
     build:
       context: ..
       dockerfile: deploy/Dockerfile
+      args:
+        VITE_MAP_STYLE_URL: ${VITE_MAP_STYLE_URL:-}
+        VITE_MAPTILER_KEY: ${VITE_MAPTILER_KEY:-}
     environment:
       LT_DATABASE_URL: postgres://lifetrail:lifetrail_dev_only@postgres:5432/lifetrail
       LT_BIND_ADDR: 0.0.0.0:8080

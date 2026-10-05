@@ -2,20 +2,13 @@
 import { LngLatBounds, Map as MapLibreMap } from "maplibre-gl";
 import { onBeforeUnmount, onMounted, ref } from "vue";
 import type { DailyView } from "../api/daily-views";
+import { initialMapCamera, routeFitOptions } from "./map-camera";
+import { initializeWhenMapLoaded } from "./map-lifecycle";
+import { resolveMapStyle } from "./map-style";
 
 const props = defineProps<{ dailyView: DailyView }>();
 const mapElement = ref<HTMLDivElement>();
 let map: MapLibreMap | undefined;
-
-function mapStyleUrl(): string {
-  const configuredUrl = import.meta.env.VITE_MAP_STYLE_URL;
-  const key = import.meta.env.VITE_MAPTILER_KEY;
-  const url = new URL(
-    configuredUrl ?? "https://api.maptiler.com/maps/streets-v2/style.json",
-  );
-  if (key && url.hostname.endsWith("maptiler.com")) url.searchParams.set("key", key);
-  return url.toString();
-}
 
 function routeCoordinates(): [number, number][] {
   return props.dailyView.route?.geometry.coordinates.map(([longitude, latitude]) => [
@@ -66,13 +59,25 @@ function fitRoute(map: MapLibreMap) {
     (current, coordinate) => current.extend(coordinate),
     new LngLatBounds(coordinates[0], coordinates[0]),
   );
-  map.fitBounds(bounds, { padding: 48, maxZoom: 15 });
+  map.fitBounds(bounds, routeFitOptions);
 }
 
 onMounted(() => {
   if (!mapElement.value) return;
-  map = new MapLibreMap({ container: mapElement.value, style: mapStyleUrl() });
-  map.on("load", () => {
+  const camera = initialMapCamera({
+    routeCoordinates: routeCoordinates(),
+    startCoordinate: props.dailyView.start?.geometry.coordinates as [number, number] | undefined,
+    endCoordinate: props.dailyView.end?.geometry.coordinates as [number, number] | undefined,
+  });
+  map = new MapLibreMap({
+    container: mapElement.value,
+    style: resolveMapStyle({
+      styleUrl: import.meta.env.VITE_MAP_STYLE_URL,
+      mapTilerKey: import.meta.env.VITE_MAPTILER_KEY,
+    }),
+    ...camera,
+  });
+  initializeWhenMapLoaded(map, () => {
     const activeMap = map;
     if (!activeMap) return;
     addRouteLayers(activeMap);
