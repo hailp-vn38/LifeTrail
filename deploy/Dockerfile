@@ -3,6 +3,10 @@ WORKDIR /workspace/web
 COPY web/package.json web/package-lock.json ./
 RUN npm ci
 COPY web/ ./
+ARG VITE_MAP_STYLE_URL
+ARG VITE_MAPTILER_KEY
+ENV VITE_MAP_STYLE_URL=$VITE_MAP_STYLE_URL
+ENV VITE_MAPTILER_KEY=$VITE_MAPTILER_KEY
 RUN npm run build
 
 FROM rust:1.98-bookworm AS server-builder
