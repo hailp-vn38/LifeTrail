@@ -1,5 +1,5 @@
 import { mount } from "@vue/test-utils";
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { createPinia } from "pinia";
 import type { Feature, FeatureCollection, LineString, Polygon } from "geojson";
 import type { DailyView } from "../api/queries/daily-view.query";
@@ -121,7 +121,58 @@ beforeEach(() => {
   MockMap.instances.length = 0;
 });
 
+afterEach(() => {
+  vi.useRealTimers();
+});
+
 describe("RouteMap", () => {
+  it("rotates the UI camera on a densely sampled turn and follows the final position", async () => {
+    vi.useFakeTimers();
+    const coordinates = [
+      ...Array.from({ length: 11 }, (_, i) => [106.7 + i * 0.00002, 10.776]),
+      ...Array.from({ length: 10 }, (_, i) => [106.7002, 10.776 - (i + 1) * 0.00002]),
+    ];
+    const dailyView = dailyViewFixture(TIMESTAMPS);
+    dailyView.route!.geometry.coordinates = coordinates;
+    dailyView.route!.properties.timestamps = coordinates.map((_, i) =>
+      new Date(Date.parse(TIMESTAMPS[0]) + i * 1000).toISOString(),
+    );
+    const wrapper = mountRouteMap(dailyView);
+    try {
+      await wrapper.vm.$nextTick();
+      await wrapper.find('button[aria-label="Phát"]').trigger("click");
+      const map = lastMap();
+      expect(map.easeTo.mock.calls.at(-1)?.[0].bearing).toBeCloseTo(90, 1);
+
+      vi.advanceTimersByTime(10_240);
+      expect(map.easeTo.mock.calls.at(-1)?.[0].bearing).toBeCloseTo(180, 1);
+      vi.advanceTimersByTime(9_800);
+      expect(map.easeTo.mock.calls.at(-1)?.[0]).toMatchObject({
+        center: coordinates.at(-1), bearing: 180, pitch: 45,
+      });
+    } finally {
+      wrapper.unmount();
+    }
+  });
+
+  it("moves the follow camera to the look-ahead target when scrubbing", async () => {
+    const wrapper = mountRouteMap(dailyViewFixture(TIMESTAMPS));
+    await wrapper.vm.$nextTick();
+    await wrapper.find('button[aria-label="Phát"]').trigger("click");
+    const map = lastMap();
+    map.easeTo.mockClear();
+    await wrapper.find('input[type="range"]').setValue("500");
+    expect(map.easeTo).toHaveBeenCalledWith(expect.objectContaining({
+      bearing: expect.any(Number), pitch: 45, zoom: 16.5,
+      center: expect.any(Array),
+    }));
+    const center = map.easeTo.mock.calls.at(-1)?.[0].center;
+    const source = map.sources.get("daily-route-current");
+    const puck = source?.setData.mock.calls.at(-1)?.[0] as FeatureCollection;
+    expect(center[0]).toBeGreaterThan((puck.features[0].geometry as { coordinates: number[] }).coordinates[0]);
+    wrapper.unmount();
+  });
+
   it("initializes the map with full, progress and current sources", () => {
     const wrapper = mountRouteMap(dailyViewFixture(TIMESTAMPS));
 

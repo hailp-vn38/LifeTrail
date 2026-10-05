@@ -163,6 +163,11 @@ export class FollowCamera {
 
   /** Stop any in-flight camera animation (used on unmount). */
   dispose(): void {
+    this.stop();
+  }
+
+  /** Freeze the camera when playback pauses. */
+  stop(): void {
     this.map.stop();
   }
 

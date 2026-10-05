@@ -10,6 +10,7 @@ set -euo pipefail
 readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 readonly REPOSITORY_DIR="$(cd -- "$SCRIPT_DIR/.." && pwd)"
 readonly COMPOSE_FILE="$REPOSITORY_DIR/deploy/docker-compose.yml"
+readonly WEB_ENV_FILE="$REPOSITORY_DIR/web/.env.local"
 
 usage() {
   cat <<'EOF'
@@ -33,7 +34,11 @@ EOF
 }
 
 compose() {
-  docker compose -f "$COMPOSE_FILE" "$@"
+  if [[ -f "$WEB_ENV_FILE" ]]; then
+    docker compose --env-file "$WEB_ENV_FILE" -f "$COMPOSE_FILE" "$@"
+  else
+    docker compose -f "$COMPOSE_FILE" "$@"
+  fi
 }
 
 app_service() {
@@ -55,9 +60,9 @@ case "$command" in
   start)
     service="$(app_service "$app")"
     if [[ -n "$service" ]]; then
-      compose up -d "$service"
+      compose up -d --build "$service"
     else
-      compose up -d
+      compose up -d --build
     fi
     ;;
   stop)
