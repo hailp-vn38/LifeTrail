@@ -4,17 +4,28 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "api:generate": "openapi-typescript ../protocol/openapi/lifetrail-v1.yaml -o src/api/generated/lifetrail-v1.d.ts",
     "dev": "vite",
     "build": "vite build",
-    "typecheck": "vue-tsc --noEmit"
+    "typecheck": "vue-tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
-    "vue": "^3.5.0"
+    "@tanstack/vue-query": "^5.104.1",
+    "maplibre-gl": "^6.12.0",
+    "openapi-fetch": "^0.17.0",
+    "vue": "^3.5.0",
+    "vue-router": "^5.3.1"
   },
   "devDependencies": {
+    "@types/geojson": "^7946.0.16",
     "@vitejs/plugin-vue": "^6.0.0",
+    "@vue/test-utils": "^2.5.1",
+    "jsdom": "^29.1.1",
+    "openapi-typescript": "^7.13.0",
     "typescript": "^5.0.0",
     "vite": "^7.0.0",
+    "vitest": "^5.0.3",
     "vue-tsc": "^3.0.0"
   }
 }

@@ -1,6 +1,6 @@
 # 08 — Build local Web Device list and Daily Route map
 
-Status: open
+Status: resolved
 Type: task
 Blocked by: 07
 
@@ -28,3 +28,9 @@ Build the no-auth Vue daily-route experience from OpenAPI-generated types and th
 ## Blocked by
 
 07.
+
+## Comments
+
+- Implemented Vue Router canonical URLs, TanStack Query read models, generated OpenAPI client types, timezone-correct Device day selection, and MapLibre GeoJSON route/start/end layers.
+- Added distinct loading, error, Device-not-found, and zero-data UI states. The Device list API now includes Owner timezone so the Web never substitutes the browser timezone.
+- Gates passed: Web unit/component tests, `vue-tsc --noEmit`, Vite static build, Rust fmt/tests/strict Clippy, and PostGIS integration tests in Docker Compose.

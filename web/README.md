@@ -1,5 +1,5 @@
 # Web app
 
-This is the Vue/Vite boundary for the read-oriented local-network Web UI. It will consume generated types from [`../protocol/openapi/lifetrail-v1.yaml`](../protocol/openapi/lifetrail-v1.yaml); it does not own or duplicate API wire semantics.
+This is the Vue/Vite boundary for the read-oriented local-network Web UI. It consumes generated types from [`../protocol/openapi/lifetrail-v1.yaml`](../protocol/openapi/lifetrail-v1.yaml); it does not own or duplicate API wire semantics.
 
-Only a buildable application shell exists in this ticket. Client generation and Daily View UI are intentionally deferred to later tickets.
+Copy `.env.example` to `.env.local` and set the MapTiler values for a production basemap. The browser key is public configuration and must be origin-restricted, not treated as a secret.

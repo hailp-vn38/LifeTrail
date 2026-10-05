@@ -95,6 +95,7 @@ async fn provisioning_migrates_postgis_lists_devices_and_authenticates_bearer_to
             .iter()
             .any(|item| item["id"] == device_id.to_string())
     );
+    assert_eq!(devices_json["devices"][0]["timezone"], "Asia/Ho_Chi_Minh");
 
     let valid_response = app
         .clone()

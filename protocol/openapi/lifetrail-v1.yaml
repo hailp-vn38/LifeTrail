@@ -160,7 +160,7 @@ components:
     Device:
       type: object
       additionalProperties: false
-      required: [id, owner_user_id, name]
+      required: [id, owner_user_id, name, timezone]
       properties:
         id:
           type: string
@@ -170,6 +170,9 @@ components:
           format: uuid
         name:
           type: string
+        timezone:
+          type: string
+          description: Device Owner IANA timezone.
     DeviceList:
       type: object
       additionalProperties: false

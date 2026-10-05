@@ -1,0 +1,13 @@
+:root { color: #172033; background: #f4f7fb; font-family: Inter, system-ui, sans-serif; }
+body { margin: 0; }
+main { margin: 0 auto; max-width: 1100px; padding: 2rem; }
+a { color: #1d4ed8; }
+.device-list { display: grid; gap: .75rem; list-style: none; padding: 0; }
+.device-list a { background: #fff; border-radius: .6rem; box-shadow: 0 1px 3px #1720331f; display: flex; justify-content: space-between; padding: 1rem; text-decoration: none; }
+.daily-header { align-items: center; display: flex; justify-content: space-between; }
+.daily-header input { display: block; margin-top: .25rem; }
+.summary-grid { display: grid; gap: .75rem; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); }
+.summary-grid > div { background: #fff; border-radius: .6rem; padding: 1rem; }
+dt { color: #536077; font-size: .85rem; } dd { font-size: 1.1rem; font-weight: 600; margin: .3rem 0 0; }
+.empty-state { background: #fff; border-radius: .6rem; padding: 2rem; text-align: center; }
+.timezone { color: #536077; }

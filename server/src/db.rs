@@ -18,6 +18,7 @@ pub struct Device {
     pub id: Uuid,
     pub owner_user_id: Uuid,
     pub name: String,
+    pub timezone: String,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -80,7 +81,7 @@ pub async fn create_device(
 ) -> Result<Device, sqlx::Error> {
     sqlx::query_as::<_, Device>(
         "INSERT INTO devices (id, owner_user_id, name, token_digest) VALUES ($1, $2, $3, $4) \
-         RETURNING id, owner_user_id, name",
+         RETURNING id, owner_user_id, name, (SELECT timezone FROM users WHERE id = $2) AS timezone",
     )
     .bind(Uuid::now_v7())
     .bind(owner_user_id)
@@ -92,17 +93,22 @@ pub async fn create_device(
 
 pub async fn list_devices(pool: &PgPool) -> Result<Vec<Device>, sqlx::Error> {
     sqlx::query_as::<_, Device>(
-        "SELECT id, owner_user_id, name FROM devices ORDER BY created_at ASC, id ASC",
+        "SELECT devices.id, devices.owner_user_id, devices.name, users.timezone \
+         FROM devices JOIN users ON users.id = devices.owner_user_id \
+         ORDER BY devices.created_at ASC, devices.id ASC",
     )
     .fetch_all(pool)
     .await
 }
 
 pub async fn find_device(pool: &PgPool, id: Uuid) -> Result<Option<Device>, sqlx::Error> {
-    sqlx::query_as::<_, Device>("SELECT id, owner_user_id, name FROM devices WHERE id = $1")
-        .bind(id)
-        .fetch_optional(pool)
-        .await
+    sqlx::query_as::<_, Device>(
+        "SELECT devices.id, devices.owner_user_id, devices.name, users.timezone \
+         FROM devices JOIN users ON users.id = devices.owner_user_id WHERE devices.id = $1",
+    )
+    .bind(id)
+    .fetch_optional(pool)
+    .await
 }
 
 pub async fn resolve_device_token(
@@ -110,7 +116,8 @@ pub async fn resolve_device_token(
     token: &str,
 ) -> Result<Option<Device>, sqlx::Error> {
     sqlx::query_as::<_, Device>(
-        "SELECT id, owner_user_id, name FROM devices WHERE token_digest = $1",
+        "SELECT devices.id, devices.owner_user_id, devices.name, users.timezone \
+         FROM devices JOIN users ON users.id = devices.owner_user_id WHERE devices.token_digest = $1",
     )
     .bind(digest_token(token))
     .fetch_optional(pool)
