@@ -2246,22 +2246,27 @@ media-store optional
                  Internet / LAN
                        │
                        ▼
-                    Caddy
-                  HTTPS :443
+                 web (Nginx)
+                  HTTP :8080
                  ┌─────┴─────┐
                  │           │
                  ▼           ▼
-          Vue static       /api
-                              │
-                              ▼
-                         Rust server
-                              │
-                              ▼
-                      PostgreSQL/PostGIS
-                              │
-                              ▼
-                     media volume/MinIO
+          Vue static       /api → proxy
+          (+ SPA fallback)        │
+                                  ▼
+                             Rust server
+                             (API only)
+                                  │
+                                  ▼
+                          PostgreSQL/PostGIS
+                                  │
+                                  ▼
+                         media volume/MinIO
 ```
+
+The `web` service owns the public port and reverse-proxies `/api/*` to the
+Rust server on the Compose network. The server image contains no web assets;
+`LT_STATIC_DIR` only re-enables in-server static hosting for special setups.
 
 Ưu điểm:
 
