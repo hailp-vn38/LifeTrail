@@ -39,6 +39,10 @@ struct GeoJsonFeature {
 struct GeoJsonProperties {
     #[serde(skip_serializing_if = "Option::is_none")]
     recorded_at: Option<DateTime<Utc>>,
+    /// RFC 3339 UTC timestamps, one per LineString coordinate, index-aligned.
+    /// `None` for Point features.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    timestamps: Option<Vec<DateTime<Utc>>>,
 }
 
 #[derive(Serialize)]
@@ -95,7 +99,12 @@ impl DailyView {
 fn line_string_feature(points: &[RoutePoint]) -> GeoJsonFeature {
     GeoJsonFeature {
         feature_type: "Feature",
-        properties: GeoJsonProperties { recorded_at: None },
+        properties: GeoJsonProperties {
+            recorded_at: None,
+            // Built from the exact same ordered slice as `coordinates` below,
+            // so timestamps[i] always describes coordinates[i].
+            timestamps: Some(points.iter().map(|point| point.recorded_at).collect()),
+        },
         geometry: GeoJsonGeometry {
             geometry_type: "LineString",
             coordinates: Coordinates::LineString(points.iter().map(coordinates).collect()),
@@ -108,6 +117,7 @@ fn point_feature(point: &RoutePoint) -> GeoJsonFeature {
         feature_type: "Feature",
         properties: GeoJsonProperties {
             recorded_at: Some(point.recorded_at),
+            timestamps: None,
         },
         geometry: GeoJsonGeometry {
             geometry_type: "Point",
@@ -135,4 +145,137 @@ fn haversine_m(first: &RoutePoint, second: &RoutePoint) -> f64 {
     let half_chord = (latitude_delta / 2.0).sin().powi(2)
         + first_latitude.cos() * second_latitude.cos() * (longitude_delta / 2.0).sin().powi(2);
     2.0 * EARTH_RADIUS_METERS * half_chord.sqrt().atan2((1.0 - half_chord).sqrt())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::TimeZone as _;
+    use serde_json::Value;
+
+    fn route_point(recorded_at: DateTime<Utc>, lat: f64, lon: f64) -> RoutePoint {
+        RoutePoint {
+            recorded_at,
+            lat,
+            lon,
+        }
+    }
+
+    fn sample_points() -> Vec<RoutePoint> {
+        vec![
+            route_point(
+                Utc.with_ymd_and_hms(2026, 10, 5, 10, 0, 0).unwrap(),
+                10.7760,
+                106.7000,
+            ),
+            route_point(
+                Utc.with_ymd_and_hms(2026, 10, 5, 10, 0, 3).unwrap(),
+                10.7764,
+                106.7005,
+            ),
+            route_point(
+                Utc.with_ymd_and_hms(2026, 10, 5, 10, 0, 25).unwrap(),
+                10.7770,
+                106.7010,
+            ),
+        ]
+    }
+
+    fn daily_view(points: Vec<RoutePoint>) -> Value {
+        let device_id = Uuid::nil();
+        let date = NaiveDate::from_ymd_opt(2026, 10, 5).unwrap();
+        let view = DailyView::from_points(device_id, date, "Asia/Ho_Chi_Minh", points);
+        serde_json::to_value(&view).expect("DailyView serializes")
+    }
+
+    fn parse_timestamps(value: &Value) -> Vec<DateTime<Utc>> {
+        value
+            .as_array()
+            .expect("timestamps is an array")
+            .iter()
+            .map(|entry| {
+                entry
+                    .as_str()
+                    .expect("timestamp is a string")
+                    .parse::<DateTime<Utc>>()
+                    .expect("timestamp is RFC 3339")
+            })
+            .collect()
+    }
+
+    #[test]
+    fn route_serializes_one_timestamp_per_coordinate_in_order() {
+        let points = sample_points();
+        let view = daily_view(points.clone());
+
+        let coordinates = view["route"]["geometry"]["coordinates"]
+            .as_array()
+            .expect("route coordinates is an array");
+        let timestamps = parse_timestamps(&view["route"]["properties"]["timestamps"]);
+
+        assert_eq!(
+            timestamps.len(),
+            coordinates.len(),
+            "timestamps.length === coordinates.length"
+        );
+        for (index, point) in points.iter().enumerate() {
+            assert_eq!(
+                timestamps[index], point.recorded_at,
+                "timestamps[{index}] matches the RoutePoint used for coordinates[{index}]"
+            );
+            assert_eq!(coordinates[index][0].as_f64().unwrap(), point.lon);
+            assert_eq!(coordinates[index][1].as_f64().unwrap(), point.lat);
+        }
+    }
+
+    #[test]
+    fn start_and_end_recorded_at_match_first_and_last_route_points() {
+        let points = sample_points();
+        let view = daily_view(points.clone());
+
+        let start_at = view["start"]["properties"]["recorded_at"]
+            .as_str()
+            .expect("start recorded_at is a string")
+            .parse::<DateTime<Utc>>()
+            .unwrap();
+        let end_at = view["end"]["properties"]["recorded_at"]
+            .as_str()
+            .expect("end recorded_at is a string")
+            .parse::<DateTime<Utc>>()
+            .unwrap();
+        let timestamps = parse_timestamps(&view["route"]["properties"]["timestamps"]);
+
+        assert_eq!(start_at, points.first().unwrap().recorded_at);
+        assert_eq!(end_at, points.last().unwrap().recorded_at);
+        assert_eq!(start_at, timestamps.first().copied().unwrap());
+        assert_eq!(end_at, timestamps.last().copied().unwrap());
+        assert!(view["start"]["properties"].get("timestamps").is_none());
+        assert!(view["route"]["properties"].get("recorded_at").is_none());
+    }
+
+    #[test]
+    fn empty_day_has_no_route_or_markers() {
+        let view = daily_view(Vec::new());
+
+        assert!(view["route"].is_null());
+        assert!(view["start"].is_null());
+        assert!(view["end"].is_null());
+        assert_eq!(view["summary"]["point_count"], 0);
+    }
+
+    #[test]
+    fn single_point_day_has_markers_but_no_route() {
+        let points = vec![sample_points().remove(0)];
+        let view = daily_view(points.clone());
+
+        assert!(view["route"].is_null());
+        assert!(!view["start"].is_null());
+        assert!(!view["end"].is_null());
+        let start_at = view["start"]["properties"]["recorded_at"]
+            .as_str()
+            .unwrap()
+            .parse::<DateTime<Utc>>()
+            .unwrap();
+        assert_eq!(start_at, points[0].recorded_at);
+    }
 }

@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use uuid::Uuid;
 
-#[derive(sqlx::FromRow)]
+#[derive(sqlx::FromRow, Clone)]
 pub(super) struct RoutePoint {
     pub(super) recorded_at: DateTime<Utc>,
     pub(super) lat: f64,

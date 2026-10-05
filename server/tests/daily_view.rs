@@ -71,6 +71,16 @@ async fn assert_dst_raw_projection(app: axum::Router, device_id: Uuid) {
         body["route"]["geometry"]["coordinates"],
         serde_json::json!([[0.0, 0.0], [1.0, 0.0], [2.0, 0.0]])
     );
+    // One timestamp per coordinate, index-aligned, from the same ordered points
+    // (note the duplicated 05:00:00Z timestamp is preserved, not deduplicated).
+    assert_eq!(
+        body["route"]["properties"]["timestamps"],
+        serde_json::json!([
+            "2026-03-08T05:00:00Z",
+            "2026-03-08T05:00:00Z",
+            "2026-03-09T03:59:59Z"
+        ])
+    );
     assert_eq!(
         body["start"]["properties"]["recorded_at"],
         "2026-03-08T05:00:00Z"

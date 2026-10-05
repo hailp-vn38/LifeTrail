@@ -283,7 +283,10 @@ export interface components {
         LineStringFeature: {
             /** @enum {string} */
             type: "Feature";
-            properties: Record<string, never>;
+            properties: {
+                /** @description RFC 3339 UTC timestamp for each route coordinate. timestamps.length must equal geometry.coordinates.length, and timestamps[i] describes coordinates[i]. Timestamps are monotonic non-decreasing. */
+                timestamps: string[];
+            };
             geometry: components["schemas"]["LineStringGeometry"];
         };
         PointFeature: {
