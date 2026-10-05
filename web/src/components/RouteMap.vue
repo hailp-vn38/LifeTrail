@@ -69,6 +69,7 @@ let controller: PlaybackController | undefined;
 let followCamera: FollowCamera | undefined;
 let playbackPoints: PlaybackPoint[] = [];
 let lastFrameState: PlaybackState = "idle";
+let lastFrameTimeMs = 0;
 
 const mapReady = ref(false);
 const playbackState = ref<PlaybackState>("idle");
@@ -267,7 +268,7 @@ function applyFrame(frame: PlaybackFrame) {
     );
     setSourceData(SOURCE_CURRENT, puckFeatures(frame.position, frame.bearing));
 
-    if (frame.state === "playing" && followCamera) {
+    if (followCamera) {
       // Course-Up Follow Camera with Look-Ahead: the camera aims at a point
       // ahead on the route while the puck stays on the current GPS fix.
       const target: FollowTarget = {
@@ -280,14 +281,22 @@ function applyFrame(frame: PlaybackFrame) {
         ),
         bearing: frame.bearing,
       };
-      if (lastFrameState !== "playing") {
-        followCamera.enter(target);
+      if (frame.state === "playing") {
+        if (lastFrameState !== "playing") {
+          followCamera.enter(target);
+        } else {
+          followCamera.update(target);
+        }
+      } else if (frame.state === "paused" && frame.routeTimeMs === lastFrameTimeMs) {
+        followCamera.stop();
       } else {
-        followCamera.update(target);
+        // Seek, restart and the final frame bypass playback throttling.
+        followCamera.enter(target);
       }
     }
   }
   lastFrameState = frame.state;
+  lastFrameTimeMs = frame.routeTimeMs;
 }
 
 function handleOverviewReady() {

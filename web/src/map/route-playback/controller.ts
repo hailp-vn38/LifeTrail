@@ -1,4 +1,4 @@
-import { bearingBetween } from "./geometry";
+import { routeBearing } from "./heading";
 import { clampRouteTime, locateSegment, progressRatio, routeDurationMs } from "./timeline";
 import type { PlaybackFrame, PlaybackPoint, PlaybackState } from "./types";
 
@@ -203,8 +203,7 @@ export class PlaybackController {
 
   private emitFrame(): void {
     const location = locateSegment(this.points, this.routeTimeMs);
-    const nextIndex = Math.min(location.vertexIndex + 1, this.points.length - 1);
-    const segmentBearing = bearingBetween(location.position, this.points[nextIndex].coordinate);
+    const segmentBearing = routeBearing(this.points, location.vertexIndex, location.position);
     if (segmentBearing !== null) {
       this.lastStableBearing = segmentBearing;
     }

@@ -96,6 +96,28 @@ function harness(points: PlaybackPoint[] = fixturePoints(), speed = 1): Harness 
 }
 
 describe("PlaybackController", () => {
+  it("follows east then south even when GPS records are less than 5m apart", () => {
+    const points: PlaybackPoint[] = [
+      ...Array.from({ length: 11 }, (_, i) => ({
+        coordinate: [106.7 + i * 0.00002, 10.776] as [number, number],
+        recordedAtMs: i * 1000,
+      })),
+      ...Array.from({ length: 10 }, (_, i) => ({
+        coordinate: [106.7002, 10.776 - (i + 1) * 0.00002] as [number, number],
+        recordedAtMs: (i + 11) * 1000,
+      })),
+    ];
+    const { controller, frames } = harness(points);
+    controller.play();
+    expect(frames.at(-1)?.bearing).toBeCloseTo(90, 1);
+    controller.seek(10_000);
+    expect(frames.at(-1)?.bearing).toBeCloseTo(180, 1);
+    controller.seek(20_000);
+    expect(frames.at(-1)?.bearing).toBeCloseTo(180, 1);
+    controller.restart();
+    expect(frames.at(-1)?.bearing).toBeCloseTo(90, 1);
+  });
+
   it("transitions idle -> playing and emits the start frame", () => {
     const { controller, frames } = harness();
     expect(controller.currentState).toBe("idle");
@@ -265,15 +287,14 @@ describe("PlaybackController", () => {
     expect(controller.currentRouteTimeMs).toBe(7_000);
   });
 
-  it("keeps the last stable bearing when the segment is too short to trust", () => {
+  it("uses the incoming route bearing when jumping straight to the final frame", () => {
     const { controller, scheduler, frames } = harness();
     controller.play();
-    const firstBearing = frames[0].bearing;
 
     scheduler.advance(60_000);
     scheduler.runFrames();
     const last = frames[frames.length - 1];
-    expect(last.bearing).toBe(firstBearing);
+    expect(last.bearing).toBeCloseTo(50.842, 1);
     expect(Number.isFinite(last.bearing)).toBe(true);
   });
 
