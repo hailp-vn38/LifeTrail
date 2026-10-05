@@ -4,6 +4,48 @@ info:
   version: v1
   description: Phase 1 reusable API-v1 contract components.
 paths:
+  /api/v1/device/batches:
+    post:
+      summary: Atomically ingest one immutable Device GPS Batch.
+      security:
+        - deviceBearer: []
+      parameters:
+        - name: X-LifeTrail-Batch-Id
+          in: header
+          required: true
+          schema: { type: string, format: uuid }
+        - name: X-LifeTrail-Schema
+          in: header
+          required: true
+          schema: { type: string, enum: [gps/1] }
+        - name: X-LifeTrail-Content-SHA256
+          in: header
+          required: true
+          schema: { type: string, pattern: '^[0-9a-f]{64}$' }
+        - name: X-LifeTrail-Byte-Length
+          in: header
+          required: true
+          schema: { type: integer, minimum: 0 }
+        - name: X-LifeTrail-Record-Count
+          in: header
+          required: true
+          schema: { type: integer, minimum: 0 }
+      requestBody:
+        required: true
+        content:
+          application/x-ndjson:
+            schema: { type: string, format: binary }
+      responses:
+        '200':
+          description: Batch committed or a verified idempotent replay.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BatchAcknowledgement' }
+        '401': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '413': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+        default: { $ref: '#/components/responses/Error' }
   /api/v1/devices:
     get:
       summary: List Devices for the local unauthenticated Web.
@@ -55,6 +97,15 @@ components:
       type: http
       scheme: bearer
   schemas:
+    BatchAcknowledgement:
+      type: object
+      additionalProperties: false
+      required: [batch_id, status, record_count, duplicate]
+      properties:
+        batch_id: { type: string, format: uuid }
+        status: { type: string, enum: [committed] }
+        record_count: { type: integer, minimum: 1 }
+        duplicate: { type: boolean }
     ErrorEnvelope:
       type: object
       additionalProperties: false

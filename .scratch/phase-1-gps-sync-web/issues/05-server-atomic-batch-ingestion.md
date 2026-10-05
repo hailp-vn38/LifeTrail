@@ -1,6 +1,6 @@
 # 05 — Implement atomic device batch ingestion and replay semantics
 
-Status: open
+Status: resolved
 Type: task
 Blocked by: 01, 02
 
@@ -26,3 +26,7 @@ Implement `POST /api/v1/device/batches` so validated NDJSON becomes immutable Ra
 ## Blocked by
 
 01, 02.
+
+## Answer
+
+Implemented `POST /api/v1/device/batches` with Bearer digest authentication, strict byte-verified `gps/1` NDJSON validation, one-transaction persistence of immutable Batch metadata and Raw GPS, PostGIS geometry generation, idempotent replay, and hash-conflict handling. Real PostGIS integration coverage proves successful commit, replay, conflict, validation rollback, transaction-failure rollback, size limit, canonical error envelopes, and request IDs.

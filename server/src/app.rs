@@ -6,7 +6,7 @@ use axum::{
     http::{HeaderMap, HeaderValue, Request, header},
     middleware::{self, Next},
     response::Response,
-    routing::get,
+    routing::{get, post},
 };
 use serde::Serialize;
 use sqlx::PgPool;
@@ -19,6 +19,7 @@ use uuid::Uuid;
 use crate::{
     db::{self, Device},
     error::ApiError,
+    ingestion,
 };
 
 #[derive(Clone)]
@@ -27,13 +28,14 @@ pub struct AppState {
 }
 
 #[derive(Clone)]
-struct RequestId(String);
+pub(crate) struct RequestId(pub(crate) String);
 
 pub fn router(state: AppState, static_dir: PathBuf) -> Router {
     let api = Router::new()
         .route("/v1/devices", get(list_devices))
         .route("/v1/devices/{device_id}", get(get_device))
         .route("/v1/device", get(authenticated_device))
+        .route("/v1/device/batches", post(ingestion::ingest_batch))
         .fallback(api_not_found)
         .method_not_allowed_fallback(api_method_not_allowed)
         .with_state(state.clone());
@@ -131,7 +133,7 @@ async fn api_method_not_allowed(Extension(request_id): Extension<RequestId>) -> 
     ApiError::method_not_allowed(request_id.0)
 }
 
-fn bearer_token(headers: &HeaderMap) -> Option<&str> {
+pub(crate) fn bearer_token(headers: &HeaderMap) -> Option<&str> {
     headers
         .get(header::AUTHORIZATION)?
         .to_str()
