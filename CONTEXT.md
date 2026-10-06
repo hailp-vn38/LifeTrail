@@ -33,8 +33,48 @@ A read model for one Owner-local calendar day; its time boundaries are resolved 
 _Avoid_: UTC day, device day
 
 **Route**:
-A derived GeoJSON LineString representing the GPS history in a Daily View. It is not the Raw GPS source of truth.
+A derived spatial representation of observed movement. A Route may contain disconnected portions separated by GPS Gaps; it is not the Raw GPS source of truth.
 _Avoid_: GPS log, track file
+
+**Trip**:
+A maximal continuous chain of movement by a Device, ending at a qualifying Stop or GPS Gap once that boundary is confirmed. A Trip contains one or more ordered Movement Segments, may span transport modes or calendar days, and can have open boundaries at observation edges or adjacent to Evidence Holes.
+_Avoid_: Movement Segment, day route
+
+**Movement Segment**:
+A portion of a Trip with a relatively homogeneous transport mode: walking, cycling, driving or unknown. A mode change can separate Movement Segments without ending their Trip.
+_Avoid_: Trip, GPS Record
+
+**Stop**:
+A spatial dwell meeting the configured detection criteria, which ends a Trip. One Stop may continue across calendar days or remain open until further observations establish its boundary; a shorter pause does not itself end a Trip.
+_Avoid_: zero-speed point, GPS Gap
+
+**GPS Gap**:
+An interval without Raw GPS observations between two known observed boundaries that ends a Trip. It does not establish movement or stationary time, and cannot be inferred outside the first/last observations or merely from quality filtering.
+_Avoid_: Stop, inferred movement, upload delay
+
+**Evidence Hole**:
+An interval containing Raw GPS observations for which reliable activity or geometry cannot be derived. It can leave adjoining activity boundaries open and is distinct from the absence of observations represented by a GPS Gap.
+_Avoid_: GPS Gap, Stop
+
+**Published Daily Snapshot**:
+A consistent processed Daily View made available to the Owner. The last successful snapshot remains available while a replacement is prepared or fails.
+_Avoid_: activity container, processing job
+
+**Stable Segmentation Boundary**:
+A confirmed Stop or GPS Gap transition with sufficient observations on both sides that activity beyond it remains unchanged when the adjacent dirty range is reprocessed.
+_Avoid_: fixed context window, midnight boundary
+
+**Route Part**:
+A contiguous drawable portion of the derived Route for a Movement Segment. A Movement Segment may have several Route Parts; a separation between them does not by itself establish a GPS Gap.
+_Avoid_: Movement Segment, GPS Gap
+
+**Activity Revision**:
+An immutable version of derived Device activity for one continuous processing range. It identifies the origin of its events and Route Parts rather than one calendar day's publication.
+_Avoid_: Daily Snapshot, full Device history
+
+**Activity Manifest**:
+A versioned composition of Activity Revision ranges defining the authoritative history of a Device. A Published Daily Snapshot refers to a particular manifest rather than whichever history is current later.
+_Avoid_: latest revision, Daily Snapshot
 
 **Quarantine**:
 Durable local storage for a Batch whose integrity cannot be safely established and which must never be deleted automatically.
