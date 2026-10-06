@@ -1,6 +1,7 @@
 //! Compose every derived activity for one captured observation range.
 use super::{
-    evidence::{self, UnresolvedInterval},
+    evidence::{self, EvidenceHole},
+    gaps::{self, GpsGap},
     model::{Observation, Target},
     route_parts::RoutePart,
     stops::{self, Stop},
@@ -8,21 +9,31 @@ use super::{
 };
 use uuid::Uuid;
 
+/// Version of the activity reducer that produced a revision and its Daily
+/// Snapshots. Bumped whenever derivation semantics change, and recorded with
+/// every Activity Revision and snapshot as provenance.
+pub(super) const REDUCER_VERSION: i64 = 2;
+
 pub(super) struct Derived {
     pub stops: Vec<Stop>,
     pub trips: Vec<Trip>,
+    pub gaps: Vec<GpsGap>,
     pub parts: Vec<RoutePart>,
-    pub unresolved_intervals: Vec<UnresolvedInterval>,
+    pub evidence_holes: Vec<EvidenceHole>,
 }
 
 pub(super) fn derive(points: &[Observation], target: &Target, revision: Uuid) -> Derived {
     let stops = stops::detect(points, target, revision);
     let activity = trips::derive(points, &stops, target, revision);
-    let unresolved_intervals = evidence::unresolved(points, &stops, &activity.trips, target);
+    // Gaps come from the Raw series before quality filtering, holes only from
+    // observations that exist, so the two never describe the same interval.
+    let gaps = gaps::detect(points, target, revision);
+    let evidence_holes = evidence::holes(points, &stops, &activity.trips, target);
     Derived {
         stops,
         trips: activity.trips,
+        gaps,
         parts: activity.parts,
-        unresolved_intervals,
+        evidence_holes,
     }
 }

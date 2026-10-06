@@ -109,10 +109,7 @@ async fn sparse_upload_publishes_truthful_snapshot_and_refreshes_unresolved_late
     assert_eq!(stale["summary"]["point_count"], 2);
     assert!(stale["processing"]["deferred_reason"].is_null());
     assert_eq!(stale["timeline"], json!([]));
-    assert_eq!(
-        stale["evidence_holes"][0]["reason"],
-        "unusable_observations"
-    );
+    assert_eq!(stale["evidence_holes"][0]["reason"], "insufficient_quality");
     processing::queue_day(&pool, device.id, "2026-10-06".parse().unwrap())
         .await
         .unwrap();

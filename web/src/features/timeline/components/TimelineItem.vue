@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CircleDot, Flag, Image, Mic, Pause, Route } from "lucide-vue-next";
+import { CircleDot, Flag, Image, Mic, Pause, Route, Unplug } from "lucide-vue-next";
 import { computed } from "vue";
 import type { TimelineEvent, TimelineEventKind } from "../types";
 
@@ -11,6 +11,7 @@ const KIND_ICON: Record<TimelineEventKind, typeof Flag> = {
   end: Flag,
   trip: Route,
   stop: Pause,
+  gap: Unplug,
   photo: Image,
   audio: Mic,
 };
@@ -86,6 +87,14 @@ const selectedLabel = computed(() =>
 .timeline-item--end .timeline-item__marker {
   background: #fdecec;
   color: var(--color-danger);
+}
+/* A Gap is an absence, so it reads as a break rather than activity. */
+.timeline-item--gap .timeline-item__marker {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+.timeline-item--gap .timeline-item__title {
+  font-weight: 600;
 }
 .timeline-item.is-selected .timeline-item__marker {
   background: var(--color-primary);

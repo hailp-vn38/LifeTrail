@@ -123,10 +123,18 @@ async fn stationary_fixtures_distinguish_dwell_pauses_missing_and_unusable_obser
                     .as_array()
                     .unwrap()
                     .iter()
-                    .chain(view["unresolved_intervals"].as_array().unwrap().iter())
-                    .any(|h| &h["reason"] == reason),
-                "{name}"
+                    .any(|hole| &hole["reason"] == reason),
+                "{name}: an absent observation is never evidence coverage"
             );
+        }
+        if let Some(gaps) = case.get("gaps") {
+            let published = view["timeline"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter(|item| item["kind"] == "gap")
+                .count();
+            assert_eq!(published, gaps.as_u64().unwrap() as usize, "{name}");
         }
         let boundaries = case
             .get("boundaries")

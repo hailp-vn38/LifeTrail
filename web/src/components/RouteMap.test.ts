@@ -452,6 +452,69 @@ it("highlights and fits a Trip Route Part and selects its Timeline item from the
   wrapper.unmount();
 });
 
+function mountWithRecordCount(pointCount: number) {
+  const view = tripView();
+  view.summary.point_count = pointCount;
+  const wrapper = mountRouteMap(view);
+  const map = lastMap();
+  return {
+    wrapper,
+    map,
+    sources: map.sources.size,
+    layers: (map.addedLayers as { id: string; type: string }[]).length,
+  };
+}
+
+it("draws disconnected geometry across a Gap without a marker per GPS Record", () => {
+  const view = tripView();
+  // One Part either side of a GPS Gap, from two Trips of the same day.
+  view.route_parts = [
+    rawPart,
+    { ...rawPart, id: "rev:trip:1:segment:0:part:0", trip_id: "rev:trip:1" },
+  ];
+  view.timeline = [
+    { ...openTrip },
+    {
+      id: "rev:gap:0",
+      kind: "gap",
+      activity_revision: "rev",
+      observed_from_at: "2026-10-05T02:40:00Z",
+      observed_until_at: "2026-10-05T02:50:00Z",
+      observed_duration_s: 600,
+      visible_from_at: "2026-10-05T02:40:00Z",
+      visible_until_at: "2026-10-05T02:50:00Z",
+      daily_observed_duration_s: 600,
+      continues_before: false,
+      continues_after: false,
+    },
+    { ...openTrip, id: "rev:trip:1" },
+  ];
+  const wrapper = mountRouteMap(view);
+  const map = lastMap();
+
+  // Each published Part is its own line, so the Gap reads as a break in the
+  // geometry rather than a connector through unobserved space.
+  const collection = map.sources.get("activity-route-parts")?.data as FeatureCollection<LineString>;
+  expect(collection.features).toHaveLength(2);
+  expect(collection.features.map((feature) => feature.properties?.eventId)).toEqual([
+    openTrip.id,
+    "rev:trip:1",
+  ]);
+  wrapper.unmount();
+});
+
+it("creates no map marker per GPS Record", () => {
+  // A dense day and a sparse day must register exactly the same sources and
+  // layers, so no marker count scales with the Raw GPS Record total.
+  const dense = mountWithRecordCount(30_000);
+  dense.wrapper.unmount();
+  const sparse = mountWithRecordCount(2);
+  sparse.wrapper.unmount();
+
+  expect(dense.sources).toBe(sparse.sources);
+  expect(dense.layers).toBe(sparse.layers);
+});
+
 it("renders processed Route Parts without deriving length from their coordinates", () => {
   const view = tripView();
   // The fixture's coordinates describe a shorter span than the published length,

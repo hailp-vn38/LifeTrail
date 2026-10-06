@@ -1,6 +1,7 @@
 import type { DailyView } from "../../api/queries/daily-view.query";
 import { tripDistanceM, type MovementSegment } from "../activity/model";
 import { formatDistance, formatDuration, formatTimestamp } from "../../lib/format";
+import { describeGap } from "./evidence";
 import type { TimelineEvent } from "./types";
 
 /** Ordered Movement Segment modes; `unknown` is shown as undetermined. */
@@ -45,6 +46,16 @@ export function buildTimelineEvents(dailyView: DailyView): TimelineEvent[] {
         `Quan sát: ${formatTimestamp(activity.observed_from_at, dailyView.timezone)} – ${formatTimestamp(activity.observed_until_at, dailyView.timezone)} (${formatDuration(activity.observed_duration_s)})`,
         `Trong ngày: ${formatDuration(activity.daily_observed_duration_s)}`,
       ].join(" · ");
+      if (activity.kind === "gap") {
+        // A Gap is an absence of observations: its own item, with no coordinate
+        // to focus and no implied travel.
+        return {
+          id: activity.id,
+          kind: activity.kind,
+          ...describeGap(activity, dailyView.timezone),
+          recordedAtMs: Date.parse(activity.visible_from_at),
+        };
+      }
       if (activity.kind === "stop") {
         return {
           id: activity.id,

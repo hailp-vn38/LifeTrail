@@ -49,6 +49,7 @@ describe("buildTimelineEvents", () => {
   });
 });
 
+import { qualityGapView } from "../../test/fixtures/quality-gaps";
 import { stationaryView } from "../../test/fixtures/stationary";
 import { tripView } from "../../test/fixtures/trips";
 
@@ -81,4 +82,17 @@ it("keeps projected Trip and Stop items in the server's chronological order", ()
     Date.parse("2026-10-05T02:30:00Z"),
     Date.parse("2026-10-05T03:00:00Z"),
   ]);
+});
+
+it("renders a GPS Gap as its own Timeline item without a coordinate", () => {
+  const events = buildTimelineEvents(qualityGapView());
+
+  expect(events).toHaveLength(1);
+  expect(events[0].kind).toBe("gap");
+  expect(events[0].title).toBe("GPS Gap");
+  expect(events[0].subtitle).toContain("Thiếu quan sát GPS");
+  expect(events[0].subtitle).toContain("11 phút");
+  expect(events[0].subtitle).toContain("Không suy ra di chuyển");
+  // Absence of observations has no place to focus the map on.
+  expect(events[0].coordinate).toBeUndefined();
 });

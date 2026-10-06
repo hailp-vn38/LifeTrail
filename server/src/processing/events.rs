@@ -1,5 +1,5 @@
-//! Chronological daily projection of Trips and Stops with visible boundaries.
-use super::{model::Day, stops::Stop, trips::Trip};
+//! Chronological daily projection of Trips, Stops and GPS Gaps.
+use super::{gaps::GpsGap, model::Day, stops::Stop, trips::Trip};
 use chrono::{DateTime, Utc};
 use serde_json::{Value, json};
 
@@ -10,11 +10,12 @@ struct Projected {
     value: Value,
 }
 
-/// Trip and Stop items in observed chronological order for one Owner-local day.
+/// Trip, Stop and GPS Gap items in observed chronological order for one
+/// Owner-local day.
 ///
 /// Actual, observed and visible intervals stay distinct, and continuation flags
 /// only report observed coverage outside the day.
-pub(super) fn timeline(stops: &[Stop], trips: &[Trip], day: &Day) -> Vec<Value> {
+pub(super) fn timeline(stops: &[Stop], trips: &[Trip], gaps: &[GpsGap], day: &Day) -> Vec<Value> {
     let mut projected: Vec<Projected> = stops
         .iter()
         .map(|stop| project(stop, stop.observed_from_at, stop.observed_until_at, day))
@@ -22,6 +23,10 @@ pub(super) fn timeline(stops: &[Stop], trips: &[Trip], day: &Day) -> Vec<Value> 
             trips
                 .iter()
                 .map(|trip| project(trip, trip.observed_from_at, trip.observed_until_at, day)),
+        )
+        .chain(
+            gaps.iter()
+                .map(|gap| project(gap, gap.observed_from_at, gap.observed_until_at, day)),
         )
         .flatten()
         .collect();

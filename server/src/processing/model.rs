@@ -1,3 +1,4 @@
+use super::quality::QualityClass;
 use chrono::{DateTime, NaiveDate, Utc};
 use serde::Serialize;
 use uuid::Uuid;
@@ -7,6 +8,12 @@ pub(super) struct Claim {
     pub device_id: Uuid,
     pub token: i64,
 }
+/// Processing target columns, shared by capture and activation so the identity
+/// checked at activation is always the identity that was captured.
+pub(super) const TARGET_COLUMNS: &str = "c.input_generation,c.work_generation,c.target_generation,c.target_id,c.fencing_token,\
+c.stop_radius_m,c.stop_min_duration_s,c.observation_gap_s,\
+c.max_hdop,c.max_implied_speed_mps,c.jump_distance_floor_m,\
+u.timezone,u.timezone_generation";
 #[derive(sqlx::FromRow)]
 pub(super) struct Target {
     pub input_generation: i64,
@@ -19,6 +26,9 @@ pub(super) struct Target {
     pub stop_radius_m: f64,
     pub stop_min_duration_s: i64,
     pub observation_gap_s: i64,
+    pub max_hdop: f64,
+    pub max_implied_speed_mps: f64,
+    pub jump_distance_floor_m: f64,
 }
 pub(super) struct Input {
     pub claim: Claim,
@@ -47,11 +57,28 @@ pub struct ProcessingStatus {
     pub failure_message: Option<String>,
 }
 
+/// One captured GPS Record with the Raw acquisition metadata that classifies it.
+///
+/// `classification` is computed by `quality::classify` from the captured policy,
+/// never read from storage, so a published classification is reproducible from
+/// the Raw metadata plus the recorded policy.
 #[derive(sqlx::FromRow)]
 pub(super) struct Observation {
     pub id: i64,
     pub recorded_at: DateTime<Utc>,
     pub lat: f64,
     pub lon: f64,
-    pub usable: bool,
+    pub fix_quality: i64,
+    pub hdop: Option<f64>,
+    pub satellites: i64,
+    pub speed_mps: Option<f64>,
+    #[sqlx(skip)]
+    pub classification: QualityClass,
+}
+
+impl Observation {
+    /// Only a reliable observation supports derived activity.
+    pub(super) fn usable(&self) -> bool {
+        self.classification.is_usable()
+    }
 }

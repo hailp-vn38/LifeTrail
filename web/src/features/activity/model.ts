@@ -8,13 +8,31 @@ import type { components } from "../../api/generated/lifetrail-v1";
 import type { DailyView } from "../../api/queries/daily-view.query";
 
 export type DailyActivity = components["schemas"]["DailyActivity"];
+export type DailyGap = components["schemas"]["DailyGap"];
 export type DailyStop = components["schemas"]["DailyStop"];
 export type DailyTrip = components["schemas"]["DailyTrip"];
+export type EvidenceHole = components["schemas"]["EvidenceHole"];
 export type MovementSegment = components["schemas"]["MovementSegment"];
 export type RoutePart = components["schemas"]["RoutePart"];
 
 export function stopActivities(dailyView: DailyView): DailyStop[] {
   return (dailyView.timeline ?? []).filter((item): item is DailyStop => item.kind === "stop");
+}
+
+/**
+ * GPS Gaps in the published Timeline.
+ *
+ * A Gap is the absence of Raw observations, so it has no geometry and no
+ * location to focus. It is deliberately distinct from `evidence_holes`, which
+ * describe intervals that contain unreliable observations.
+ */
+export function gapActivities(dailyView: DailyView): DailyGap[] {
+  return (dailyView.timeline ?? []).filter((item): item is DailyGap => item.kind === "gap");
+}
+
+/** Intervals with Raw observations that cannot support reliable activity. */
+export function evidenceHoles(dailyView: DailyView): EvidenceHole[] {
+  return dailyView.evidence_holes ?? [];
 }
 
 export function tripActivities(dailyView: DailyView): DailyTrip[] {

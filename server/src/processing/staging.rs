@@ -1,5 +1,9 @@
 //! Persist immutable UTC activity and daily candidates before fenced activation.
-use super::{derived, model::Input, snapshot};
+use super::{
+    derived::{self, REDUCER_VERSION},
+    model::Input,
+    snapshot,
+};
 use serde_json::{Value, json};
 use sqlx::PgPool;
 use uuid::Uuid;
@@ -23,8 +27,8 @@ pub(super) async fn stage(
             .bind(input.target.input_generation).bind(input.target.target_generation)
             .bind(config(input).to_string())
             .bind(json!({
-                "stops":derived.stops,"trips":derived.trips,"route_parts":derived.parts,
-                "unresolved_intervals":derived.unresolved_intervals
+                "stops":derived.stops,"trips":derived.trips,"gaps":derived.gaps,
+                "route_parts":derived.parts,"evidence_holes":derived.evidence_holes
             }).to_string()).execute(pool).await?;
         entries = json!([{"activity_revision":revision,"from_at":first.recorded_at,"until_at":until,"from_boundary":"observation_edge","until_boundary":"observation_edge"}]);
     }
@@ -45,8 +49,12 @@ pub(super) async fn stage(
 /// Algorithm and configuration identity retained with each Activity Revision.
 fn config(input: &Input) -> Value {
     json!({
-        "algorithms":["anchored-spatial-dwell-v1","continuous-movement-raw-v1"],
+        "algorithms":["anchored-spatial-dwell-v1","continuous-movement-raw-v1","raw-quality-classification-v1","observed-gap-detection-v1"],
         "radius_m":input.target.stop_radius_m,"minimum_duration_s":input.target.stop_min_duration_s,
-        "observation_gap_s":input.target.observation_gap_s,"max_hdop":5
+        "observation_gap_s":input.target.observation_gap_s,
+        "max_hdop":input.target.max_hdop,
+        "max_implied_speed_mps":input.target.max_implied_speed_mps,
+        "jump_distance_floor_m":input.target.jump_distance_floor_m,
+        "reducer_version":REDUCER_VERSION
     })
 }

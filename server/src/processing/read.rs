@@ -27,7 +27,7 @@ async fn publication(
     date: NaiveDate,
 ) -> Result<Option<Publication>, sqlx::Error> {
     sqlx::query_as("SELECT u.timezone,u.timezone_generation,COALESCE(c.input_generation,0) AS input_generation, \
-        COALESCE(c.target_generation,1) AS target_generation,COALESCE(c.target_id,'trips-v1') AS target_id,m.target_id AS snapshot_target_id,j.state AS job_state,p.state AS day_state,j.failure_message, \
+        COALESCE(c.target_generation,1) AS target_generation,COALESCE(c.target_id,'quality-gaps-v1') AS target_id,m.target_id AS snapshot_target_id,j.state AS job_state,p.state AS day_state,j.failure_message, \
         s.id AS snapshot_id,s.source_generation,s.target_generation AS snapshot_target,s.timezone_generation AS snapshot_timezone,s.body::text AS body \
         FROM devices d JOIN users u ON u.id=d.owner_user_id \
         LEFT JOIN device_processing_control c ON c.device_id=d.id LEFT JOIN processing_jobs j ON j.device_id=d.id \

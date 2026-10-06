@@ -41,7 +41,7 @@ pub(super) fn detect(points: &[Observation], target: &Target, revision: Uuid) ->
     let mut stops = Vec::new();
     let mut start = 0;
     while start < points.len() {
-        if !points[start].usable {
+        if !points[start].usable() {
             start += 1;
             continue;
         }
@@ -53,7 +53,7 @@ pub(super) fn detect(points: &[Observation], target: &Target, revision: Uuid) ->
         while end < points.len() {
             let point = &points[end];
             let distance = geo::distance_m(center, [point.lon, point.lat]);
-            if !point.usable
+            if !point.usable()
                 || (point.recorded_at - points[end - 1].recorded_at).num_seconds()
                     > target.observation_gap_s
                 || distance > target.stop_radius_m
@@ -114,7 +114,7 @@ fn transition(
     center: [f64; 2],
     target: &Target,
 ) -> bool {
-    outside.usable
+    outside.usable()
         && (outside.recorded_at - inside.recorded_at)
             .num_seconds()
             .abs()

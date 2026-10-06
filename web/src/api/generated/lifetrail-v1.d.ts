@@ -315,14 +315,13 @@ export interface components {
             provenance?: components["schemas"]["SnapshotProvenance"];
             /** @description Canonical processed geometry, in movement order. Each part is a drawable portion of one Movement Segment with server-owned progress; Web never recomputes Route length from the coordinates. */
             route_parts?: components["schemas"]["RoutePart"][];
-            /** @description Projected Trip and Stop items in chronological observed order. */
+            /** @description Projected Trip, Stop and GPS Gap items in chronological observed order. A Gap is an interval without Raw observations: it asserts no movement, Stop or Route connector. */
             timeline?: components["schemas"]["DailyActivity"][];
-            /** @description Pending activity and actual observation absences; neither is fabricated activity. */
-            unresolved_intervals?: components["schemas"]["UnresolvedEvidence"][];
-            evidence_holes?: components["schemas"]["UnresolvedEvidence"][];
+            /** @description Intervals that contain Raw GPS observations but cannot support reliable activity or geometry. Separate from Timeline events: a hole never becomes a GPS Gap, and the activity beside it keeps open actual boundaries. */
+            evidence_holes?: components["schemas"]["EvidenceHole"][];
         } & unknown;
-        /** @description Revision-local UTC Trip or Stop with its Owner-local daily projection. */
-        DailyActivity: components["schemas"]["DailyTrip"] | components["schemas"]["DailyStop"];
+        /** @description Revision-local UTC Trip, Stop or GPS Gap with its Owner-local daily projection. */
+        DailyActivity: components["schemas"]["DailyTrip"] | components["schemas"]["DailyStop"] | components["schemas"]["DailyGap"];
         /** @description Shared projection fields. Actual boundaries are null when open, so an unknown arrival or departure is never presented as confirmed; observed bounds are always known and never extrapolated to the current time or the end of the calendar day. */
         DailyActivityBoundaries: {
             /** @description Revision-local event identity, stable only within its creating Activity Revision. */
@@ -442,14 +441,42 @@ export interface components {
             /** @description Maximum observed distance from the dwell anchor. */
             radius_m: number;
         };
-        /** @description Observed bounds of unresolved evidence. Missing observations are distinct from unusable Raw records and unresolved activity; none asserts a Trip, Stop or fabricated duration. */
-        UnresolvedEvidence: {
+        /** @description A GPS Gap: an interval without Raw GPS observations between two known observations, projected into one Owner-local day. It ends Trip continuity and contributes only its own duration. It asserts no movement, Stop, matcher filling or straight Route connector, and it is never created by quality filtering. */
+        DailyGap: {
+            /** @description Revision-local event identity, stable only within its creating Activity Revision. */
+            id: string;
+            /** @enum {string} */
+            kind: "gap";
+            /** Format: uuid */
+            activity_revision: string;
             /** Format: date-time */
             observed_from_at: string;
             /** Format: date-time */
             observed_until_at: string;
-            /** @enum {string} */
-            reason: "missing_observations" | "unusable_observations" | "unresolved_activity";
+            observed_duration_s: number;
+            /** Format: date-time */
+            visible_from_at: string;
+            /** Format: date-time */
+            visible_until_at: string;
+            /** @description Only strictly positive observed overlap with this day counts. */
+            daily_observed_duration_s: number;
+            /** @description The absence begins before this day; not inferred unobserved continuation. */
+            continues_before: boolean;
+            /** @description The absence ends after this day; not inferred unobserved continuation. */
+            continues_after: boolean;
+        };
+        /** @description An interval that contains Raw GPS observations but cannot support reliable activity or geometry. Distinct from a GPS Gap, which is the absence of observations; neither asserts a Trip, Stop or fabricated duration. */
+        EvidenceHole: {
+            /** Format: date-time */
+            observed_from_at: string;
+            /** Format: date-time */
+            observed_until_at: string;
+            /**
+             * @description Why the existing observations cannot support activity. `insufficient_quality` is unreliable acquisition metadata, `insufficient_geometry` includes an impossible jump, `ambiguous_activity` is reliable evidence of no particular activity, and `unsupported_classification` is activity this slice cannot classify. A matcher failure alone is not a hole.
+             * @enum {string}
+             */
+            reason: "insufficient_quality" | "insufficient_geometry" | "ambiguous_activity" | "unsupported_classification";
+            /** @description Raw GPS Records inside this interval. */
             source_record_count: number;
         };
         DailySummary: {
