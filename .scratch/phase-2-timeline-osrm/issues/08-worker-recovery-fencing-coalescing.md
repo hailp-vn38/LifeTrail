@@ -1,6 +1,6 @@
 # 08: Recover worker crashes without stale publication
 
-Status: ready-for-agent
+Status: resolved
 Type: task
 Labels: ready-for-agent
 Blocked by: 07
@@ -21,3 +21,9 @@ Blocked by: 07
 - [ ] Failure/status metadata remains visible through API/Web while old publication stays available. Diagnostics identify Device, target, generation, attempt, fencing and publication outcome.
 - [ ] Record revision bytes, manifest count, snapshot bytes, candidate bytes and matcher-evidence bytes when available, without automatically deleting any persisted artifacts.
 - [ ] Integration tests use controlled concurrency/crash/lease transitions to prove stale-token rejection, no lost work and idempotent activation without brittle wall-clock sleeps.
+
+## Answer
+
+Implemented durable per-Device recovery protocol: skip-locked claims issue monotonically renewed fencing tokens, record every attempt with its captured generations/target and reclaim expired or failed work. Activation now renews at durable boundaries, validates the current fencing authority, and only a matching token may requeue or mark the job idle; stale candidates remain retained but cannot activate. Existing Device-control serialization retains new dirty work while a job runs.
+
+Added immutable-attempt diagnostics and storage measurements for revision, manifest, snapshot and candidate bytes (matcher evidence remains NULL until matching is introduced). The PostGIS integration test controls an expired lease directly, verifies reclaim to a new token and checks the single successful activation/measurement without wall-clock waits.
