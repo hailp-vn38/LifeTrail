@@ -418,13 +418,13 @@ it("focuses and highlights a Stop disk and selects the same Timeline item from i
 it("highlights and fits a Trip Route Part and selects its Timeline item from the map", async () => {
   const wrapper = mountRouteMap(tripView());
   const map = lastMap();
-  // Processed Route Parts are rendered, and playback stays disabled because the
-  // processed view publishes no legacy Raw route clock.
+  // Processed Route Parts are rendered and their published progress anchors
+  // supply the playback clock (there is deliberately no vertex timestamp).
   expect(map.sources.has("activity-route-parts")).toBe(true);
   expect(map.addedLayers).toEqual(expect.arrayContaining([
     expect.objectContaining({ id: "trip-route-parts", type: "line" }),
   ]));
-  expect(wrapper.find(".playback-bar").exists()).toBe(false);
+  expect(wrapper.find(".playback-bar").exists()).toBe(true);
   // One GeoJSON line feature per published Route Part, carrying its Trip id.
   const source = map.sources.get("activity-route-parts");
   const collection = source?.data as FeatureCollection<LineString>;
@@ -559,7 +559,7 @@ it("renders processed Route Parts without deriving length from their coordinates
   const wrapper = mountRouteMap(view);
   const map = lastMap();
   expect(map.sources.get("activity-route-parts")).toBeDefined();
-  // Processed playback is a separate concern, so the Raw playback clock stays absent.
-  expect(wrapper.find('button[aria-label="Phát"]').exists()).toBe(false);
+  // The published anchor clock, not a Web Haversine calculation, enables it.
+  expect(wrapper.find('button[aria-label="Phát"]').exists()).toBe(true);
   wrapper.unmount();
 });
