@@ -1,6 +1,6 @@
 # 13: Replay published Route Parts and compare Raw GPS
 
-Status: ready-for-agent
+Status: resolved
 Type: task
 Labels: ready-for-agent
 Blocked by: 05
@@ -20,3 +20,7 @@ Blocked by: 05
 - [ ] Expose Raw/processed debug display without confusing Raw observations with selected derived parts or changing persisted history.
 - [ ] Publication replacement clears selection, pauses/resets playback and initializes the new complete snapshot; stale timezone/revision responses cannot reinitialize current playback.
 - [ ] Use existing playback math/controller/store/map-lifecycle test seams, a contract-valid matched fixture without needing live matching, and component/browser acceptance for controls, holes and camera behavior.
+
+## Answer
+
+Implemented Route Part playback from the published progress-anchor and vertex-distance contract. Playback now holds at disconnected boundaries, GPS Gaps and Evidence Holes, discloses the applicable interval, and resumes only at the next observed timestamp. The existing controls, controller, store and camera lifecycle now operate on processed Route Parts as well as the legacy Raw route. Added focused playback-math and component coverage; see the implementation commit on `impl/ticket-13-playback`.

@@ -164,8 +164,15 @@ export function progressCoordinates(
   vertexIndex: number,
   position: MapCoordinate,
 ): MapCoordinate[] {
+  let firstIndex = 0;
+  for (let index = Math.min(vertexIndex - 1, points.length - 2); index >= 0; index -= 1) {
+    if (points[index].breakToNext) {
+      firstIndex = index + 1;
+      break;
+    }
+  }
   const completed = points
-    .slice(0, Math.min(vertexIndex + 1, points.length))
+    .slice(firstIndex, Math.min(vertexIndex + 1, points.length))
     .map((point) => [point.coordinate[0], point.coordinate[1]] as MapCoordinate);
   const last = completed[completed.length - 1];
   if (!last || last[0] !== position[0] || last[1] !== position[1]) {

@@ -162,6 +162,15 @@ describe("locateSegment", () => {
     expect(location.position[0]).toBeCloseTo((COORDS[0][0] + COORDS[1][0]) / 2, 9);
   });
 
+  it("holds at the last observation instead of interpolating a published gap", () => {
+    const held = locateSegment([
+      { coordinate: [106.7, 10.776], recordedAtMs: 0, breakToNext: "gps-gap" },
+      { coordinate: [106.9, 10.9], recordedAtMs: 10_000 },
+    ], 5_000);
+    expect(held.position).toEqual([106.7, 10.776]);
+    expect(held.interruption).toBe("gps-gap");
+  });
+
   it("clamps a seek before the start", () => {
     const location = locateSegment(points(), -5_000);
     expect(location.vertexIndex).toBe(0);

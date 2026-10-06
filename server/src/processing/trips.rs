@@ -1,8 +1,9 @@
 //! Trips: maximal chains of observed movement between supported boundaries.
 //!
-//! This slice derives raw UNKNOWN Movement Segments only; mode classification and
-//! OSRM matching arrive in later slices, so every segment stays `unknown`.
+//! A Trip remains continuous across mode transitions; classifier output only
+//! partitions its ordered Movement Segments.
 use super::{
+    classification,
     model::{Observation, Target},
     movement,
     route_parts::{self, RoutePart},
@@ -16,6 +17,7 @@ use uuid::Uuid;
 pub(super) struct MovementSegment {
     pub id: String,
     pub mode: &'static str,
+    pub classification_confidence: f64,
     pub source: &'static str,
     pub observed_from_at: DateTime<Utc>,
     pub observed_until_at: DateTime<Utc>,
@@ -66,14 +68,6 @@ pub(super) fn derive(
             continue;
         }
         let trip_id = format!("{revision}:trip:{}", trips.len());
-        let segment_id = format!("{trip_id}:segment:0");
-        let part = route_parts::build(
-            format!("{segment_id}:part:0"),
-            trip_id.clone(),
-            segment_id.clone(),
-            points,
-            &run,
-        );
         let members = &points[run.start..run.end];
         let observed_from_at = members[0].recorded_at;
         let observed_until_at = members[members.len() - 1].recorded_at;
@@ -86,18 +80,51 @@ pub(super) fn derive(
             stop.start_index == run.end && stop.start_confirmed
         });
         let full_duration_s = (start_confirmed && end_confirmed).then_some(observed_duration_s);
-        let movement_segments = vec![MovementSegment {
-            id: segment_id,
-            mode: "unknown",
-            source: "raw",
-            observed_from_at,
-            observed_until_at,
-            observed_duration_s,
-            distance_m: part.distance_m,
-            quality: "sufficient",
-            route_part_ids: vec![part.id.clone()],
-            source_record_count: part.source_record_count,
-        }];
+        let mut movement_segments = Vec::new();
+        let mut trip_parts = Vec::new();
+        for (sequence, classified) in classification::segments(points, &run, target)
+            .into_iter()
+            .enumerate()
+        {
+            let segment_id = format!("{trip_id}:segment:{sequence}");
+            let segment_run = movement::MovementRun {
+                start: classified.start,
+                end: classified.end,
+            };
+            let part = movement::drawable(points, &segment_run).then(|| {
+                route_parts::build(
+                    format!("{segment_id}:part:0"),
+                    trip_id.clone(),
+                    segment_id.clone(),
+                    points,
+                    &segment_run,
+                    classified.mode.name(),
+                    classified.confidence,
+                )
+            });
+            let segment_members = &points[classified.start..classified.end];
+            let route_part_ids = part.iter().map(|part| part.id.clone()).collect();
+            let distance_m = part.as_ref().map_or(0.0, |part| part.distance_m);
+            movement_segments.push(MovementSegment {
+                id: segment_id,
+                mode: classified.mode.name(),
+                classification_confidence: classified.confidence,
+                source: "raw",
+                observed_from_at: segment_members[0].recorded_at,
+                observed_until_at: segment_members[segment_members.len() - 1].recorded_at,
+                observed_duration_s: (segment_members[segment_members.len() - 1].recorded_at
+                    - segment_members[0].recorded_at)
+                    .num_seconds(),
+                distance_m,
+                quality: "sufficient",
+                route_part_ids,
+                source_record_count: segment_members.len(),
+            });
+            if let Some(part) = part {
+                trip_parts.push(part);
+            }
+        }
+        let distance_m: f64 = trip_parts.iter().map(|part| part.distance_m).sum();
         trips.push(Trip {
             id: trip_id,
             kind: "trip",
@@ -110,15 +137,15 @@ pub(super) fn derive(
             start_boundary: if start_confirmed { "confirmed" } else { "open" },
             end_boundary: if end_confirmed { "confirmed" } else { "open" },
             full_duration_s,
-            distance_m: part.distance_m,
+            distance_m,
             quality: "sufficient",
             movement_segment_count: movement_segments.len(),
             movement_segments,
-            source_record_count: part.source_record_count,
-            usable_record_count: part.source_record_count,
+            source_record_count: members.len(),
+            usable_record_count: members.len(),
             source_record_ids: members.iter().map(|point| point.id).collect(),
         });
-        parts.push(part);
+        parts.extend(trip_parts);
     }
     Activity { trips, parts }
 }

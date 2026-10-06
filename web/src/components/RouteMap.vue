@@ -45,15 +45,17 @@ import {
   routeDurationMs,
   type PlaybackValidationError,
 } from "../map/route-playback/timeline";
+import { buildRoutePartPlaybackInput } from "../map/route-playback/parts";
 import type {
   MapCoordinate,
+  PlaybackBreak,
   PlaybackFrame,
   PlaybackPoint,
   PlaybackState,
 } from "../map/route-playback/types";
 import PlaybackBar from "../features/playback/components/PlaybackBar.vue";
 import type { PlaybackSpeed } from "../features/playback/playback.types";
-import { stopActivities } from "../features/activity/model";
+import { evidenceHoles, gapActivities, stopActivities } from "../features/activity/model";
 import { useMapStore } from "../stores/map.store";
 import { useMapPreferencesStore } from "../stores/map-preferences.store";
 import { usePlaybackStore } from "../stores/playback.store";
@@ -68,6 +70,17 @@ const ISSUE_TEXT: Record<PlaybackValidationError, string> = {
   "timestamp-count-mismatch": "Timestamps không khớp số điểm GPS nên không thể phát lại.",
   "invalid-timestamp": "Timestamp không hợp lệ nên không thể phát lại.",
   "non-monotonic-timestamps": "Timestamps không theo thứ tự thời gian nên không thể phát lại.",
+};
+
+const PART_ISSUE_TEXT = {
+  "invalid-route-parts": "Route Parts đã xuất bản không hợp lệ nên không thể phát lại.",
+  "too-few-observations": "Chưa đủ quan sát GPS để phát lại Route Parts.",
+};
+
+const INTERRUPTION_TEXT: Record<PlaybackBreak, string> = {
+  "gps-gap": "Thiếu GPS: đang giữ vị trí quan sát cuối cùng cho tới lần quan sát tiếp theo.",
+  "evidence-hole": "Không đủ bằng chứng hoạt động: không suy diễn chuyển động qua khoảng này.",
+  disconnected: "Các Route Part không liên tục: không nội suy giữa hai phần route.",
 };
 
 const props = defineProps<{ dailyView: DailyView }>();
@@ -92,17 +105,27 @@ const playbackSpeed = ref(1);
 const routeTimeMs = ref(0);
 const durationMs = ref(0);
 const startTimeMs = ref(0);
+const interruption = ref<PlaybackBreak>();
 
 const playbackInput = computed(() => {
+  const parts = props.dailyView.route_parts ?? [];
+  if (parts.length > 0) {
+    return buildRoutePartPlaybackInput(parts, gapActivities(props.dailyView), evidenceHoles(props.dailyView));
+  }
   const route = props.dailyView.route;
   if (!route) return null;
   return buildPlaybackInput(route);
 });
 
+const hasPlaybackSource = computed(() => Boolean(props.dailyView.route || props.dailyView.route_parts?.length));
+
 const disabledReason = computed(() => {
   const input = playbackInput.value;
   if (!input || input.ok) return null;
-  return ISSUE_TEXT[input.error];
+  if (input.error === "invalid-route-parts" || input.error === "too-few-observations") {
+    return PART_ISSUE_TEXT[input.error];
+  }
+  return ISSUE_TEXT[input.error as PlaybackValidationError];
 });
 
 function routeCoordinates(): MapCoordinate[] {
@@ -175,6 +198,7 @@ function setSourceData(
 function applyFrame(frame: PlaybackFrame) {
   playbackState.value = frame.state;
   routeTimeMs.value = frame.routeTimeMs;
+  interruption.value = frame.interruption;
   lastFrame = frame;
   playbackStore.setFrame(frame.state, frame.routeTimeMs);
 
@@ -412,7 +436,7 @@ onBeforeUnmount(() => {
   <div class="route-playback">
     <div ref="mapElement" class="route-map" aria-label="Bản đồ Daily Route" />
     <PlaybackBar
-      v-if="dailyView.route"
+      v-if="hasPlaybackSource"
       :state="playbackState"
       :speed="playbackSpeed"
       :route-time-ms="routeTimeMs"
@@ -429,6 +453,7 @@ onBeforeUnmount(() => {
       @speed-change="handleSpeedChange"
       @toggle-follow="handleToggleFollow"
     />
+    <p v-if="interruption" class="playback-interruption" role="status">{{ INTERRUPTION_TEXT[interruption] }}</p>
   </div>
 </template>
 
@@ -437,6 +462,11 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+}
+.playback-interruption {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
 }
 .route-map {
   width: 100%;

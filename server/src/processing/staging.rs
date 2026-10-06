@@ -105,12 +105,17 @@ async fn previous_slices(
 /// Algorithm and configuration identity retained with each Activity Revision.
 fn config(input: &Input) -> Value {
     json!({
-        "algorithms":["anchored-spatial-dwell-v1","continuous-movement-raw-v1","raw-quality-classification-v1","observed-gap-detection-v1"],
+        "algorithms":["anchored-spatial-dwell-v1","continuous-movement-multimode-v1","windowed-mode-evidence-hysteresis-v1","raw-quality-classification-v1","observed-gap-detection-v1"],
         "radius_m":input.target.stop_radius_m,"minimum_duration_s":input.target.stop_min_duration_s,
         "observation_gap_s":input.target.observation_gap_s,
         "max_hdop":input.target.policy.max_hdop,
         "max_implied_speed_mps":input.target.policy.max_implied_speed_mps,
         "jump_distance_floor_m":input.target.policy.jump_distance_floor_m,
+        "mode_window_s":input.target.mode_window_s,
+        "mode_change_min_duration_s":input.target.mode_change_min_duration_s,
+        "mode_enter_confidence":input.target.mode_enter_confidence,
+        "mode_exit_confidence":input.target.mode_exit_confidence,
+        "mode_unknown_grace_s":input.target.mode_unknown_grace_s,
         "reducer_version":REDUCER_VERSION
     })
 }

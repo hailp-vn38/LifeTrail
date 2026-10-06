@@ -1,6 +1,6 @@
 # 10: Show multimode Trips with persistent mode evidence
 
-Status: ready-for-agent
+Status: resolved
 Type: task
 Labels: ready-for-agent
 Blocked by: 05
@@ -19,3 +19,7 @@ Blocked by: 05
 - [ ] Only sufficiently confident WALK/BIKE/CAR selects foot/bike/car. UNKNOWN and below-threshold candidates stay raw fallback; matching success never determines transport mode.
 - [ ] Keep published Route Part metric/anchors and Trip-duration semantics unchanged while splitting mode segments; total published distance does not acquire connectors.
 - [ ] Tests cover all modes, low confidence, rapid candidate oscillation, brief versus sustained UNKNOWN, traffic pauses and continuous mode transfers through upload-to-published-Timeline behavior.
+
+## Answer
+
+Implemented windowed deterministic WALK/BIKE/CAR evidence with persisted configuration, enter/exit hysteresis and UNKNOWN grace. A continuous movement run is now partitioned into ordered Movement Segments without creating a Trip boundary; each segment and its raw Route Part carries its own mode and classification confidence. The immutable revision retains the complete classifier configuration and algorithm identity. OpenAPI, generated Web types and Timeline labels expose the segment facts while preserving Route Part anchors and published distance accounting.
