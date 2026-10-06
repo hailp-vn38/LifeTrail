@@ -9,13 +9,12 @@ import math
 import urllib.error
 import urllib.request
 import uuid
-from dataclasses import dataclass
 from datetime import datetime, time, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from .inspection import inspect_batch
-
+from .batch_writer import GeneratedBatch, encode_records, write_batch
 
 SCHEMA = "gps/1"
 DEFAULT_TIMEZONE = "Asia/Ho_Chi_Minh"
@@ -30,16 +29,6 @@ ROUTE = (
     (10.775550, 106.707250),
     (10.776889, 106.700806),
 )
-
-
-@dataclass(frozen=True)
-class GeneratedBatch:
-    batch_id: str
-    body_path: Path
-    manifest_path: Path
-    record_count: int
-    first_ts_ms: int
-    last_ts_ms: int
 
 
 def generate_route(
@@ -75,40 +64,8 @@ def generate_route(
     for batch_index, offset in enumerate(range(0, len(records), batch_records)):
         batch = records[offset : offset + batch_records]
         batch_id = _batch_uuid(seed, date, timezone, batch_index)
-        body = b"".join(
-            json.dumps(record, separators=(",", ":"), ensure_ascii=True).encode("ascii") + b"\n"
-            for record in batch
-        )
-        digest = hashlib.sha256(body).hexdigest()
-        body_path = output_dir / f"{batch_id}.ndjson.ready"
-        manifest_path = output_dir / f"{batch_id}.manifest"
-        body_path.write_bytes(body)
-        manifest_path.write_text(
-            "\n".join(
-                (
-                    f"batch_id={batch_id}",
-                    f"schema={SCHEMA}",
-                    f"byte_length={len(body)}",
-                    f"sha256={digest}",
-                    f"record_count={len(batch)}",
-                    f"first_ts_ms={batch[0]['ts_ms']}",
-                    f"last_ts_ms={batch[-1]['ts_ms']}",
-                )
-            )
-            + "\n",
-            encoding="ascii",
-        )
-        inspect_batch(body_path, manifest_path)
-        batches.append(
-            GeneratedBatch(
-                batch_id=batch_id,
-                body_path=body_path,
-                manifest_path=manifest_path,
-                record_count=len(batch),
-                first_ts_ms=int(batch[0]["ts_ms"]),
-                last_ts_ms=int(batch[-1]["ts_ms"]),
-            )
-        )
+        body = encode_records(batch)
+        batches.append(write_batch(output_dir, batch_id, batch, body))
     return batches
 
 
@@ -142,7 +99,9 @@ def upload_route(
     return responses
 
 
-def _records(*, total_records: int, start_ts_ms: int, interval_ms: int) -> list[dict[str, object]]:
+def _records(
+    *, total_records: int, start_ts_ms: int, interval_ms: int
+) -> list[dict[str, object]]:
     segment_lengths = [
         _haversine_m(ROUTE[index], ROUTE[index + 1]) for index in range(len(ROUTE) - 1)
     ]
@@ -155,8 +114,14 @@ def _records(*, total_records: int, start_ts_ms: int, interval_ms: int) -> list[
         fraction = index / (total_records - 1)
         lat, lon = _point_along_route(fraction, segment_lengths, total_distance)
         next_fraction = min(1.0, (index + 1) / (total_records - 1))
-        next_lat, next_lon = _point_along_route(next_fraction, segment_lengths, total_distance)
-        course = _bearing_deg((lat, lon), (next_lat, next_lon)) if index + 1 < total_records else 0.0
+        next_lat, next_lon = _point_along_route(
+            next_fraction, segment_lengths, total_distance
+        )
+        course = (
+            _bearing_deg((lat, lon), (next_lat, next_lon))
+            if index + 1 < total_records
+            else 0.0
+        )
 
         records.append(
             {
@@ -218,12 +183,16 @@ def _bearing_deg(a: tuple[float, float], b: tuple[float, float]) -> float:
     lat2 = math.radians(b[0])
     delta_lon = math.radians(b[1] - a[1])
     y = math.sin(delta_lon) * math.cos(lat2)
-    x = math.cos(lat1) * math.sin(lat2) - math.sin(lat1) * math.cos(lat2) * math.cos(delta_lon)
+    x = math.cos(lat1) * math.sin(lat2) - math.sin(lat1) * math.cos(lat2) * math.cos(
+        delta_lon
+    )
     return (math.degrees(math.atan2(y, x)) + 360.0) % 360.0
 
 
 def _post(endpoint: str, headers: dict[str, str], body: bytes) -> dict[str, object]:
-    request = urllib.request.Request(endpoint, data=body, headers=headers, method="POST")
+    request = urllib.request.Request(
+        endpoint, data=body, headers=headers, method="POST"
+    )
     try:
         with urllib.request.urlopen(request, timeout=15) as response:
             if response.status != 200:
@@ -243,7 +212,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--date", required=True, help="Owner-local date, YYYY-MM-DD")
     parser.add_argument("--timezone", default=DEFAULT_TIMEZONE)
-    parser.add_argument("--output", type=Path, default=Path("tools/fixtures/simulated-route"))
+    parser.add_argument(
+        "--output", type=Path, default=Path("tools/fixtures/simulated-route")
+    )
     parser.add_argument("--seconds", type=int, default=900)
     parser.add_argument("--interval-seconds", type=int, default=1)
     parser.add_argument("--batch-records", type=int, default=300)

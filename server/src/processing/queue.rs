@@ -49,6 +49,12 @@ pub async fn queue_day(pool: &PgPool, device: Uuid, date: NaiveDate) -> Result<(
     tx.commit().await
 }
 async fn enqueue(tx: &mut Transaction<'_, Postgres>, device: Uuid) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        "UPDATE device_processing_control SET work_generation=work_generation+1 WHERE device_id=$1",
+    )
+    .bind(device)
+    .execute(&mut **tx)
+    .await?;
     sqlx::query("INSERT INTO processing_jobs(device_id,state) VALUES($1,'queued') \
         ON CONFLICT(device_id) DO UPDATE SET state=CASE WHEN processing_jobs.state='running' THEN 'running' ELSE 'queued' END, failure_message=NULL")
         .bind(device).execute(&mut **tx).await?;

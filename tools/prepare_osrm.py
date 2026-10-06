@@ -16,7 +16,9 @@ def prepare(pbf, output, dataset_version):
     for name in PROFILES:
         directory = output / dataset_version / name
         if directory.exists():
-            raise ValueError(f"dataset directory already exists; choose a new version: {directory}")
+            raise ValueError(
+                f"dataset directory already exists; choose a new version: {directory}"
+            )
     digest = hashlib.sha256(pbf.read_bytes()).hexdigest()
     engine = subprocess.check_output(
         ["docker", "run", "--rm", IMAGE, "osrm-routed", "--version"], text=True

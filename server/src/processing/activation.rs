@@ -27,13 +27,14 @@ pub(super) async fn activate(pool: &PgPool, input: Input) -> Result<(), sqlx::Er
         }
     }
     let mut tx = pool.begin().await?;
-    let current: Target=sqlx::query_as("SELECT c.input_generation,c.target_generation,c.target_id,c.fencing_token,u.timezone,u.timezone_generation \
+    let current: Target=sqlx::query_as("SELECT c.input_generation,c.work_generation,c.target_generation,c.target_id,c.fencing_token,u.timezone,u.timezone_generation \
         FROM device_processing_control c JOIN devices d ON d.id=c.device_id JOIN users u ON u.id=d.owner_user_id WHERE c.device_id=$1 FOR UPDATE OF c FOR SHARE OF u")
         .bind(input.claim.device_id).fetch_one(&mut *tx).await?;
     if current.fencing_token != input.claim.token {
         return Ok(());
     }
-    if current.input_generation != input.target.input_generation
+    if current.work_generation != input.target.work_generation
+        || current.input_generation != input.target.input_generation
         || current.target_generation != input.target.target_generation
         || current.target_id != input.target.target_id
         || current.timezone != input.target.timezone

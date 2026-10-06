@@ -10,6 +10,7 @@ pub(super) struct Claim {
 #[derive(sqlx::FromRow)]
 pub(super) struct Target {
     pub input_generation: i64,
+    pub work_generation: i64,
     pub target_generation: i64,
     pub target_id: String,
     pub timezone: String,

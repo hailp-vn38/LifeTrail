@@ -129,6 +129,43 @@ async fn sparse_upload_publishes_truthful_snapshot_and_retains_it_on_late_input(
         read(&router, &path.replace("2026-10-05", "2026-10-06")).await["processing"]["data_freshness"],
         "stale"
     );
+    // Freeze candidate staging so operator requests arrive after capture, before activation.
+    processing::queue_day(&pool, device.id, "2026-10-07".parse().unwrap())
+        .await
+        .unwrap();
+    let mut staging_lock = pool.begin().await.unwrap();
+    sqlx::query("LOCK activity_manifests IN SHARE MODE")
+        .execute(&mut *staging_lock)
+        .await
+        .unwrap();
+    let worker_pool = pool.clone();
+    let worker = tokio::spawn(async move { processing::process_next(&worker_pool).await });
+    tokio::time::timeout(std::time::Duration::from_secs(5), async {
+        loop {
+            let blocked: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE wait_event_type='Lock' AND query LIKE 'INSERT INTO activity_manifests%')")
+                .fetch_one(&pool).await.unwrap();
+            if blocked { break; }
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
+    }).await.unwrap();
+    processing::queue_day(&pool, device.id, "2026-10-08".parse().unwrap())
+        .await
+        .unwrap();
+    processing::queue_day(&pool, device.id, "2026-10-07".parse().unwrap())
+        .await
+        .unwrap();
+    staging_lock.commit().await.unwrap();
+    assert!(worker.await.unwrap().unwrap());
+    assert_eq!(
+        read(&router, &path.replace("2026-10-05", "2026-10-08")).await["processing"]["state"],
+        "queued"
+    );
+    assert!(processing::process_next(&pool).await.unwrap());
+    for day in ["2026-10-07", "2026-10-08"] {
+        let result = read(&router, &path.replace("2026-10-05", day)).await;
+        assert_eq!(result["processing_state"], "processed");
+        assert_eq!(result["processing"]["data_freshness"], "current");
+    }
     assert!(
         sqlx::query("UPDATE daily_snapshots SET body='{}'")
             .execute(&pool)
