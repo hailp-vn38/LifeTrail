@@ -1,0 +1,5 @@
+{
+  "car": {"engine_version": "osrm-backend 6.0.0", "dataset_version": "replace-with-extract-sha256"},
+  "bike": {"engine_version": "osrm-backend 6.0.0", "dataset_version": "replace-with-extract-sha256"},
+  "foot": {"engine_version": "osrm-backend 6.0.0", "dataset_version": "replace-with-extract-sha256"}
+}

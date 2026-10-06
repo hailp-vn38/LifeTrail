@@ -36,3 +36,35 @@ See [`../docs/development/simulated-gps-data.md`](../docs/development/simulated-
 ## OSRM-routed scenarios
 
 `prepare_osrm.py` builds three separate, versioned MLD datasets with a pinned OSRM image. `generate_routed_scenario.py` samples Route geometry in seeded historical time and optionally uploads/replays valid Batches. See [Phase 2 acceptance](../docs/development/phase-2-sparse-and-osrm-acceptance.md) for internal Compose commands, scenario fields and retained three-profile fixtures.
+# Realistic routed days
+
+`generate_realistic_osrm_day.py` produces a complete, seeded road-network day from
+the timed Home/Coffee/Office/Restaurant/Supermarket scenario. Movement time is
+chosen by the scenario (with acceleration, deceleration and speed variation), not
+by OSRM's duration estimate. It emits normal immutable `gps/1` Batches and
+manifests, plus factual `scenario.json`, `ground-truth.json` and
+`routing-evidence.json`. Ground truth records inputs and injected observation
+conditions; it deliberately does not predict Trips, Stops, Gaps or matching output.
+
+Copy both `*.example.json` files, replace the dataset identities with the bounded
+extract actually used, then run from the repository root:
+
+```sh
+python3 tools/generate_realistic_osrm_day.py \
+  --scenario tools/scenarios/realistic-osrm-day.json \
+  --routing-versions /path/to/routing-versions.json \
+  --osrm-urls /path/to/osrm-urls.json \
+  --output /tmp/lifetrail-realistic-day \
+  --endpoint http://localhost:8080/api/v1/device/batches \
+  --token "$LIFETRAIL_DEVICE_TOKEN"
+```
+
+The optional endpoint/token uploads the exact generated Batches, then replays
+them. Open the existing Raw Daily Map for the scenario's local date to inspect the
+unchanged Raw observations. `routing-evidence.json` freezes every normalized Route
+response and request URL along with engine/dataset provenance; regenerate with the
+same dependency evidence and inputs to compare bytes and Batch IDs.
+
+See [`scenarios/realistic-osrm-variants.md`](scenarios/realistic-osrm-variants.md)
+for the focused multimode, cross-midnight, Evidence Hole, late-upload and matcher
+failure scenarios.
