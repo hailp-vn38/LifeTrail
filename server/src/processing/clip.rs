@@ -7,6 +7,7 @@
 use super::route_parts::{ProgressAnchor, RoutePart};
 use chrono::{DateTime, Utc};
 use serde::Serialize;
+use serde_json::Value;
 
 #[derive(Serialize)]
 pub(super) struct VisiblePart {
@@ -30,6 +31,7 @@ pub(super) struct VisiblePart {
     pub geometry: VisibleGeometry,
     pub vertex_distance_m: Vec<f64>,
     pub progress_anchors: Vec<ProgressAnchor>,
+    pub matcher_evidence: Option<Value>,
 }
 
 #[derive(Serialize)]
@@ -108,6 +110,7 @@ pub(super) fn visible(
             })
             .collect(),
         vertex_distance_m,
+        matcher_evidence: part.matcher_evidence.clone(),
     })
 }
 

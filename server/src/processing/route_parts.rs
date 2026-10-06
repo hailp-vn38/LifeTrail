@@ -2,6 +2,7 @@
 use super::{geo, model::Observation, movement::MovementRun};
 use chrono::{DateTime, Utc};
 use serde::Serialize;
+use serde_json::Value;
 
 /// One historical instant mapped to a progress along the Route Part.
 #[derive(Serialize)]
@@ -38,6 +39,9 @@ pub(super) struct RoutePart {
     pub quality: &'static str,
     pub source_record_count: usize,
     pub geometry: PartGeometry,
+    /// Immutable request/result/failure evidence.  It is deliberately carried
+    /// into the Activity Revision rather than requiring OSRM on historical read.
+    pub matcher_evidence: Option<Value>,
     /// Observation times of each coordinate, used for daily clipping only.
     #[serde(skip)]
     pub(super) vertex_times: Vec<DateTime<Utc>>,
@@ -94,6 +98,7 @@ pub(super) fn build(
             geometry_type: "LineString",
             coordinates,
         },
+        matcher_evidence: None,
         vertex_times: members.iter().map(|point| point.recorded_at).collect(),
     }
 }

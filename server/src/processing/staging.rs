@@ -14,7 +14,7 @@ pub(super) async fn stage(
 ) -> Result<Vec<(chrono::NaiveDate, Uuid)>, sqlx::Error> {
     let manifest = Uuid::now_v7();
     let revision = Uuid::now_v7();
-    let derived = derived::derive(&input.observations, &input.target, revision);
+    let derived = derived::derive(&input.observations, &input.target, revision).await;
     let mut entries = json!([]);
     if let (Some(first), Some(last)) = (input.observations.first(), input.observations.last())
         && first.recorded_at < last.recorded_at
@@ -49,7 +49,7 @@ pub(super) async fn stage(
 /// Algorithm and configuration identity retained with each Activity Revision.
 fn config(input: &Input) -> Value {
     json!({
-        "algorithms":["anchored-spatial-dwell-v1","continuous-movement-multimode-v1","windowed-mode-evidence-hysteresis-v1","raw-quality-classification-v1","observed-gap-detection-v1"],
+        "algorithms":["anchored-spatial-dwell-v1","continuous-movement-multimode-v1","windowed-mode-evidence-hysteresis-v1","short-osrm-match-v1","raw-quality-classification-v1","observed-gap-detection-v1"],
         "radius_m":input.target.stop_radius_m,"minimum_duration_s":input.target.stop_min_duration_s,
         "observation_gap_s":input.target.observation_gap_s,
         "max_hdop":input.target.policy.max_hdop,
@@ -60,6 +60,12 @@ fn config(input: &Input) -> Value {
         "mode_enter_confidence":input.target.mode_enter_confidence,
         "mode_exit_confidence":input.target.mode_exit_confidence,
         "mode_unknown_grace_s":input.target.mode_unknown_grace_s,
+        "match_min_confidence":input.target.match_min_confidence,
+        "match_max_attempts":input.target.match_max_attempts,
+        "match_retry_delay_ms":input.target.match_retry_delay_ms,
+        "match_total_budget_ms":input.target.match_total_budget_ms,
+        "matcher_engine_id":input.target.matcher_engine_id,
+        "matcher_dataset_id":input.target.matcher_dataset_id,
         "reducer_version":REDUCER_VERSION
     })
 }
