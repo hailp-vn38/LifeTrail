@@ -25,20 +25,25 @@ pub(super) struct EvidenceHole {
 
 pub(super) fn holes(
     points: &[Observation],
+    bridged: &[bool],
     stops: &[Stop],
     trips: &[Trip],
     target: &Target,
 ) -> Vec<EvidenceHole> {
     let mut holes: Vec<EvidenceHole> = Vec::new();
-    for pair in points.windows(2) {
+    for (index, pair) in points.windows(2).enumerate() {
         // An actual absence of Raw observations is a GPS Gap, published as its
         // own Timeline event. It is never evidence coverage: a hole always
         // contains records that exist but cannot support activity.
         if gaps::absent(pair, target) {
             continue;
         }
-        // Unreliable records are disclosed even when derived activity covers
-        // both sides, because derived activity must not imply reliability there.
+        // Short failures are resolved only by the independently checked
+        // neighboring evidence AND an activity covering both boundaries.
+        if (bridged[index] || bridged[index + 1]) && resolved(&pair[0], &pair[1], stops, trips) {
+            continue;
+        }
+        // All other unreliable records retain explicit unresolved coverage.
         // Reliable observations that no Stop or Trip explains are ambiguous
         // activity, never missing observations.
         let reason = if let Some(reason) = unreliable(pair) {

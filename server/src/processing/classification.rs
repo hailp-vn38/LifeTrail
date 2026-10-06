@@ -189,6 +189,7 @@ mod tests {
                 max_hdop: 5.0,
                 max_implied_speed_mps: 70.0,
                 jump_distance_floor_m: 100.0,
+                short_failure_max_s: 10,
             },
         }
     }

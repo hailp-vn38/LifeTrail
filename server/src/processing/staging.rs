@@ -95,7 +95,7 @@ pub(super) async fn stage(pool: &PgPool, input: &Input) -> Result<Staged, sqlx::
     // time this attempt created them so capacity planning never needs to infer
     // it from whichever manifest happens to be active later.
     let revision_bytes: Option<i64> = sqlx::query_scalar(
-        "SELECT octet_length(body::text) + octet_length(config::text) FROM activity_revisions WHERE id=$1",
+        "SELECT (octet_length(body::text) + octet_length(config::text))::bigint FROM activity_revisions WHERE id=$1",
     )
     .bind(revision)
     .fetch_optional(pool)
@@ -175,12 +175,13 @@ async fn previous_slices(
 /// Algorithm and configuration identity retained with each Activity Revision.
 fn config(input: &Input) -> Value {
     json!({
-        "algorithms":["anchored-spatial-dwell-v1","continuous-movement-multimode-v1","windowed-mode-evidence-hysteresis-v1","chunked-hybrid-osrm-match-v1","raw-quality-classification-v1","observed-gap-detection-v1"],
+        "algorithms":["anchored-spatial-dwell-v1","continuous-movement-multimode-v1","windowed-mode-evidence-hysteresis-v1","chunked-hybrid-osrm-match-v1","raw-quality-classification-v1","observed-gap-detection-v1","bounded-evidence-continuity-v1"],
         "radius_m":input.target.stop_radius_m,"minimum_duration_s":input.target.stop_min_duration_s,
         "observation_gap_s":input.target.observation_gap_s,
         "max_hdop":input.target.policy.max_hdop,
         "max_implied_speed_mps":input.target.policy.max_implied_speed_mps,
         "jump_distance_floor_m":input.target.policy.jump_distance_floor_m,
+        "short_failure_max_s":input.target.policy.short_failure_max_s,
         "mode_window_s":input.target.mode_window_s,
         "mode_change_min_duration_s":input.target.mode_change_min_duration_s,
         "mode_enter_confidence":input.target.mode_enter_confidence,

@@ -10,6 +10,7 @@ defineProps<{ dailyView: DailyView }>();
     <RouteMap
       :key="`${dailyView.device_id}:${dailyView.date}:${dailyView.timezone}:${dailyView.processing_state}:${dailyView.processing?.published_revision ?? 'raw'}`"
       :daily-view="dailyView"
+      day-clock
     />
   </div>
 </template>
@@ -17,5 +18,8 @@ defineProps<{ dailyView: DailyView }>();
 <style scoped>
 .daily-map-canvas {
   min-width: 0;
+  min-height: 0;
+  height: 100%;
+  flex: 1;
 }
 </style>

@@ -39,6 +39,14 @@ describe("describeEvidenceHoles", () => {
     }
   });
 
+  it("explains an unknown reason from a historical snapshot", () => {
+    const historical = JSON.parse(JSON.stringify(view));
+    historical.evidence_holes[0].reason = "legacy_quality_code";
+    const lines = describeEvidenceHoles(historical);
+    expect(lines[0]).toContain("Không xác định được nguyên nhân");
+    expect(lines[0]).not.toContain("undefined");
+  });
+
   it("reports nothing when the day has no unresolved coverage", () => {
     expect(
       describeEvidenceHoles({ evidence_holes: [], timezone: view.timezone }),

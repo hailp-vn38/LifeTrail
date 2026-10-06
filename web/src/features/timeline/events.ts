@@ -60,7 +60,9 @@ export function buildTimelineEvents(dailyView: DailyView): TimelineEvent[] {
         return {
           id: activity.id,
           kind: activity.kind,
-          title: "Stop",
+          title: "Chưa đặt tên",
+          timeLabel: `${formatTimestamp(activity.visible_from_at, dailyView.timezone)} – ${formatTimestamp(activity.visible_until_at, dailyView.timezone)}`,
+          durationLabel: formatDuration(activity.daily_observed_duration_s),
           subtitle: [
             observed,
             `Đến: ${activity.actual_start_at ? formatTimestamp(activity.actual_start_at, dailyView.timezone) : "chưa xác định"}`,
@@ -74,6 +76,8 @@ export function buildTimelineEvents(dailyView: DailyView): TimelineEvent[] {
         id: activity.id,
         kind: activity.kind,
         title: "Trip",
+        travelLabel: `${formatDistance(tripDistanceM(dailyView, activity.id))} · ${formatDuration(activity.daily_observed_duration_s)}`,
+        timeLabel: `${formatTimestamp(activity.visible_from_at, dailyView.timezone)} – ${formatTimestamp(activity.visible_until_at, dailyView.timezone)}`,
         subtitle: [
           observed,
           // Trip time includes pauses below the Stop criteria, so it is never
@@ -98,7 +102,7 @@ export function buildTimelineEvents(dailyView: DailyView): TimelineEvent[] {
         dailyView.timezone,
       ),
       coordinate: pointCoordinate(dailyView.start),
-      recordedAtMs: recordedAtMs(dailyView.start),
+      recordedAtMs: recordedAtMs(dailyView.start) ?? (dailyView.summary.first_fix_at ? Date.parse(dailyView.summary.first_fix_at) : undefined),
     });
   }
 
@@ -109,7 +113,7 @@ export function buildTimelineEvents(dailyView: DailyView): TimelineEvent[] {
       title: "End",
       subtitle: formatTimestamp(dailyView.summary.last_fix_at, dailyView.timezone),
       coordinate: pointCoordinate(dailyView.end),
-      recordedAtMs: recordedAtMs(dailyView.end),
+      recordedAtMs: recordedAtMs(dailyView.end) ?? (dailyView.summary.last_fix_at ? Date.parse(dailyView.summary.last_fix_at) : undefined),
     });
   }
 

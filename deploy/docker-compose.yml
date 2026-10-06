@@ -70,26 +70,26 @@ services:
   osrm-car:
     profiles: [osrm]
     image: ghcr.io/project-osrm/osrm-backend:v6.0.0@sha256:729461bcc9ae9e6aafa92c0f93db9b060a32e85d5e72092c01ae4a4a9f1eb564
-    command: [osrm-routed, --algorithm, mld, --threads, "2", /data/test-region.osrm]
+    command: [osrm-routed, --algorithm, mld, --threads, "2", "/data/${LT_OSRM_DATASET_NAME:-test-region}.osrm"]
     expose: ["5000"]
     volumes:
-      - ../data/osrm/${LT_OSRM_DATASET_VERSION:-monaco-test}/car:/data:ro
+      - ${LT_OSRM_DATA_DIR:-../data/osrm/${LT_OSRM_DATASET_VERSION:-monaco-test}}/car:/data:ro
 
   osrm-bike:
     profiles: [osrm]
     image: ghcr.io/project-osrm/osrm-backend:v6.0.0@sha256:729461bcc9ae9e6aafa92c0f93db9b060a32e85d5e72092c01ae4a4a9f1eb564
-    command: [osrm-routed, --algorithm, mld, --threads, "2", /data/test-region.osrm]
+    command: [osrm-routed, --algorithm, mld, --threads, "2", "/data/${LT_OSRM_DATASET_NAME:-test-region}.osrm"]
     expose: ["5000"]
     volumes:
-      - ../data/osrm/${LT_OSRM_DATASET_VERSION:-monaco-test}/bike:/data:ro
+      - ${LT_OSRM_DATA_DIR:-../data/osrm/${LT_OSRM_DATASET_VERSION:-monaco-test}}/bike:/data:ro
 
   osrm-foot:
     profiles: [osrm]
     image: ghcr.io/project-osrm/osrm-backend:v6.0.0@sha256:729461bcc9ae9e6aafa92c0f93db9b060a32e85d5e72092c01ae4a4a9f1eb564
-    command: [osrm-routed, --algorithm, mld, --threads, "2", /data/test-region.osrm]
+    command: [osrm-routed, --algorithm, mld, --threads, "2", "/data/${LT_OSRM_DATASET_NAME:-test-region}.osrm"]
     expose: ["5000"]
     volumes:
-      - ../data/osrm/${LT_OSRM_DATASET_VERSION:-monaco-test}/foot:/data:ro
+      - ${LT_OSRM_DATA_DIR:-../data/osrm/${LT_OSRM_DATASET_VERSION:-monaco-test}}/foot:/data:ro
 
   simulator:
     profiles: [osrm-tools]

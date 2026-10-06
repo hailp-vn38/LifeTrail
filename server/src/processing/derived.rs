@@ -1,5 +1,6 @@
 //! Compose every derived activity for one captured observation range.
 use super::{
+    continuity,
     gaps::{self, GpsGap},
     holes::{self, EvidenceHole},
     model::{Observation, Target},
@@ -12,7 +13,7 @@ use uuid::Uuid;
 /// Version of the activity reducer that produced a revision and its Daily
 /// Snapshots. Bumped whenever derivation semantics change, and recorded with
 /// every Activity Revision and snapshot as provenance.
-pub(super) const REDUCER_VERSION: i64 = 4;
+pub(super) const REDUCER_VERSION: i64 = 5;
 
 pub(super) struct Derived {
     pub stops: Vec<Stop>,
@@ -23,12 +24,33 @@ pub(super) struct Derived {
 }
 
 pub(super) async fn derive(points: &[Observation], target: &Target, revision: Uuid) -> Derived {
-    let stops = stops::detect(points, target, revision);
-    let activity = trips::derive(points, &stops, target, revision);
+    let supported = continuity::supported(points, target);
+    let mut stops = stops::detect(&supported.points, target, revision);
+    let mut activity = trips::derive(&supported.points, &stops, target, revision);
+    for stop in &mut stops {
+        let raw =
+            continuity::records_between(points, stop.observed_from_at, stop.observed_until_at);
+        stop.source_record_count = raw.len();
+        stop.source_record_ids = raw.iter().map(|point| point.id).collect();
+    }
+    for trip in &mut activity.trips {
+        let raw =
+            continuity::records_between(points, trip.observed_from_at, trip.observed_until_at);
+        trip.source_record_count = raw.len();
+        trip.source_record_ids = raw.iter().map(|point| point.id).collect();
+        for segment in &mut trip.movement_segments {
+            segment.source_record_count = continuity::records_between(
+                points,
+                segment.observed_from_at,
+                segment.observed_until_at,
+            )
+            .len();
+        }
+    }
     // Gaps come from the Raw series before quality filtering, holes only from
     // observations that exist, so the two never describe the same interval.
     let gaps = gaps::detect(points, target, revision);
-    let evidence_holes = holes::holes(points, &stops, &activity.trips, target);
+    let evidence_holes = holes::holes(points, &supported.bridged, &stops, &activity.trips, target);
     let mut derived = Derived {
         stops,
         trips: activity.trips,

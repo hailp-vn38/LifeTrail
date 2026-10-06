@@ -3,7 +3,7 @@ import { CircleDot, Flag, Image, Mic, Pause, Route, Unplug } from "lucide-vue-ne
 import { computed } from "vue";
 import type { TimelineEvent, TimelineEventKind } from "../types";
 
-const props = defineProps<{ event: TimelineEvent; selected: boolean }>();
+const props = defineProps<{ event: TimelineEvent; selected: boolean; future?: boolean }>();
 defineEmits<{ select: [id: string] }>();
 
 const KIND_ICON: Record<TimelineEventKind, typeof Flag> = {
@@ -28,7 +28,7 @@ const selectedLabel = computed(() =>
     <button
       type="button"
       class="timeline-item"
-      :class="[`timeline-item--${event.kind}`, { 'is-selected': selected }]"
+      :class="[`timeline-item--${event.kind}`, { 'is-selected': selected, 'is-future': future }]"
       :aria-pressed="selected"
       :aria-label="`${event.title}${selectedLabel}`"
       @click="$emit('select', event.id)"
@@ -37,12 +37,15 @@ const selectedLabel = computed(() =>
         <component :is="icon" :size="16" />
       </span>
       <span class="timeline-item__text">
-        <span class="timeline-item__title">{{ event.title }}</span>
-        <span v-if="event.subtitle" class="timeline-item__subtitle text-muted">
+        <span class="timeline-item__title">{{ event.travelLabel ?? event.title }}</span>
+        <span v-if="event.timeLabel" class="timeline-item__time tabular">{{ event.timeLabel }}</span>
+        <span v-if="event.subtitle && !event.timeLabel" class="timeline-item__subtitle text-muted">
           {{ event.subtitle }}
         </span>
       </span>
+      <span v-if="event.durationLabel" class="timeline-item__duration">{{ event.durationLabel }}</span>
     </button>
+    <details v-if="event.subtitle && event.timeLabel" class="timeline-item__details"><summary>Chi tiết quan sát</summary>{{ event.subtitle }}</details>
   </li>
 </template>
 
@@ -57,11 +60,17 @@ const selectedLabel = computed(() =>
   width: 100%;
   text-align: left;
   padding: 0.65rem 0.75rem;
-  border: 1px solid transparent;
+  border: 1px solid #e2e8f0;
   border-radius: var(--radius-sm);
-  background: transparent;
+  background: white;
   transition: background 0.15s ease, border-color 0.15s ease;
 }
+.timeline-item.is-future { opacity: .4; }
+.timeline-item__time { color: var(--color-text-muted); font-size: .78rem; }
+.timeline-item__duration { margin-left: auto; flex: none; border-radius: 999px; background: #dbeafe; color: #1d4ed8; padding: .3rem .5rem; font-size: .72rem; }
+.timeline-item--stop .timeline-item__marker { background: #dbeafe; color: #2563eb; }
+.timeline-item--trip { border: 0; border-left: 2px dashed #cbd5e1; border-radius: 0; margin-left: 1rem; width: calc(100% - 1rem); color: var(--color-text-muted); background: transparent; }
+.timeline-item__details { font-size: .7rem; color: var(--color-text-muted); padding: .3rem .5rem .3rem 3rem; }
 .timeline-item:hover {
   background: #f2f6fc;
 }

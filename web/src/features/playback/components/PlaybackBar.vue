@@ -46,7 +46,6 @@ const playLabel = computed(() => {
 const currentClockTime = computed(() =>
   formatClockTime(props.startTimeMs + Math.floor(props.routeTimeMs / 1000) * 1000, props.timezone),
 );
-const totalDuration = computed(() => formatDuration(props.durationMs));
 
 function formatClockTime(epochMs: number, timezone: string): string {
   try {
@@ -54,20 +53,11 @@ function formatClockTime(epochMs: number, timezone: string): string {
       timeZone: timezone,
       hour: "2-digit",
       minute: "2-digit",
-      second: "2-digit",
       hour12: false,
     }).format(new Date(epochMs));
   } catch {
     return new Date(epochMs).toISOString().slice(11, 19);
   }
-}
-
-function formatDuration(totalMs: number): string {
-  const totalSeconds = Math.max(0, Math.round(totalMs / 1000));
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, "0");
-  const seconds = String(totalSeconds % 60).padStart(2, "0");
-  return hours > 0 ? `${hours}:${minutes}:${seconds}` : `${minutes}:${seconds}`;
 }
 
 function onPlayPause() {
@@ -115,6 +105,7 @@ function onSpeedChange(event: Event) {
       </div>
       <div class="playback-bar__scrubber">
         <input
+          :style="{ background: `linear-gradient(to right, #2563eb ${progressPermille / 10}%, #dbe3ef ${progressPermille / 10}%)` }"
           type="range"
           min="0"
           max="1000"
@@ -124,11 +115,10 @@ function onSpeedChange(event: Event) {
           aria-label="Dòng thời gian phát lại"
           @input="onSeekInput"
         />
+        <div class="playback-bar__bounds"><span>{{ formatClockTime(startTimeMs, timezone) }}</span><span>{{ formatClockTime(startTimeMs + durationMs, timezone) }}</span></div>
       </div>
       <p class="playback-bar__time tabular">
-        <span>{{ currentClockTime }}</span>
-        <span aria-hidden="true"> / </span>
-        <span>{{ totalDuration }}</span>
+        <strong>{{ currentClockTime }}</strong>
       </p>
       <label class="playback-bar__speed">
         <span class="text-muted text-sm">Tốc độ</span>
@@ -173,12 +163,18 @@ function onSpeedChange(event: Event) {
 .playback-bar__scrubber {
   flex: 1;
   display: flex;
+  flex-direction: column;
   min-width: 8rem;
 }
 .playback-bar__scrubber input[type="range"] {
   width: 100%;
   accent-color: var(--color-primary);
+  border-radius: 99px;
+  height: 6px;
 }
+.playback-bar__bounds { display: flex; justify-content: space-between; font-size: .65rem; color: var(--color-text-muted); margin-top: .4rem; }
+.playback-bar__buttons :deep(button:first-child) { border-radius: 50%; }
+.playback-bar__time strong { font-size: 1.6rem; font-variant-numeric: tabular-nums; color: #1e3a8a; }
 .playback-bar__time {
   margin: 0;
   font-size: var(--font-size-sm);

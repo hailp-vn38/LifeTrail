@@ -15,6 +15,13 @@ import {
  * component-to-component calls.
  */
 export const usePlaybackStore = defineStore("playback", () => {
+  const seekRequest = ref<{ epochMs: number; sequence: number } | null>(null);
+  const restartRequest = ref(0);
+  function requestSeek(epochMs: number) {
+    seekRequest.value = { epochMs, sequence: (seekRequest.value?.sequence ?? 0) + 1 };
+  }
+  function requestRestart() { restartRequest.value++; }
+
   const model = ref<PlaybackModel>(initialPlaybackModel());
 
   const status = computed(() => model.value.status);
@@ -56,9 +63,11 @@ export const usePlaybackStore = defineStore("playback", () => {
 
   function reset(): void {
     model.value = initialPlaybackModel();
+    seekRequest.value = null;
   }
 
   return {
+    seekRequest, restartRequest, requestSeek, requestRestart,
     model,
     status,
     currentTimeMs,

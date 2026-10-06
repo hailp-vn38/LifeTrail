@@ -50,7 +50,7 @@ export function describeEvidenceHoles(
     )
     .map(
       (hole) =>
-        `${HOLE_REASON[hole.reason]}: ${formatTimestamp(hole.observed_from_at, dailyView.timezone)} – ${formatTimestamp(hole.observed_until_at, dailyView.timezone)} (${hole.source_record_count} bản ghi GPS)`,
+        `${Object.hasOwn(HOLE_REASON, hole.reason) ? HOLE_REASON[hole.reason] : "Không xác định được nguyên nhân"}: ${formatTimestamp(hole.observed_from_at, dailyView.timezone)} – ${formatTimestamp(hole.observed_until_at, dailyView.timezone)} (${hole.source_record_count} bản ghi GPS)`,
     );
 }
 

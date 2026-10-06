@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { nextTick, ref, watch } from "vue";
+import { usePlaybackStore } from "../../../stores/playback.store";
 import TimelineItem from "./TimelineItem.vue";
 import type { TimelineEvent } from "../types";
 
 const props = defineProps<{ events: TimelineEvent[]; selectedId: string | null }>();
 defineEmits<{ select: [id: string] }>();
 
+const playback = usePlaybackStore();
 const itemInstances = ref(new Map<string, { $el?: unknown }>());
 
 function setItemRef(id: string, instance: unknown) {
@@ -38,8 +40,10 @@ watch(
       :ref="(instance) => setItemRef(event.id, instance)"
       :event="event"
       :selected="selectedId === event.id"
+      :future="playback.durationMs > 0 && event.recordedAtMs !== undefined && event.recordedAtMs > playback.startTimeMs + playback.currentTimeMs"
       @select="$emit('select', $event)"
     />
+    <slot />
   </ul>
 </template>
 
@@ -47,8 +51,16 @@ watch(
 .timeline-list {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.6rem;
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: .25rem .4rem .75rem 0;
+  scrollbar-gutter: stable;
+  scrollbar-width: auto;
+  scrollbar-color: #94a3b8 #f1f5f9;
   overflow-y: auto;
   max-height: 100%;
 }
+@media (max-width: 767px) { .timeline-list { overflow: visible; max-height: none; } }
 </style>

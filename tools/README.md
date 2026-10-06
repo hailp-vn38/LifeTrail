@@ -36,6 +36,33 @@ See [`../docs/development/simulated-gps-data.md`](../docs/development/simulated-
 ## OSRM-routed scenarios
 
 `prepare_osrm.py` builds three separate, versioned MLD datasets with a pinned OSRM image. `generate_routed_scenario.py` samples Route geometry in seeded historical time and optionally uploads/replays valid Batches. See [Phase 2 acceptance](../docs/development/phase-2-sparse-and-osrm-acceptance.md) for internal Compose commands, scenario fields and retained three-profile fixtures.
+
+### Vietnam dataset
+
+Run from the repository root:
+
+```sh
+bash tools/download_osrm_vietnam.sh
+python3 tools/prepare_osrm.py --pbf data/osrm/source/vietnam-latest.osm.pbf \
+  --flat --dataset-name vietnam --dataset-version vietnam-<date>-<sha256-prefix> \
+  --source-url https://download.geofabrik.de/asia/vietnam-latest.osm.pbf
+docker compose --env-file deploy/osrm-vietnam.env -f deploy/docker-compose.yml \
+  --profile osrm up -d osrm-car osrm-bike osrm-foot
+```
+
+Replace the version placeholder with the download date and source SHA-256 prefix.
+The downloader validates Geofabrik's MD5 and prints SHA-256. Preparation uses
+`car.lua`, `bicycle.lua` and `foot.lua` independently and runs extract, partition
+and customize sequentially with two threads. The source remains in
+`data/osrm/source/`; generated `vietnam.osrm*` and `metadata.json` live under
+`data/osrm/{car,bike,foot}/`. Temporary profile PBF copies are removed after success.
+Existing profile directories are refused; preserve previous artifacts before
+preparing a replacement. `data/` is ignored by Git; retain dataset provenance
+under `tools/datasets/`, without committing PBF or OSRM artifacts.
+
+The Vietnam env file selects these paths explicitly. Commands without it keep
+the versioned Monaco default. All three routing services expose port 5000 only
+on the Compose network.
 # Realistic routed days
 
 `generate_realistic_osrm_day.py` produces a complete, seeded road-network day from

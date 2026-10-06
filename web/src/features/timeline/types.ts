@@ -19,6 +19,9 @@ export interface TimelineEvent {
   kind: TimelineEventKind;
   title: string;
   subtitle?: string;
+  timeLabel?: string;
+  durationLabel?: string;
+  travelLabel?: string;
   /** [longitude, latitude] for map flyTo on selection. */
   coordinate?: [number, number];
   /** GPS epoch ms, when known. */

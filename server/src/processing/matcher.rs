@@ -352,7 +352,9 @@ fn profile(mode: &str, confidence: f64, target: &Target) -> Option<&'static str>
 fn select<'a>(points: &'a [Observation], part: &RoutePart) -> Vec<&'a Observation> {
     let mut epochs = BTreeMap::new();
     for point in points.iter().filter(|p| {
-        p.recorded_at >= part.observed_from_at && p.recorded_at <= part.observed_until_at
+        p.classification.is_usable()
+            && p.recorded_at >= part.observed_from_at
+            && p.recorded_at <= part.observed_until_at
     }) {
         let key = point.recorded_at.timestamp();
         let candidate = (

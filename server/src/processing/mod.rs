@@ -4,6 +4,7 @@ mod capture;
 mod claim;
 mod classification;
 mod clip;
+mod continuity;
 mod derived;
 mod events;
 mod gaps;

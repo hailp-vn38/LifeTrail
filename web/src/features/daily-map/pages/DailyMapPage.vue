@@ -6,13 +6,11 @@ import AppErrorState from "../../../components/ui/AppErrorState.vue";
 import { useUiStore } from "../../../stores/ui.store";
 import { todayForOwner } from "../../../lib/date";
 import TimelinePanel from "../../timeline/components/TimelinePanel.vue";
-import TimelineStats from "../../timeline/components/TimelineStats.vue";
 import DailyMapCanvas from "../components/DailyMapCanvas.vue";
 import DailyProcessingNotice from "../components/DailyProcessingNotice.vue";
 import DailyMapEmpty from "../components/DailyMapEmpty.vue";
 import DailyMapHeader from "../components/DailyMapHeader.vue";
 import DailyMapLoading from "../components/DailyMapLoading.vue";
-import DailyMapToolbar from "../components/DailyMapToolbar.vue";
 import { useDailyMap } from "../composables/useDailyMap";
 
 const route = useRoute();
@@ -46,10 +44,11 @@ watch(
 </script>
 
 <template>
-  <div class="page page--wide">
+  <div class="page page--wide daily-map-page">
     <DailyMapHeader
       :device-id="deviceId"
       :date="date"
+      :daily-view="query.data.value"
       @date-change="(next) => navigate(deviceId, next)"
       @refresh="query.refetch()"
     />
@@ -84,11 +83,6 @@ watch(
       <DailyProcessingNotice :daily-view="query.data.value" />
       <div class="daily-map-workspace">
       <div class="map-column">
-        <DailyMapToolbar
-          :date="date"
-          :timezone="timezone"
-          @date-change="(next) => navigate(deviceId, next)"
-        />
         <DailyMapEmpty
           v-if="isEmpty"
           @go-today="navigate(deviceId, todayForOwner(timezone ?? 'UTC'))"
@@ -97,9 +91,21 @@ watch(
       </div>
       <div class="timeline-column">
         <TimelinePanel :daily-view="query.data.value" />
-        <TimelineStats :daily-view="query.data.value" />
       </div>
       </div>
     </template>
   </div>
 </template>
+
+<style scoped>
+.daily-map-page { height: calc(100dvh - 7rem); min-height: 34rem; gap: .75rem; }
+.daily-map-workspace { flex: 1; min-height: 0; grid-template-columns: minmax(0, 65fr) minmax(19rem, 35fr); }
+.map-column, .timeline-column { min-height: 0; }
+@media (max-width: 1279px) and (min-width: 768px) { .daily-map-workspace { grid-template-columns: minmax(0, 1fr) 300px; } }
+@media (max-width: 767px) {
+  .daily-map-page { height: auto; min-height: 0; }
+  .daily-map-workspace { grid-template-columns: 1fr; }
+  .map-column { height: 28rem; }
+  .timeline-column :deep(.timeline-panel) { height: auto; overflow: visible; }
+}
+</style>

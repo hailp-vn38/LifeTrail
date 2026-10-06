@@ -10,6 +10,7 @@ import DailyMapPage from "./DailyMapPage.vue";
 
 vi.mock("../../../api/queries/daily-view.query", () => ({
   useDailyView: vi.fn(),
+  useDailyStatus: () => ({ data: ref(undefined), refetch: vi.fn() }),
 }));
 
 vi.mock("../../../api/queries/devices.query", () => ({

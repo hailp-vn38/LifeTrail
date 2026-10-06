@@ -13,7 +13,7 @@ pub(super) struct Claim {
 /// checked at activation is always the identity that was captured.
 pub(super) const TARGET_COLUMNS: &str = "c.input_generation,c.work_generation,c.target_generation,c.target_id,c.fencing_token,c.active_manifest_id,\
 c.stop_radius_m,c.stop_min_duration_s,c.observation_gap_s,\
-c.max_hdop,c.max_implied_speed_mps,c.jump_distance_floor_m,\
+c.max_hdop,c.max_implied_speed_mps,c.jump_distance_floor_m,c.short_failure_max_s,\
 c.mode_window_s,c.mode_change_min_duration_s,c.mode_enter_confidence,c.mode_exit_confidence,c.mode_unknown_grace_s,\
 c.match_min_confidence,c.match_max_attempts,c.match_retry_delay_ms,c.match_total_budget_ms,c.matcher_engine_id,c.matcher_dataset_id,\
 c.match_chunk_max_points,c.match_chunk_overlap_points,\
@@ -93,7 +93,7 @@ pub struct ProcessingStatus {
 /// `classification` is computed by `quality::classify` from the captured policy,
 /// never read from storage, so a published classification is reproducible from
 /// the Raw metadata plus the recorded policy.
-#[derive(sqlx::FromRow)]
+#[derive(Clone, sqlx::FromRow)]
 pub(super) struct Observation {
     pub id: i64,
     pub recorded_at: DateTime<Utc>,

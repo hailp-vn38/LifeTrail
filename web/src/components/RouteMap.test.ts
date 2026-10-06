@@ -53,6 +53,9 @@ const { MockMap } = vi.hoisted(() => {
     on = vi.fn();
     off = vi.fn();
     setPaintProperty = vi.fn();
+    setFilter = vi.fn();
+    setLayoutProperty = vi.fn();
+    getLayer(id: string) { return this.addedLayers.find(layer => (layer as { id: string }).id === id); }
     remove() {
       this.removed = true;
     }
@@ -71,6 +74,7 @@ vi.mock("maplibre-gl", () => ({
   },
   Map: MockMap,
   NavigationControl: class {},
+  Popup: class { setLngLat() { return this; } setDOMContent() { return this; } addTo() { return this; } remove() {} },
 }));
 
 import RouteMap from "./RouteMap.vue";
@@ -561,5 +565,44 @@ it("renders processed Route Parts without deriving length from their coordinates
   expect(map.sources.get("activity-route-parts")).toBeDefined();
   // The published anchor clock, not a Web Haversine calculation, enables it.
   expect(wrapper.find('button[aria-label="Phát"]').exists()).toBe(true);
+  wrapper.unmount();
+});
+
+import { usePlaybackStore } from "../stores/playback.store";
+
+it("reveals Daily Map dots from midnight, hides them again on backward seek and restarts from zero", async () => {
+  const view = dailyViewFixture(TIMESTAMPS);
+  const wrapper = mount(RouteMap, { props: { dailyView: view, dayClock: true }, global: { plugins: [createPinia()] } });
+  const map = lastMap();
+  const playback = usePlaybackStore();
+  const midnight = Date.parse("2026-10-04T17:00:00Z");
+  expect(playback.startTimeMs).toBe(midnight);
+  expect(map.setFilter).toHaveBeenCalledWith("timeline-event-dots-circle", ["<=", ["get", "revealedAtMs"], midnight]);
+  expect(map.sources.get("daily-route-current")?.setData).toHaveBeenLastCalledWith({ type: "FeatureCollection", features: [] });
+  const events = map.sources.get("timeline-event-dots")?.data as FeatureCollection;
+  expect(events.features.map(event => event.properties?.number)).toEqual([1, 2]);
+  playback.requestSeek(Date.parse(TIMESTAMPS[1]));
+  await nextTick();
+  expect(map.setFilter).toHaveBeenCalledWith("timeline-event-dots-circle", ["<=", ["get", "revealedAtMs"], Date.parse(TIMESTAMPS[1])]);
+  expect(playback.currentTimeMs).toBe(Date.parse(TIMESTAMPS[1]) - midnight);
+  playback.requestSeek(midnight);
+  await nextTick();
+  expect(map.setFilter).toHaveBeenLastCalledWith("timeline-event-dot-halo", ["<=", ["get", "revealedAtMs"], midnight]);
+  await wrapper.get('input[type="range"]').setValue('1000');
+  expect(playback.status).toBe('finished');
+  expect(map.setFilter).toHaveBeenCalledWith("timeline-event-dots-circle", ["<=", ["get", "revealedAtMs"], playback.endTimeMs]);
+  playback.requestRestart();
+  await nextTick();
+  expect(playback.status).toBe('playing');
+  expect(playback.currentTimeMs).toBe(0);
+  wrapper.unmount();
+});
+
+it("keeps all Daily Map dots visible and controls disabled when timestamps are missing", () => {
+  const wrapper = mount(RouteMap, { props: { dailyView: dailyViewFixture(undefined), dayClock: true }, global: { plugins: [createPinia()] } });
+  const map = lastMap();
+  const layer = map.addedLayers.find(layer => (layer as { id: string }).id === 'timeline-event-dots-circle') as { filter: unknown };
+  expect(layer.filter).toEqual(['<=', ['get', 'revealedAtMs'], Number.MAX_SAFE_INTEGER]);
+  expect(wrapper.get('button[aria-label="Phát"]').attributes('disabled')).toBeDefined();
   wrapper.unmount();
 });

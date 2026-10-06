@@ -57,6 +57,7 @@ pub(super) struct Policy {
     pub(super) max_hdop: f64,
     pub(super) max_implied_speed_mps: f64,
     pub(super) jump_distance_floor_m: f64,
+    pub(super) short_failure_max_s: i64,
 }
 
 /// Why an interval containing these classes cannot support reliable activity.

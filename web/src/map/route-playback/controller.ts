@@ -38,6 +38,9 @@ export interface PlaybackControllerOptions {
   /** Validated playback points (at least 2, monotonic timestamps). */
   points: PlaybackPoint[];
   speed?: number;
+  /** Optional calendar-day clock; observations outside coverage are never invented. */
+  startTimeMs?: number;
+  endTimeMs?: number;
   finishHoldMs?: number;
   scheduler?: PlaybackScheduler;
   events: PlaybackControllerEvents;
@@ -46,6 +49,7 @@ export interface PlaybackControllerOptions {
 export class PlaybackController {
   private readonly points: PlaybackPoint[];
   private readonly durationMs: number;
+  private readonly startTimeMs: number;
   private readonly finishHoldMs: number;
   private readonly scheduler: PlaybackScheduler;
   private readonly events: PlaybackControllerEvents;
@@ -64,7 +68,8 @@ export class PlaybackController {
       throw new Error("PlaybackController needs at least 2 points.");
     }
     this.points = options.points;
-    this.durationMs = routeDurationMs(options.points);
+    this.startTimeMs = options.startTimeMs ?? options.points[0].recordedAtMs;
+    this.durationMs = options.endTimeMs === undefined ? routeDurationMs(options.points) : options.endTimeMs - this.startTimeMs;
     this.speed = options.speed && options.speed > 0 ? options.speed : 1;
     this.finishHoldMs = options.finishHoldMs ?? DEFAULT_FINISH_HOLD_MS;
     this.scheduler = options.scheduler ?? defaultPlaybackScheduler;
@@ -202,7 +207,7 @@ export class PlaybackController {
   }
 
   private emitFrame(): void {
-    const location = locateSegment(this.points, this.routeTimeMs);
+    const location = locateSegment(this.points, this.routeTimeMs + this.startTimeMs - this.points[0].recordedAtMs);
     const segmentBearing = routeBearing(this.points, location.vertexIndex, location.position);
     if (segmentBearing !== null) {
       this.lastStableBearing = segmentBearing;
@@ -216,6 +221,7 @@ export class PlaybackController {
       bearing: this.lastStableBearing,
       vertexIndex: location.vertexIndex,
       segmentRatio: location.segmentRatio,
+      interruption: location.interruption,
     });
   }
 }

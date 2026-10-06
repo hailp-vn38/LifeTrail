@@ -34,6 +34,10 @@ Deterministic fixture suite for the Phase 2 domain and architecture decisions Q1
 - One Trip contains WALK then CAR without a qualifying Stop between them.
 - 12:05-12:10 contains Raw records but deliberately poor quality -> Evidence Hole, not Gap.
 - 17:45-17:55 contains no Raw records -> true Gap.
+- 18:35 alternates HDOP 3.5/4.5/5.5/6.5. Short rejected runs bracketed by
+  usable GPS should preserve activity continuity under the bounded evidence policy,
+  rather than create repeated four-record Evidence Holes. Rejected records remain
+  in Raw GPS and the low-quality count, but do not enter geometry or OSRM inputs.
 - 18:45 contains one impossible ~kilometre-scale jump that remains in Raw GPS but must be
   excluded from published derived geometry.
 - Stage 1 omits 23:55-00:05, creating a midnight Gap.

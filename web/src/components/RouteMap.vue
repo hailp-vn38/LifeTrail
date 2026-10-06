@@ -8,6 +8,10 @@ import {
   type GeoJSONSource,
 } from "maplibre-gl";
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { dayClockBounds } from "../map/route-playback/day-clock";
+import { progressFeatures } from "../map/route-playback/progress";
+import { buildTimelineEvents } from "../features/timeline/events";
+import { addEventDots, bindEventDots, revealEventDots, highlightEventDot } from "../map/event-dots";
 import type { DailyView } from "../api/queries/daily-view.query";
 import {
   FollowCamera,
@@ -42,7 +46,6 @@ import {
 } from "../map/route-playback/geometry";
 import {
   buildPlaybackInput,
-  routeDurationMs,
   type PlaybackValidationError,
 } from "../map/route-playback/timeline";
 import { buildRoutePartPlaybackInput } from "../map/route-playback/parts";
@@ -83,7 +86,7 @@ const INTERRUPTION_TEXT: Record<PlaybackBreak, string> = {
   disconnected: "Các Route Part không liên tục: không nội suy giữa hai phần route.",
 };
 
-const props = defineProps<{ dailyView: DailyView }>();
+const props = defineProps<{ dailyView: DailyView; dayClock?: boolean }>();
 const mapElement = ref<HTMLDivElement>();
 
 const mapStore = useMapStore();
@@ -98,6 +101,9 @@ let playbackPoints: PlaybackPoint[] = [];
 let lastFrameState: PlaybackState = "idle";
 let lastFrame: PlaybackFrame | undefined;
 let lastFrameTimeMs = 0;
+let eventDots: ReturnType<typeof bindEventDots> | undefined;
+let resizeObserver: ResizeObserver | undefined;
+const timelineEvents = computed(() => buildTimelineEvents(props.dailyView));
 
 const mapReady = ref(false);
 const playbackState = ref<PlaybackState>("idle");
@@ -153,7 +159,12 @@ function applySelectionHighlight(): void {
   if (!map) return;
   const selectedId = mapStore.selectedEventId;
   highlightStop(map, selectedId);
+  if (props.dayClock) highlightEventDot(map, selectedId);
   highlightRoutePart(map, selectedId);
+  if (props.dayClock && controller) {
+    map.setPaintProperty("trip-route-parts", "line-color", "#94a3b8");
+    map.setPaintProperty("trip-route-parts", "line-opacity", 0.6);
+  }
   if (props.dailyView.start) {
     map.setPaintProperty(LAYER_START, "circle-radius", selectionRadiusExpression(selectedId));
   }
@@ -205,11 +216,13 @@ function applyFrame(frame: PlaybackFrame) {
   if (map && mapReady.value) {
     setSourceData(
       SOURCE_PROGRESS,
-      lineFeature(progressCoordinates(playbackPoints, frame.vertexIndex, frame.position)),
+      props.dayClock ? progressFeatures(playbackPoints, frame, startTimeMs.value + frame.routeTimeMs) : lineFeature(progressCoordinates(playbackPoints, frame.vertexIndex, frame.position)),
     );
-    setSourceData(SOURCE_CURRENT, puckFeatures(frame.position, frame.bearing));
+    const cursor = startTimeMs.value + frame.routeTimeMs;
+    setSourceData(SOURCE_CURRENT, props.dayClock && cursor < playbackPoints[0].recordedAtMs ? { type: "FeatureCollection", features: [] } : puckFeatures(frame.position, frame.bearing));
+    if (props.dayClock) { revealEventDots(map, cursor); eventDots?.reveal(cursor); }
 
-    if (followCamera && playbackStore.cameraFollow) {
+    if (followCamera && playbackStore.cameraFollow && (!props.dayClock || cursor >= playbackPoints[0].recordedAtMs)) {
       // Course-Up Follow Camera with Look-Ahead: the camera aims at a point
       // ahead on the route while the puck stays on the current GPS fix.
       const target = followTarget(playbackPoints, frame);
@@ -251,8 +264,16 @@ function handlePause() {
 }
 
 function handleRestart() {
+  mapStore.clearSelection();
   controller?.restart();
 }
+watch(() => playbackStore.restartRequest, () => {
+  handleRestart();
+  handlePlay();
+});
+watch(() => playbackStore.seekRequest, (request) => {
+  if (request) { playbackStore.setCameraFollow(false); controller?.seek(request.epochMs - startTimeMs.value); }
+});
 
 function handleSeek(timeMs: number) {
   controller?.seek(timeMs);
@@ -312,12 +333,31 @@ watch(() => mapPreferences.styleId, () => {
 });
 
 /** A style replacement removes custom sources and layers; restore the playback frame. */
+function initializeEventDots() {
+  if (!map || !props.dayClock) return;
+  for (const layer of [LAYER_START, LAYER_END, "stop-markers", "stop-radius", "stop-radius-outline"]) {
+    if (map.getLayer(layer)) map.setLayoutProperty(layer, "visibility", "none");
+  }
+  if (controller) {
+    for (const layer of ["daily-route-full-line", "trip-route-parts"]) {
+      if (map.getLayer(layer)) {
+        map.setPaintProperty(layer, "line-color", "#94a3b8");
+        map.setPaintProperty(layer, "line-opacity", 0.6);
+        map.setPaintProperty(layer, "line-dasharray", [2, 2]);
+      }
+    }
+  }
+  addEventDots(map, timelineEvents.value, controller ? startTimeMs.value + routeTimeMs.value : null);
+  if (!eventDots) eventDots = bindEventDots(map, timelineEvents.value, mapStore.selectEvent);
+}
+
 function restoreMapStyle() {
   if (!map) return;
   addBuildings(map);
+  addRoutePartLayers(map, props.dailyView);
   addRouteLayers(map, props.dailyView, playbackPoints);
   addStopLayers(map, props.dailyView);
-  addRoutePartLayers(map, props.dailyView);
+  initializeEventDots();
   mapReady.value = true;
   if (lastFrame) applyFrame(lastFrame);
   applySelectionHighlight();
@@ -333,6 +373,7 @@ watch(
   (selectedId) => {
     if (!map || !mapReady.value) return;
     applySelectionHighlight();
+    if (props.dayClock) eventDots?.showSelected(selectedId);
     if (focusTripPart(map, props.dailyView, selectedId)) return;
     if (focusStop(map, props.dailyView, selectedId)) return;
     const target =
@@ -349,6 +390,11 @@ watch(
 
 onMounted(() => {
   if (!mapElement.value) return;
+  if (props.dayClock) {
+    const bounds = dayClockBounds(props.dailyView.date, props.dailyView.timezone);
+    startTimeMs.value = bounds.startTimeMs;
+    durationMs.value = bounds.endTimeMs - bounds.startTimeMs;
+  }
   const camera = initialMapCamera({
     routeCoordinates: routeCoordinates(),
     startCoordinate: startCoordinate(),
@@ -371,16 +417,18 @@ onMounted(() => {
   const input = playbackInput.value;
   if (input?.ok) {
     playbackPoints = input.points;
-    durationMs.value = routeDurationMs(input.points);
-    startTimeMs.value = input.points[0].recordedAtMs;
+    const bounds = props.dayClock ? dayClockBounds(props.dailyView.date, props.dailyView.timezone) : { startTimeMs: input.points[0].recordedAtMs, endTimeMs: input.points[input.points.length - 1].recordedAtMs };
+    durationMs.value = bounds.endTimeMs - bounds.startTimeMs;
+    startTimeMs.value = bounds.startTimeMs;
     controller = new PlaybackController({
       points: input.points,
+      startTimeMs: bounds.startTimeMs,
+      endTimeMs: bounds.endTimeMs,
       speed: playbackSpeed.value,
       events: { onFrame: applyFrame, onOverviewReady: handleOverviewReady },
     });
     playbackStore.initialize({
-      startTimeMs: input.points[0].recordedAtMs,
-      endTimeMs: input.points[input.points.length - 1].recordedAtMs,
+      ...bounds,
     });
   }
 
@@ -388,11 +436,12 @@ onMounted(() => {
     const activeMap = map;
     if (!activeMap) return;
     addBuildings(activeMap);
+    addRoutePartLayers(activeMap, props.dailyView);
     addRouteLayers(activeMap, props.dailyView, playbackPoints);
     addStopLayers(activeMap, props.dailyView);
-    addRoutePartLayers(activeMap, props.dailyView);
     bindStopSelection(activeMap, mapStore.selectEvent);
     bindRoutePartSelection(activeMap, mapStore.selectEvent);
+    initializeEventDots();
     fitRoute(activeMap);
     if (controller) {
       playbackInteraction = new PlaybackInteraction(activeMap);
@@ -414,10 +463,17 @@ onMounted(() => {
     activeMap.on("rotatestart", handleManualInteraction);
     activeMap.on("style.load", restoreMapStyle);
     mapReady.value = true;
+    if (props.dayClock) controller?.restart();
+    if (typeof ResizeObserver !== "undefined") {
+      resizeObserver = new ResizeObserver(() => activeMap.resize());
+      resizeObserver.observe(activeMap.getContainer());
+    }
   });
 });
 
 onBeforeUnmount(() => {
+  eventDots?.dispose();
+  resizeObserver?.disconnect();
   controller?.dispose();
   controller = undefined;
   followCamera?.dispose();
@@ -433,10 +489,10 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="route-playback">
+  <div class="route-playback" :class="{ 'route-playback--day': dayClock }">
     <div ref="mapElement" class="route-map" aria-label="Bản đồ Daily Route" />
     <PlaybackBar
-      v-if="hasPlaybackSource"
+      v-if="hasPlaybackSource || dayClock"
       :state="playbackState"
       :speed="playbackSpeed"
       :route-time-ms="routeTimeMs"
@@ -444,7 +500,7 @@ onBeforeUnmount(() => {
       :start-time-ms="startTimeMs"
       :timezone="dailyView.timezone"
       :map-ready="mapReady"
-      :disabled-reason="disabledReason"
+      :disabled-reason="disabledReason ?? (!hasPlaybackSource ? 'Không có route để phát lại.' : null)"
       :camera-follow="playbackStore.cameraFollow"
       @play="handlePlay"
       @pause="handlePause"
@@ -463,6 +519,10 @@ onBeforeUnmount(() => {
   flex-direction: column;
   gap: 0.75rem;
 }
+.route-playback--day { position: relative; height: 100%; min-height: 0; }
+.route-playback--day .route-map { flex: 1; height: 100%; min-height: 0; }
+.route-playback--day :deep(.playback-bar) { position: absolute; bottom: 2rem; left: 1rem; right: 1rem; z-index: 2; background: rgba(255,255,255,.96); border-radius: 1rem; }
+.route-playback--day .playback-interruption { position: absolute; top: 1rem; left: 4.5rem; right: 1rem; z-index: 2; background: white; padding: .5rem; border-radius: .5rem; }
 .playback-interruption {
   margin: 0;
   color: var(--color-text-muted);
