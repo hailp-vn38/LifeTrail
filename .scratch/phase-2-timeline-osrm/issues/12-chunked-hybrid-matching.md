@@ -1,6 +1,6 @@
 # 12: Publish long traces with safe chunk seams and hybrid fallback
 
-Status: ready-for-agent
+Status: resolved
 Type: task
 Labels: ready-for-agent
 Blocked by: 11
@@ -21,3 +21,7 @@ Blocked by: 11
 - [ ] Trip/day distance counts published parts only and remains consistent with existing clipping/vertex metric; no overlapping coverage duplicates distance.
 - [ ] Validated chunk seams authorize only Route Part assembly. Semantic replacement expansion from the publication contract is unchanged.
 - [ ] Tests exercise long traces, same-second ties, nullable metadata, turns, repeated roads, U-turns, unmatched points, divergent seams, invalid anchors, safe hybrid publication and whole-segment fallback visible through API/Map.
+
+## Answer
+
+Implemented bounded OSRM Match chunking with configurable 80-point/5-point-overlap defaults. Match evidence now retains each chunk's selected source IDs, selection ranking and seam decision (both chunk progress values, separation and explicit absent-bearing ranking). Chunks assemble only across a shared source observation with compatible geometry; pieces are clipped at the selected observed progress, never joined with a straight connector. An unsafe seam falls back to the original whole Movement Segment, and chunk parts update the owning Movement Segment's published part IDs and distance totals.

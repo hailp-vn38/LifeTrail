@@ -183,6 +183,8 @@ mod tests {
             match_total_budget_ms: 1000,
             matcher_engine_id: "test".into(),
             matcher_dataset_id: "test".into(),
+            match_chunk_max_points: 80,
+            match_chunk_overlap_points: 5,
             policy: Policy {
                 max_hdop: 5.0,
                 max_implied_speed_mps: 70.0,
