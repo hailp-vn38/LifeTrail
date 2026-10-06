@@ -1,6 +1,7 @@
 //! Persist immutable UTC activity and daily candidates before fenced activation.
 use super::{
     derived::{self, REDUCER_VERSION},
+    manifest::{self, Slice},
     model::Input,
     snapshot,
 };
@@ -15,6 +16,8 @@ pub(super) async fn stage(
     let manifest = Uuid::now_v7();
     let revision = Uuid::now_v7();
     let derived = derived::derive(&input.observations, &input.target, revision);
+    let previous =
+        previous_slices(pool, input.claim.device_id, input.target.active_manifest_id).await?;
     let mut entries = json!([]);
     if let (Some(first), Some(last)) = (input.observations.first(), input.observations.last())
         && first.recorded_at < last.recorded_at
@@ -22,7 +25,7 @@ pub(super) async fn stage(
         // This activity slice processes the complete captured observation range.
         // Both replacement endpoints are genuine observation edges, never day cuts.
         let until = last.recorded_at + chrono::Duration::milliseconds(1);
-        sqlx::query("INSERT INTO activity_revisions(id,device_id,observed_from_at,observed_until_at,input_generation,target_generation,config,body) VALUES($1,$2,$3,$4,$5,$6,$7::jsonb,$8::jsonb)")
+        sqlx::query("INSERT INTO activity_revisions(id,device_id,observed_from_at,observed_until_at,supersedes_from_at,supersedes_until_at,input_generation,target_generation,config,body) VALUES($1,$2,$3,$4,$3,$4,$5,$6,$7::jsonb,$8::jsonb)")
             .bind(revision).bind(input.claim.device_id).bind(first.recorded_at).bind(until)
             .bind(input.target.input_generation).bind(input.target.target_generation)
             .bind(config(input).to_string())
@@ -30,7 +33,22 @@ pub(super) async fn stage(
                 "stops":derived.stops,"trips":derived.trips,"gaps":derived.gaps,
                 "route_parts":derived.parts,"evidence_holes":derived.evidence_holes
             }).to_string()).execute(pool).await?;
-        entries = json!([{"activity_revision":revision,"from_at":first.recorded_at,"until_at":until,"from_boundary":"observation_edge","until_boundary":"observation_edge"}]);
+        let slices = manifest::splice(
+            &previous,
+            Slice {
+                revision,
+                from: first.recorded_at,
+                until,
+                // Dataset coverage is independently verified Raw observation
+                // evidence.  It is not a processing or matcher chunk seam.
+                from_boundary: "verified_observation_edge",
+                until_boundary: "verified_observation_edge",
+            },
+        );
+        entries = serde_json::to_value(slices.into_iter().map(|slice| json!({
+            "activity_revision":slice.revision,"from_at":slice.from,"until_at":slice.until,
+            "from_boundary":slice.from_boundary,"until_boundary":slice.until_boundary
+        })).collect::<Vec<_>>()).expect("manifest entries serialize");
     }
     sqlx::query("INSERT INTO activity_manifests(id,device_id,input_generation,target_id,entries) VALUES($1,$2,$3,$4,$5::jsonb)")
         .bind(manifest).bind(input.claim.device_id).bind(input.target.input_generation).bind(&input.target.target_id).bind(entries.to_string()).execute(pool).await?;
@@ -44,6 +62,44 @@ pub(super) async fn stage(
         candidates.push((day.date, id));
     }
     Ok(candidates)
+}
+
+#[derive(serde::Deserialize)]
+struct StoredSlice {
+    activity_revision: Uuid,
+    from_at: chrono::DateTime<chrono::Utc>,
+    until_at: chrono::DateTime<chrono::Utc>,
+}
+
+async fn previous_slices(
+    pool: &PgPool,
+    device: Uuid,
+    manifest: Option<Uuid>,
+) -> Result<Vec<Slice>, sqlx::Error> {
+    let Some(manifest) = manifest else {
+        return Ok(Vec::new());
+    };
+    let entries: Value =
+        sqlx::query_scalar("SELECT entries FROM activity_manifests WHERE id=$1 AND device_id=$2")
+            .bind(manifest)
+            .bind(device)
+            .fetch_optional(pool)
+            .await?
+            .unwrap_or_else(|| json!([]));
+    let stored: Vec<StoredSlice> =
+        serde_json::from_value(entries).map_err(|error| sqlx::Error::Decode(Box::new(error)))?;
+    Ok(stored
+        .into_iter()
+        .map(|slice| Slice {
+            revision: slice.activity_revision,
+            from: slice.from_at,
+            until: slice.until_at,
+            // Existing safe entries stay authoritative outside the splice. Their
+            // original boundary evidence is retained in their immutable manifest.
+            from_boundary: "retained_safe_slice",
+            until_boundary: "retained_safe_slice",
+        })
+        .collect())
 }
 
 /// Algorithm and configuration identity retained with each Activity Revision.

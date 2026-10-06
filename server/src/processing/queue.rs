@@ -23,8 +23,11 @@ pub(crate) async fn schedule_batch(
     device: Uuid,
     batch: Uuid,
 ) -> Result<(), sqlx::Error> {
-    sqlx::query("UPDATE device_processing_control SET input_generation=input_generation+1 WHERE device_id=$1")
-        .bind(device).execute(&mut **tx).await?;
+    // Bounds coalesce every late Batch in one durable Device-owned range.  We
+    // only mark interpretation stale; the last complete Daily Snapshot remains
+    // the read source until activation succeeds.
+    sqlx::query("UPDATE device_processing_control c SET input_generation=c.input_generation+1, dirty_from_at=CASE WHEN c.dirty_from_at IS NULL THEN b.first_at ELSE LEAST(c.dirty_from_at,b.first_at) END, dirty_until_at=CASE WHEN c.dirty_until_at IS NULL THEN b.until_at ELSE GREATEST(c.dirty_until_at,b.until_at) END FROM (SELECT min(recorded_at) AS first_at, max(recorded_at)+interval '1 millisecond' AS until_at FROM gps_points WHERE device_id=$1 AND batch_id=$2) b WHERE c.device_id=$1")
+        .bind(device).bind(batch).execute(&mut **tx).await?;
     sqlx::query(
         "INSERT INTO processing_days (device_id, local_date, timezone, state) \
         SELECT DISTINCT $1, (g.recorded_at AT TIME ZONE u.timezone)::date, u.timezone, 'queued' \
