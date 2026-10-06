@@ -69,6 +69,15 @@ async fn timezone_reprojects_published_manifest_while_newer_raw_input_is_pending
     assert!(processing::process_next(&pool).await.unwrap());
     let projected = read(&router, &path).await;
     assert_eq!(projected["processing_state"], "processed");
+    assert_eq!(projected["summary"]["point_count"], 3);
+    assert_eq!(
+        projected["summary"]["usable_point_count"], 2,
+        "quality counts come from the pinned activity source, not a new quality pass"
+    );
+    assert_eq!(
+        projected["provenance"]["reducer_version"],
+        old["provenance"]["reducer_version"]
+    );
     assert_eq!(projected["timezone"], "Asia/Ho_Chi_Minh");
     assert_eq!(projected["provenance"]["manifest_version"], old_manifest);
     assert_eq!(

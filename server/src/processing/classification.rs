@@ -1,7 +1,6 @@
 //! Windowed transport-mode evidence and its persistence state machine.
 //!
-//! Classification is deliberately independent of matching.  A route match may
-//! corroborate geometry, but it never selects the mode that selected a profile.
+//! Transport mode describes activity. Every mode uses processed GPS geometry.
 use super::{
     geo,
     model::{Observation, Target},
@@ -169,6 +168,8 @@ mod tests {
             timezone_generation: 0,
             fencing_token: 0,
             active_manifest_id: None,
+            dirty_from_at: None,
+            dirty_until_at: None,
             stop_radius_m: 30.0,
             stop_min_duration_s: 180,
             observation_gap_s: 300,
@@ -177,14 +178,6 @@ mod tests {
             mode_enter_confidence: 0.70,
             mode_exit_confidence: 0.55,
             mode_unknown_grace_s: 90,
-            match_min_confidence: 0.70,
-            match_max_attempts: 2,
-            match_retry_delay_ms: 50,
-            match_total_budget_ms: 1000,
-            matcher_engine_id: "test".into(),
-            matcher_dataset_id: "test".into(),
-            match_chunk_max_points: 80,
-            match_chunk_overlap_points: 5,
             policy: Policy {
                 max_hdop: 5.0,
                 max_implied_speed_mps: 70.0,

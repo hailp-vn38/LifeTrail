@@ -1,0 +1,11 @@
+# Phase 2 publishes processed GPS without a routing engine
+
+Accepted on 2026-10-06. Phase 2 derives activity and Route Parts directly from usable GPS observations after quality/outlier processing. Every new Route Part and Movement Segment uses `source = processed_gps`; transport mode does not select a geometry provider. Routing/map matching is deferred to a later phase as an optional enhancement, keeping Phase 2 reproducible without external service availability.
+
+This supersedes ADR-0002 and the matcher, retry, confidence, chunk-seam and same-second OSRM policies in ADR-0004. Activity revisions, manifests, historical progress anchors, server-owned distance, immutable Raw GPS, generation/target/fencing checks and atomic multiday publication remain authoritative. Exact timestamp duplicates select one deterministic geometry observation; distinct millisecond epochs are preserved and all accepted records remain Raw GPS.
+
+Committed migrations remain unchanged. Migration 0015 removes matcher configuration and storage counters, advances the processing target and queues replacement work without changing Raw input generation or immutable old publications. Existing snapshots remain readable until a successful replacement; historical evidence in existing immutable JSON is retained.
+
+Replacement ranges conservatively expand to unchanged Raw Gap boundaries in both the prior and current interpretation, or to observation edges when no safe cut exists. Configuration changes reprocess the complete observed range. New revisions persist only replacement output; daily projections read authoritative manifest slices and reuse activity outside the replacement. The reducer still reads/classifies the complete captured history for context, so processing cost can grow with total history even when revision storage is limited.
+
+Activity revisions retain generic per-observation quality classifications and timestamps for projection audit. Timezone-only work counts this immutable evidence rather than rerunning quality or reporting zero usable observations. Raw point counts may include pending Batches newer than the pinned processed source; quality counts and reducer/target provenance describe that source.

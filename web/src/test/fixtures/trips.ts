@@ -10,7 +10,7 @@ export const openTrip: components["schemas"]["DailyTrip"] = {
   start_boundary: "open", end_boundary: "open", full_duration_s: null,
   distance_m: 2204, quality: "sufficient", movement_segment_count: 1,
   movement_segments: [{
-    id: `${REVISION}:trip:0:segment:0`, mode: "unknown", classification_confidence: 0, source: "raw",
+    id: `${REVISION}:trip:0:segment:0`, mode: "unknown", classification_confidence: 0, source: "processed_gps",
     observed_from_at: "2026-10-05T03:00:00Z", observed_until_at: "2026-10-05T03:20:00Z",
     observed_duration_s: 1200, distance_m: 2204, quality: "sufficient",
     route_part_ids: [`${REVISION}:trip:0:segment:0:part:0`], source_record_count: 5,
@@ -23,7 +23,7 @@ export const openTrip: components["schemas"]["DailyTrip"] = {
 export const rawPart: components["schemas"]["RoutePart"] = {
   id: `${REVISION}:trip:0:segment:0:part:0`, kind: "route_part",
   trip_id: openTrip.id, movement_segment_id: `${REVISION}:trip:0:segment:0`,
-  source: "raw", mode: "unknown", classification_confidence: 0, observed_from_at: "2026-10-05T03:00:00Z",
+  source: "processed_gps", mode: "unknown", classification_confidence: 0, observed_from_at: "2026-10-05T03:00:00Z",
   observed_until_at: "2026-10-05T03:20:00Z", distance_m: 2204, visible_distance_m: 2204,
   quality: "sufficient", source_record_count: 5,
   visible_from_at: "2026-10-05T03:00:00Z", visible_until_at: "2026-10-05T03:20:00Z",

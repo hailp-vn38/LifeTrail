@@ -114,7 +114,7 @@ async fn stationary_fixtures_distinguish_dwell_pauses_missing_and_unusable_obser
             assert_eq!(trip["movement_segment_count"], 1, "{name}");
             let segment = &trip["movement_segments"][0];
             assert_eq!(segment["mode"], "unknown", "{name}");
-            assert_eq!(segment["source"], "raw", "{name}");
+            assert_eq!(segment["source"], "processed_gps", "{name}");
         }
         assert!(view["route"].is_null(), "{name}: no invented Raw route");
         if let Some(reason) = case.get("reason") {

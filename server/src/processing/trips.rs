@@ -88,7 +88,14 @@ pub(super) fn derive(
         {
             let segment_id = format!("{trip_id}:segment:{sequence}");
             let segment_run = movement::MovementRun {
-                start: classified.start,
+                // Mode changes partition evidence, not geometric continuity.
+                // Share the preceding vertex so the transition leg is published
+                // exactly once rather than silently dropping its distance/time.
+                start: if sequence > 0 {
+                    classified.start - 1
+                } else {
+                    classified.start
+                },
                 end: classified.end,
             };
             let part = movement::drawable(points, &segment_run).then(|| {
@@ -102,14 +109,14 @@ pub(super) fn derive(
                     classified.confidence,
                 )
             });
-            let segment_members = &points[classified.start..classified.end];
+            let segment_members = &points[segment_run.start..segment_run.end];
             let route_part_ids = part.iter().map(|part| part.id.clone()).collect();
             let distance_m = part.as_ref().map_or(0.0, |part| part.distance_m);
             movement_segments.push(MovementSegment {
                 id: segment_id,
                 mode: classified.mode.name(),
                 classification_confidence: classified.confidence,
-                source: "raw",
+                source: "processed_gps",
                 observed_from_at: segment_members[0].recorded_at,
                 observed_until_at: segment_members[segment_members.len() - 1].recorded_at,
                 observed_duration_s: (segment_members[segment_members.len() - 1].recorded_at

@@ -54,8 +54,8 @@ pub(super) fn detect(points: &[Observation], target: &Target, revision: Uuid) ->
             let point = &points[end];
             let distance = geo::distance_m(center, [point.lon, point.lat]);
             if !point.classification.is_usable()
-                || (point.recorded_at - points[end - 1].recorded_at).num_seconds()
-                    > target.observation_gap_s
+                || (point.recorded_at - points[end - 1].recorded_at).num_milliseconds()
+                    > target.observation_gap_s * 1000
                 || distance > target.stop_radius_m
             {
                 break;
@@ -116,9 +116,9 @@ fn transition(
 ) -> bool {
     outside.classification.is_usable()
         && (outside.recorded_at - inside.recorded_at)
-            .num_seconds()
+            .num_milliseconds()
             .abs()
-            <= target.observation_gap_s
+            <= target.observation_gap_s * 1000
         && outside.recorded_at != inside.recorded_at
         && geo::distance_m(center, [outside.lon, outside.lat]) > target.stop_radius_m
 }

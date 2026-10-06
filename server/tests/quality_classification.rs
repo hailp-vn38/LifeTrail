@@ -249,7 +249,7 @@ async fn configured_quality_policy_reclassifies_observations_and_retires_publica
             && algorithms.contains(&"observed-gap-detection-v1"),
         "{algorithms:?}"
     );
-    assert_eq!(rebuilt["provenance"]["reducer_version"], 5);
+    assert_eq!(rebuilt["provenance"]["reducer_version"], 6);
     assert_eq!(
         config["reducer_version"],
         rebuilt["provenance"]["reducer_version"]

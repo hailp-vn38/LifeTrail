@@ -33,7 +33,7 @@ A read model for one Owner-local calendar day; its time boundaries are resolved 
 _Avoid_: UTC day, device day
 
 **Route**:
-A derived spatial representation of observed movement. A Route may contain disconnected portions separated by GPS Gaps; it is not the Raw GPS source of truth.
+A spatial representation of observed movement derived from quality-processed GPS observations in Phase 2. A Route may contain disconnected portions separated by GPS Gaps; it is not the Raw GPS source of truth.
 _Avoid_: GPS log, track file
 
 **Trip**:

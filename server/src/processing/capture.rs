@@ -32,7 +32,17 @@ pub(super) async fn capture(pool: &PgPool, claim: Claim) -> Result<Input, sqlx::
     let mut observations: Vec<Observation>=sqlx::query_as("SELECT id,recorded_at,lat,lon,fix_quality,hdop,satellites,speed_mps FROM gps_points WHERE device_id=$1 ORDER BY recorded_at,id")
         .bind(claim.device_id).fetch_all(&mut *tx).await?;
     if !projection_only {
-        quality::classify(&mut observations, &target.policy);
+        // A true absence ends trusted positional continuity as well as a Trip.
+        // Quality on the next chain cannot depend on a replaced earlier chain.
+        let mut start = 0;
+        for end in 1..=observations.len() {
+            if end == observations.len()
+                || super::gaps::absent(&observations[end - 1..=end], &target)
+            {
+                quality::classify(&mut observations[start..end], &target.policy);
+                start = end;
+            }
+        }
     }
     let mut days = Vec::new();
     for date in dates {

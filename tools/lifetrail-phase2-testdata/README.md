@@ -1,12 +1,11 @@
 # LifeTrail Phase 2 Test Data Suite
 
-Deterministic fixture suite for the Phase 2 domain and architecture decisions Q1-Q27.
+Deterministic fixture suite for the Phase 2 processed GPS domain and publication architecture. Matcher decisions are deferred.
 
 ## What is included
 
 - `master/`: staged E2E Raw GPS scenario using valid `gps/1` NDJSON.
-- `matcher-fixtures/`: normalized matching inputs/results for confidence, partial match,
-  invalid anchors, chunk seams, UNKNOWN mode, retry and fallback.
+- `matcher-fixtures/`: historical fixtures deferred to the future routing phase; excluded from Phase 2 acceptance.
 - `progress-fixtures/`: server-owned progress/distance clipping cases.
 - `worker-fixtures/`: input-generation, target and fencing races.
 - `projection-fixtures/`: timezone-only reprojection.
@@ -23,7 +22,7 @@ Deterministic fixture suite for the Phase 2 domain and architecture decisions Q1
 4. Reprocess. This removes the midnight Raw Gap and creates one cross-midnight Stop,
    requiring atomic publication of both affected Daily Views.
 5. Upload `master/stage-03-overlap-better-quality/`.
-6. Reprocess. Activities should remain equivalent, while matcher same-second reduction
+6. Reprocess. Activities should remain equivalent, while generic exact-timestamp selection
    deterministically prefers the new higher-quality overlapping observations.
 7. Run `master/stage-04-replay-and-conflict/` to verify `input_generation` does not
    increment for an identical replay or a same-ID conflict.
@@ -37,7 +36,7 @@ Deterministic fixture suite for the Phase 2 domain and architecture decisions Q1
 - 18:35 alternates HDOP 3.5/4.5/5.5/6.5. Short rejected runs bracketed by
   usable GPS should preserve activity continuity under the bounded evidence policy,
   rather than create repeated four-record Evidence Holes. Rejected records remain
-  in Raw GPS and the low-quality count, but do not enter geometry or OSRM inputs.
+  in Raw GPS and the low-quality count, but do not enter processed geometry.
 - 18:45 contains one impossible ~kilometre-scale jump that remains in Raw GPS but must be
   excluded from published derived geometry.
 - Stage 1 omits 23:55-00:05, creating a midnight Gap.
@@ -66,13 +65,16 @@ Timestamp overlap is intentionally present across different Batches in Stage 3.
 The static master traces use deterministic synthetic HCMC-region polylines and GPS noise.
 They are designed for repeatable processing tests without network access.
 
-For integration against a real self-hosted road graph, use the same scenario waypoints and
-replace fallback polylines using `tools/route_with_local_osrm.py`, or let the Phase 2 simulator
-call your local OSRM Route service before injecting GPS noise.
+Phase 2 requires no routing engine. Historical OSRM tooling and matcher fixtures are preserved only for a future optional enhancement.
 
-OSRM-specific failure semantics are not encoded by inventing impossible Raw GPS. They are
-represented separately in `matcher-fixtures/` so tests can inject exact normalized matcher
-evidence deterministically.
+Run the executable processing fixture and scale acceptance tests against a dedicated test database:
+
+```sh
+LT_TEST_DATABASE_URL=postgres://... cargo test --manifest-path server/Cargo.toml \
+  --test phase2_acceptance -- --include-ignored --test-threads=1 --nocapture
+```
+
+The scale test reports worker wall time, process peak RSS (including test harness/ingestion), snapshot DB read latency, Daily View API read latency and uncompressed JSON payload bytes. No performance SLA is inferred from these measurements.
 
 ## Counts
 

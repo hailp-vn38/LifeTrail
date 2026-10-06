@@ -369,15 +369,16 @@ export interface components {
             /** @description Ordered Movement Segments. A mode change separates segments without ending the Trip. */
             movement_segments: components["schemas"]["MovementSegment"][];
         };
-        /** @description A portion of a Trip with a relatively homogeneous transport mode. Classification never follows matching success. */
+        /** @description A portion of a Trip with a relatively homogeneous transport mode. This slice publishes processed GPS geometry for every mode. Classification describes activity and does not choose a geometry provider. */
         MovementSegment: {
             /** @description Revision-local Movement Segment identity. */
             id: string;
             /** @enum {string} */
             mode: "unknown" | "walk" | "bike" | "car";
+            /** @description Windowed evidence confidence retained with the immutable Activity Revision. */
             classification_confidence: number;
             /** @enum {string} */
-            source: "raw";
+            source: "processed_gps";
             /** Format: date-time */
             observed_from_at: string;
             /** Format: date-time */
@@ -390,7 +391,7 @@ export interface components {
             route_part_ids: string[];
             source_record_count: number;
         };
-        /** @description A contiguous drawable portion of the derived Route for one Movement Segment, clipped to this day. Coordinates come from accepted GPS Records: no coordinate or timestamp is invented, and a Part is never padded to satisfy the LineString contract. */
+        /** @description A contiguous drawable portion of the derived Route for one Movement Segment, clipped to this day. Geometry comes from usable, quality-processed GPS Records with historical progress anchors. Calendar clipping may add synthetic boundary anchors and interpolated coordinates, without changing Raw GPS or padding a Part to satisfy the LineString contract. */
         RoutePart: {
             id: string;
             /** @enum {string} */
@@ -398,7 +399,7 @@ export interface components {
             trip_id: string;
             movement_segment_id: string;
             /** @enum {string} */
-            source: "raw";
+            source: "processed_gps";
             /** @enum {string} */
             mode: "unknown" | "walk" | "bike" | "car";
             classification_confidence: number;

@@ -14,9 +14,9 @@ export function useDailyMap(deviceId: Ref<string>, date: Ref<string>) {
   const publishedRevision = ref<string | null>(null);
   watch(() => query.data.value?.processing?.published_revision ?? null, (revision) => { publishedRevision.value = revision; }, { immediate: true });
   watch(() => status.data.value?.published_revision ?? null, async (revision) => {
-    if (revision && publishedRevision.value && revision !== publishedRevision.value) await query.refetch();
+    if (revision && !rawMode.value && revision !== publishedRevision.value) await query.refetch();
   });
-  const refreshStatus = () => status.refetch();
+  const refreshStatus = () => { if (document.visibilityState === "visible") void status.refetch(); };
   onMounted(() => window.addEventListener("focus", refreshStatus));
   onMounted(() => document.addEventListener("visibilitychange", refreshStatus));
   onUnmounted(() => window.removeEventListener("focus", refreshStatus));

@@ -13,7 +13,7 @@ use uuid::Uuid;
 /// Version of the activity reducer that produced a revision and its Daily
 /// Snapshots. Bumped whenever derivation semantics change, and recorded with
 /// every Activity Revision and snapshot as provenance.
-pub(super) const REDUCER_VERSION: i64 = 5;
+pub(super) const REDUCER_VERSION: i64 = 6;
 
 pub(super) struct Derived {
     pub stops: Vec<Stop>,
@@ -23,7 +23,7 @@ pub(super) struct Derived {
     pub evidence_holes: Vec<EvidenceHole>,
 }
 
-pub(super) async fn derive(points: &[Observation], target: &Target, revision: Uuid) -> Derived {
+pub(super) fn derive(points: &[Observation], target: &Target, revision: Uuid) -> Derived {
     let supported = continuity::supported(points, target);
     let mut stops = stops::detect(&supported.points, target, revision);
     let mut activity = trips::derive(&supported.points, &stops, target, revision);
@@ -58,9 +58,8 @@ pub(super) async fn derive(points: &[Observation], target: &Target, revision: Uu
         parts: activity.parts,
         evidence_holes,
     };
-    super::matcher::apply(&mut derived.parts, points, target).await;
     // The timeline owns segment/trip aggregates, while Route Parts own the
-    // geometry. Reconcile only the published Part facts after matching so both
+    // geometry. Reconcile only the published Part facts after processing so both
     // contracts report the same server-owned distance and source.
     for trip in &mut derived.trips {
         for segment in &mut trip.movement_segments {
@@ -71,9 +70,6 @@ pub(super) async fn derive(points: &[Observation], target: &Target, revision: Uu
                 .collect();
             segment.route_part_ids = parts.iter().map(|part| part.id.clone()).collect();
             segment.distance_m = parts.iter().map(|part| part.distance_m).sum();
-            if parts.iter().all(|part| part.source == "osrm_match") && !parts.is_empty() {
-                segment.source = "osrm_match";
-            }
         }
         trip.distance_m = derived
             .parts

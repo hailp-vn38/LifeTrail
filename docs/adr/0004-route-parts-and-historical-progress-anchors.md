@@ -1,5 +1,8 @@
 # Route Parts with historical progress anchors
 
+Phase 2 alignment: matcher-specific policies superseded by [ADR-0007](0007-phase2-processed-gps.md). The text below records the earlier decision.
+
+
 Accepted on 2026-10-06. Ordered Route Parts are the canonical processed geometry and playback contract. A Movement Segment can contain several contiguous parts after partial or split matching. Each part uses historical GPS timestamps mapped to non-decreasing distance along its geometry, with strictly increasing anchor times and anchors at both ends. Daily clipping uses the same mapping and creates synthetic anchors at calendar boundaries.
 
 A daily MultiLineString may be derived for overview rendering but is not the playback contract. One timestamp per OSRM vertex and one part per Movement Segment were rejected because matching changes vertex count and may split geometry. Anchors preserve historical timing and deterministic seeking without fabricating GPS observations or interpolating through disconnected parts.

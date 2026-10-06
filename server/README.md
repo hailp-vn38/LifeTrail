@@ -10,7 +10,7 @@ Start the acceptance topology from the repository root:
 docker compose -f deploy/docker-compose.yml up --build
 ```
 
-Only the server is published at `http://localhost:8080`; PostgreSQL remains on the Compose network. During Web development, run `npm run dev` from `web/`; Vite proxies `/api` to the local server.
+Nginx Web is published at `http://localhost:8080`; PostgreSQL remains on the Compose network. During Web development, run `npm run dev` from `web/`; Vite proxies `/api` to the local Nginx entrypoint.
 
 Provision the single Owner, then a Device. The Device command prints its 256-bit `lt_dev_` token exactly once; save it for serial provisioning.
 
@@ -25,3 +25,5 @@ Run the real PostGIS integration test with:
 ```sh
 docker compose -f deploy/docker-compose.yml --profile test run --rm server-tests
 ```
+
+Phase 2 processing uses local quality-filtered GPS only. The worker requires PostgreSQL/PostGIS and no external geometry provider. Migration 0015 retires committed matcher configuration, preserves existing immutable publications and queues processed-GPS replacements.

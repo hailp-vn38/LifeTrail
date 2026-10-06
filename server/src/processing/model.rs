@@ -12,11 +12,10 @@ pub(super) struct Claim {
 /// Processing target columns, shared by capture and activation so the identity
 /// checked at activation is always the identity that was captured.
 pub(super) const TARGET_COLUMNS: &str = "c.input_generation,c.work_generation,c.target_generation,c.target_id,c.fencing_token,c.active_manifest_id,\
+c.dirty_from_at,c.dirty_until_at,\
 c.stop_radius_m,c.stop_min_duration_s,c.observation_gap_s,\
 c.max_hdop,c.max_implied_speed_mps,c.jump_distance_floor_m,c.short_failure_max_s,\
 c.mode_window_s,c.mode_change_min_duration_s,c.mode_enter_confidence,c.mode_exit_confidence,c.mode_unknown_grace_s,\
-c.match_min_confidence,c.match_max_attempts,c.match_retry_delay_ms,c.match_total_budget_ms,c.matcher_engine_id,c.matcher_dataset_id,\
-c.match_chunk_max_points,c.match_chunk_overlap_points,\
 u.timezone,u.timezone_generation";
 /// The identity of one Device's processing configuration.
 ///
@@ -33,6 +32,8 @@ pub(super) struct Target {
     pub timezone_generation: i64,
     pub fencing_token: i64,
     pub active_manifest_id: Option<Uuid>,
+    pub dirty_from_at: Option<DateTime<Utc>>,
+    pub dirty_until_at: Option<DateTime<Utc>>,
     pub stop_radius_m: f64,
     pub stop_min_duration_s: i64,
     pub observation_gap_s: i64,
@@ -41,15 +42,6 @@ pub(super) struct Target {
     pub mode_enter_confidence: f64,
     pub mode_exit_confidence: f64,
     pub mode_unknown_grace_s: i64,
-    pub match_min_confidence: f64,
-    pub match_max_attempts: i64,
-    pub match_retry_delay_ms: i64,
-    pub match_total_budget_ms: i64,
-    pub matcher_engine_id: String,
-    pub matcher_dataset_id: String,
-    /// Bounded Match requests are a tuning policy, not an OSRM protocol rule.
-    pub match_chunk_max_points: i64,
-    pub match_chunk_overlap_points: i64,
     #[sqlx(flatten)]
     pub policy: quality::Policy,
 }

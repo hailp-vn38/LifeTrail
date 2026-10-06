@@ -1,5 +1,8 @@
 # Fixed matcher evidence and explicit processing revisions
 
+Phase 2 alignment: superseded by [ADR-0007](0007-phase2-processed-gps.md). The text below records the earlier decision.
+
+
 Accepted on 2026-10-06. Deterministic processing means that fixed Raw GPS, processing version, configuration, matcher input and matcher evidence produce the same normalized derived result. It does not require an online OSRM run and an outage run to produce identical geometry. Match operations retain request/input hash, profile, dataset and engine versions, status, confidence and normalized result/evidence; outage evidence explains fallback decisions.
 
 A published raw-fallback result is a valid immutable processing revision. OSRM recovery may upgrade it only through explicit reprocessing and a new publication, rather than silently changing a previously published snapshot. This requires evidence storage and revision management but makes historical outputs explainable and reproducible.

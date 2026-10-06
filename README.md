@@ -1,6 +1,6 @@
 # LifeTrail
 
-LifeTrail ghi nhận lịch sử vị trí từ Device hoạt động offline và hiển thị Daily View trong mạng cục bộ. Phase 1 tập trung vào GPS thô, Batch bền vững và đồng bộ LAN; không gồm xác thực Web, TLS hay xử lý chuyến đi.
+LifeTrail ghi nhận lịch sử vị trí từ Device hoạt động offline và hiển thị Daily View trong mạng cục bộ. Phase 1 thiết lập Raw GPS, Batch bền vững và đồng bộ LAN. Phase 2 bổ sung xử lý chất lượng GPS, lịch sử hoạt động và Daily View đã xử lý, không phụ thuộc routing engine.
 
 ## Bản đồ repository
 
@@ -22,7 +22,6 @@ Các boundary thực thi là `firmware/esp32/`, `server/` và `web/`. Chúng kh�
 web       Nginx + Vue SPA đã build, giữ host port 8080, proxy /api/* về server
 server    Rust/Axum API, chỉ chạy trên Docker network nội bộ (server:8080)
 postgres  PostgreSQL/PostGIS, chỉ chạy trên Docker network nội bộ
-osrm-car / osrm-bike / osrm-foot  OSRM cho ba profile, chỉ chạy nội bộ
 ```
 
 ```sh
@@ -35,32 +34,17 @@ scripts/lifetrail stop all
 
 Web và API cùng origin tại `http://localhost:8080` (Nginx phục vụ `/` và proxy `/api/*`). Lệnh `stop` không xóa volume PostgreSQL.
 
-## OSRM và simulator
+## Phase 2
 
-Sau khi chuẩn bị OSRM graph, dùng `start all` để chạy Web, server, PostgreSQL và ba profile OSRM nội bộ:
+Phase 2 tạo Trip/Stop/Gap/Evidence Hole, Movement Segments và processed GPS Route Parts trực tiếp từ Raw GPS bất biến. Không cần routing service. Daily View được công bố nguyên tử và giữ snapshot tốt trước đó khi xử lý dữ liệu đến muộn hoặc thất bại.
+
+- [Baseline Phase 2](docs/lifetrail-phase2-post-implementation-alignment.md)
+- [Đặc tả hiện hành](.scratch/phase-2-timeline-osrm/spec.md)
+- [Fixture suite](tools/lifetrail-phase2-testdata/README.md)
 
 ```sh
-scripts/lifetrail start all
-scripts/lifetrail status all
-scripts/lifetrail logs osrm
 scripts/lifetrail test server-tests
-scripts/lifetrail stop all
+python3 tools/simulate_gps.py --help
 ```
 
-Dùng `start osrm` để chạy riêng ba OSRM service, hoặc chọn từng service như `osrm-car`. `LT_OSRM_DATASET_VERSION` chọn phiên bản graph (mặc định `monaco-test`); đường dẫn `data/osrm` hiện liên kết tới `/mnt/storage/data/osrm` trên máy này.
-
-Lệnh `test server-tests` chạy toàn bộ test server, bao gồm integration PostGIS, trong Docker với database test riêng. Các test này xóa dữ liệu trong database test và chạy tuần tự; không dùng database runtime.
-
-Chạy simulator sau khi OSRM đã khởi động:
-
-```sh
-scripts/lifetrail simulate --scenario tools/scenarios/monaco-car.json \
-  --metadata data/osrm/monaco-test/car/metadata.json \
-  --osrm-url http://osrm-car:5000 --output runtime/osrm-demo/car
-```
-
-Dùng `scripts/lifetrail simulate --help` để xem tùy chọn. Xem [hướng dẫn chuẩn bị graph](docs/development/phase-2-sparse-and-osrm-acceptance.md) cho dataset/profile; OSRM không mở cổng ra host.
-
-## Trạng thái
-
-Ticket 02 thiết lập Rust/Axum, PostgreSQL/PostGIS, CLI provisioning và topology local/LAN. GPS collection, storage, đồng bộ Batch và Daily View sẽ được triển khai ở các ticket sau.
+Integration tests chạy tuần tự trong database test riêng. Routing tools và graph provenance được giữ cho phase sau, ngoài topology và acceptance Phase 2.

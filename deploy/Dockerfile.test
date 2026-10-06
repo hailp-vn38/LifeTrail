@@ -4,5 +4,6 @@ COPY server/Cargo.toml server/Cargo.lock ./
 COPY server/src ./src
 COPY server/migrations ./migrations
 COPY server/tests ./tests
-RUN cargo test --test foundation --no-run
-CMD ["cargo", "test", "--test", "foundation", "--", "--ignored"]
+COPY tools/lifetrail-phase2-testdata /workspace/tools/lifetrail-phase2-testdata
+RUN cargo test --no-run
+CMD ["cargo", "test", "--", "--include-ignored", "--test-threads=1"]

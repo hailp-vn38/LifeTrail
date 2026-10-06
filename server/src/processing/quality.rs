@@ -13,7 +13,8 @@ const INSUFFICIENT_GEOMETRY: &str = "insufficient_geometry";
 const INSUFFICIENT_QUALITY: &str = "insufficient_quality";
 
 /// How well one Raw observation supports derived activity and geometry.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
 pub(super) enum QualityClass {
     /// Reliable enough to support a Stop, Trip or Route Part.
     Usable,

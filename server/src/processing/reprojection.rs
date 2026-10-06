@@ -1,8 +1,11 @@
-//! Projection-only Daily Snapshot construction from immutable activity history.
+//! Daily Snapshot construction from authoritative immutable manifest slices.
 //!
 //! This deliberately reads the pinned Activity Manifest instead of calling the
-//! quality, segmentation, classification or matching pipeline again.
-use super::model::{Day, Input};
+//! quality, segmentation or classification pipeline again.
+use super::{
+    model::{Day, Input},
+    progress_projection::project_part,
+};
 use chrono::{DateTime, Utc};
 use serde_json::{Value, json};
 use sqlx::PgPool;
@@ -14,15 +17,15 @@ pub(super) async fn body(
     day: &Day,
     manifest: Uuid,
 ) -> Result<Value, sqlx::Error> {
-    let source_generation: i64 = sqlx::query_scalar(
-        "SELECT input_generation FROM activity_manifests WHERE id=$1 AND device_id=$2",
+    let (source_generation, source_target): (i64, String) = sqlx::query_as(
+        "SELECT input_generation,target_id FROM activity_manifests WHERE id=$1 AND device_id=$2",
     )
     .bind(manifest)
     .bind(input.claim.device_id)
     .fetch_one(pool)
     .await?;
     let revisions: Vec<Value> = sqlx::query_scalar(
-        "SELECT r.body FROM activity_manifests m \
+        "SELECT jsonb_build_object('body',r.body,'from_at',entry->>'from_at','until_at',entry->>'until_at','target_generation',r.target_generation,'reducer_version',r.config->'reducer_version') FROM activity_manifests m \
          CROSS JOIN LATERAL jsonb_array_elements(m.entries) entry \
          JOIN activity_revisions r ON r.id=(entry->>'activity_revision')::uuid \
          WHERE m.id=$1 AND m.device_id=$2 ORDER BY r.observed_from_at",
@@ -34,9 +37,71 @@ pub(super) async fn body(
     let values = |key| {
         revisions
             .iter()
-            .flat_map(|body| body[key].as_array().into_iter().flatten().cloned())
+            .flat_map(|body| {
+                body["body"][key]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .filter(|item| {
+                        let instant =
+                            |v: &Value| v.as_str().and_then(|s| s.parse::<DateTime<Utc>>().ok());
+                        match (
+                            instant(
+                                &item[if key == "quality_observations" {
+                                    "recorded_at"
+                                } else {
+                                    "observed_from_at"
+                                }],
+                            ),
+                            instant(&body["from_at"]),
+                            instant(&body["until_at"]),
+                        ) {
+                            (Some(at), Some(from), Some(until)) => at >= from && at < until,
+                            _ => false,
+                        }
+                    })
+                    .cloned()
+            })
             .collect::<Vec<_>>()
     };
+    // Reprojection consumes immutable quality audit; it never reclassifies Raw
+    // observations under today's policy, and does not invent zero usable fixes.
+    let audit = values("quality_observations");
+    let quality_count = |class: &str| {
+        audit
+            .iter()
+            .filter(|point| {
+                point["classification"] == class
+                    && point["recorded_at"]
+                        .as_str()
+                        .and_then(|at| at.parse::<DateTime<Utc>>().ok())
+                        .is_some_and(|at| at >= day.from && at < day.until)
+            })
+            .count() as i64
+    };
+    let usable_count = if input.projection_only {
+        quality_count("usable")
+    } else {
+        day.usable_count
+    };
+    let low_quality_count = if input.projection_only {
+        quality_count("low_quality")
+    } else {
+        day.low_quality_count
+    };
+    let excluded_count = if input.projection_only {
+        quality_count("excluded")
+    } else {
+        day.excluded_count
+    };
+    let source_target_generation = revisions
+        .first()
+        .and_then(|r| r["target_generation"].as_i64())
+        .unwrap_or(input.target.target_generation);
+    let reducer_version = revisions
+        .first()
+        .and_then(|r| r["reducer_version"].as_i64())
+        .unwrap_or(super::derived::REDUCER_VERSION);
     let stops = values("stops");
     let trips = values("trips");
     let gaps = values("gaps");
@@ -55,7 +120,17 @@ pub(super) async fn body(
         .collect::<Vec<_>>();
     let evidence_holes = holes
         .into_iter()
-        .filter_map(|hole| project(hole, day))
+        .filter_map(|mut hole| {
+            let (from, until) = bounds(&hole)?;
+            let from = from.max(day.from);
+            let until = until.min(day.until);
+            if from >= until {
+                return None;
+            }
+            hole["observed_from_at"] = json!(from);
+            hole["observed_until_at"] = json!(until);
+            Some(hole)
+        })
         .collect::<Vec<_>>();
     let count = |kind| timeline.iter().filter(|item| item["kind"] == kind).count();
     let duration = |kind| {
@@ -77,8 +152,8 @@ pub(super) async fn body(
         "device_id":input.claim.device_id,"date":day.date,"timezone":input.target.timezone,
         "processing_state":"processed","evidence_state": if !supported { "insufficient" } else if evidence_holes.is_empty() { "sufficient" } else { "partial" },
         "route":null,"start":null,"end":null,"route_parts":route_parts,"timeline":timeline,"evidence_holes":evidence_holes,
-        "summary":{"point_count":day.point_count,"usable_point_count":day.usable_count,"low_quality_point_count":day.low_quality_count,"excluded_point_count":day.excluded_count,"distance_m":distance_m,"duration_s":trip_duration+stop_duration+gap_duration,"trip_duration_s":trip_duration,"stop_duration_s":stop_duration,"gap_duration_s":gap_duration,"trip_count":count("trip"),"stop_count":count("stop"),"gap_count":count("gap"),"first_fix_at":day.first,"last_fix_at":day.last},
-        "provenance":{"manifest_version":manifest,"source_raw_generation":source_generation,"processed_through_generation":source_generation,"processing_target":input.target.target_id,"processing_target_generation":input.target.target_generation,"timezone_generation":input.target.timezone_generation,"projection_schema_version":1}
+        "summary":{"point_count":day.point_count,"usable_point_count":usable_count,"low_quality_point_count":low_quality_count,"excluded_point_count":excluded_count,"distance_m":distance_m,"duration_s":trip_duration+stop_duration+gap_duration,"trip_duration_s":trip_duration,"stop_duration_s":stop_duration,"gap_duration_s":gap_duration,"trip_count":count("trip"),"stop_count":count("stop"),"gap_count":count("gap"),"first_fix_at":day.first,"last_fix_at":day.last},
+        "provenance":{"manifest_version":manifest,"source_raw_generation":source_generation,"processed_through_generation":source_generation,"processing_target":source_target,"processing_target_generation":source_target_generation,"timezone_generation":input.target.timezone_generation,"reducer_version":reducer_version,"projection_schema_version":1}
     }))
 }
 
@@ -100,91 +175,4 @@ fn project(mut value: Value, day: &Day) -> Option<Value> {
         value["continues_after"] = json!(until > day.until);
         value
     })
-}
-fn project_part(mut value: Value, day: &Day) -> Option<Value> {
-    let (from, until) = bounds(&value)?;
-    let visible_from = from.max(day.from);
-    let visible_until = until.min(day.until);
-    if visible_from >= visible_until {
-        return None;
-    }
-    let anchors = value["progress_anchors"].as_array()?;
-    let coordinates = value["geometry"]["coordinates"].as_array()?;
-    // Route Parts persist historical anchors, so projection can clip their
-    // geometry without matching again or using an estimated travel duration.
-    if anchors.len() != coordinates.len() || anchors.len() < 2 {
-        return None;
-    }
-    let at = |instant| anchor_position(anchors, coordinates, instant);
-    let (start_coordinate, start_distance) = at(visible_from)?;
-    let (end_coordinate, end_distance) = at(visible_until)?;
-    let mut visible = vec![(visible_from, start_coordinate, start_distance)];
-    for (anchor, coordinate) in anchors.iter().zip(coordinates) {
-        let instant = anchor["at"].as_str()?.parse::<DateTime<Utc>>().ok()?;
-        let distance = anchor["distance_m"].as_f64()?;
-        if instant > visible_from && instant < visible_until {
-            visible.push((instant, coordinate.clone(), distance));
-        }
-    }
-    visible.push((visible_until, end_coordinate, end_distance));
-    value["visible_from_at"] = json!(visible_from);
-    value["visible_until_at"] = json!(visible_until);
-    value["continues_before"] = json!(from < day.from);
-    value["continues_after"] = json!(until > day.until);
-    value["visible_distance_m"] = json!(end_distance - start_distance);
-    value["geometry"] = json!({"type":"LineString","coordinates":visible.iter().map(|(_, coordinate, _)| coordinate).collect::<Vec<_>>()});
-    value["vertex_distance_m"] = json!(
-        visible
-            .iter()
-            .map(|(_, _, distance)| distance - start_distance)
-            .collect::<Vec<_>>()
-    );
-    value["progress_anchors"] = json!(
-        visible
-            .iter()
-            .map(|(at, _, distance)| json!({"at":at,"distance_m":distance-start_distance}))
-            .collect::<Vec<_>>()
-    );
-    Some(value)
-}
-
-fn anchor_position(
-    anchors: &[Value],
-    coordinates: &[Value],
-    instant: DateTime<Utc>,
-) -> Option<(Value, f64)> {
-    let indexed = anchors.iter().enumerate().find(|(_, anchor)| {
-        anchor["at"]
-            .as_str()
-            .and_then(|at| at.parse::<DateTime<Utc>>().ok())
-            .is_some_and(|at| at >= instant)
-    })?;
-    let next = indexed.0;
-    if next == 0 {
-        return Some((coordinates[0].clone(), anchors[0]["distance_m"].as_f64()?));
-    }
-    let previous = next - 1;
-    let from = anchors[previous]["at"]
-        .as_str()?
-        .parse::<DateTime<Utc>>()
-        .ok()?;
-    let until = anchors[next]["at"]
-        .as_str()?
-        .parse::<DateTime<Utc>>()
-        .ok()?;
-    let ratio = (instant - from).num_milliseconds() as f64
-        / (until - from).num_milliseconds().max(1) as f64;
-    let from_distance = anchors[previous]["distance_m"].as_f64()?;
-    let until_distance = anchors[next]["distance_m"].as_f64()?;
-    let from_coordinate = coordinates[previous].as_array()?;
-    let until_coordinate = coordinates[next].as_array()?;
-    Some((
-        json!([
-            from_coordinate[0].as_f64()?
-                + (until_coordinate[0].as_f64()? - from_coordinate[0].as_f64()?) * ratio,
-            from_coordinate[1].as_f64()?
-                + (until_coordinate[1].as_f64()? - from_coordinate[1].as_f64()?) * ratio
-        ]),
-        from_distance + (until_distance - from_distance) * ratio,
-    ))
 }

@@ -49,11 +49,6 @@ case "$command" in
       *) printf 'Unknown test target: %s\n' "$2" >&2; usage >&2; exit 2 ;;
     esac
     ;;
-  simulate)
-    shift
-    if [[ "${1:-}" == -- ]]; then shift; fi
-    compose --profile osrm-tools run --rm simulator "$@"
-    ;;
   -h|--help|help) usage ;;
   *) usage >&2; exit 2 ;;
 esac

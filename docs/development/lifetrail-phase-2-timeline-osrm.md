@@ -1,5 +1,8 @@
 # LifeTrail Phase 2 — Timeline, Trip/Stop Processing & OSRM Map Matching
 
+Historical pre-alignment document. Routing/matcher scope is deferred; use [the current Phase 2 baseline](../lifetrail-phase2-post-implementation-alignment.md) and [ADR-0007](../adr/0007-phase2-processed-gps.md). Commands for OSRM services below do not apply to the current Compose topology.
+
+
 ## Status
 
 Proposed implementation baseline for Phase 2.

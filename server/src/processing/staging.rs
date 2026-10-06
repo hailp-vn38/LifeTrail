@@ -3,7 +3,7 @@ use super::{
     derived::{self, REDUCER_VERSION},
     manifest::{self, Slice},
     model::Input,
-    reprojection, snapshot,
+    replacement, reprojection,
 };
 use serde_json::{Value, json};
 use sqlx::PgPool;
@@ -45,34 +45,38 @@ pub(super) async fn stage(pool: &PgPool, input: &Input) -> Result<Staged, sqlx::
     }
     let manifest = Uuid::now_v7();
     let revision = Uuid::now_v7();
-    let derived = derived::derive(&input.observations, &input.target, revision).await;
+    let mut derived = derived::derive(&input.observations, &input.target, revision);
     let previous =
         previous_slices(pool, input.claim.device_id, input.target.active_manifest_id).await?;
+    let old_revisions: Vec<Value> = sqlx::query_scalar(
+        "SELECT jsonb_build_object('target_generation',r.target_generation,'body',r.body,'from_at',entry->>'from_at','until_at',entry->>'until_at') FROM activity_manifests m CROSS JOIN LATERAL jsonb_array_elements(m.entries) entry JOIN activity_revisions r ON r.id=(entry->>'activity_revision')::uuid WHERE m.id=$1 AND m.device_id=$2",
+    ).bind(input.target.active_manifest_id).bind(input.claim.device_id).fetch_all(pool).await?;
     let mut entries = json!([]);
-    if let (Some(first), Some(last)) = (input.observations.first(), input.observations.last())
-        && first.recorded_at < last.recorded_at
-    {
-        // This activity slice processes the complete captured observation range.
-        // Both replacement endpoints are genuine observation edges, never day cuts.
-        let until = last.recorded_at + chrono::Duration::milliseconds(1);
+    if let Some((from, until)) = replacement::restrict(&mut derived, input, &old_revisions) {
+        // Replacement endpoints are unchanged Raw gap boundaries or observation
+        // edges. Revision output excludes retained history outside this range.
         sqlx::query("INSERT INTO activity_revisions(id,device_id,observed_from_at,observed_until_at,supersedes_from_at,supersedes_until_at,input_generation,target_generation,config,body) VALUES($1,$2,$3,$4,$3,$4,$5,$6,$7::jsonb,$8::jsonb)")
-            .bind(revision).bind(input.claim.device_id).bind(first.recorded_at).bind(until)
+            .bind(revision).bind(input.claim.device_id).bind(from).bind(until)
             .bind(input.target.input_generation).bind(input.target.target_generation)
             .bind(config(input).to_string())
             .bind(json!({
                 "stops":derived.stops,"trips":derived.trips,"gaps":derived.gaps,
-                "route_parts":derived.parts,"evidence_holes":derived.evidence_holes
+                "route_parts":derived.parts,"evidence_holes":derived.evidence_holes,
+                "quality_observations":input.observations.iter()
+                    .filter(|point| point.recorded_at >= from && point.recorded_at < until)
+                    .map(|point| json!({"recorded_at":point.recorded_at,"classification":point.classification}))
+                    .collect::<Vec<_>>()
             }).to_string()).execute(pool).await?;
         let slices = manifest::splice(
             &previous,
             Slice {
                 revision,
-                from: first.recorded_at,
+                from,
                 until,
                 // Dataset coverage is independently verified Raw observation
                 // evidence.  It is not a processing or matcher chunk seam.
-                from_boundary: "verified_observation_edge",
-                until_boundary: "verified_observation_edge",
+                from_boundary: "verified_gap_or_observation_edge",
+                until_boundary: "verified_gap_or_observation_edge",
             },
         );
         entries = serde_json::to_value(slices.into_iter().map(|slice| json!({
@@ -88,7 +92,7 @@ pub(super) async fn stage(pool: &PgPool, input: &Input) -> Result<Staged, sqlx::
         sqlx::query("INSERT INTO daily_snapshots(id,device_id,manifest_id,local_date,timezone,timezone_generation,source_generation,target_generation,body) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb)")
             .bind(id).bind(input.claim.device_id).bind(manifest).bind(day.date).bind(&input.target.timezone)
             .bind(input.target.timezone_generation).bind(input.target.input_generation).bind(input.target.target_generation)
-            .bind(snapshot::body(input,day,manifest,&derived).to_string()).execute(pool).await?;
+            .bind(reprojection::body(pool,input,day,manifest).await?.to_string()).execute(pool).await?;
         candidates.push((day.date, id));
     }
     // Candidate and evidence artifacts are retained; record their size at the
@@ -111,21 +115,10 @@ pub(super) async fn stage(pool: &PgPool, input: &Input) -> Result<Staged, sqlx::
             .bind(input.claim.device_id)
             .fetch_one(pool)
             .await?;
-    let matcher_evidence_bytes: i64 = derived
-        .parts
-        .iter()
-        .filter_map(|part| part.matcher_evidence.as_ref())
-        .map(|evidence| {
-            serde_json::to_string(evidence)
-                .expect("matcher evidence serializes")
-                .len() as i64
-        })
-        .sum();
-    sqlx::query("INSERT INTO processing_storage_measurements(id,device_id,fencing_token,activity_revision_bytes,manifest_count,snapshot_bytes,candidate_bytes,matcher_evidence_bytes) VALUES($1,$2,$3,$4,$5,$6,$7,$8)")
+    sqlx::query("INSERT INTO processing_storage_measurements(id,device_id,fencing_token,activity_revision_bytes,manifest_count,snapshot_bytes,candidate_bytes) VALUES($1,$2,$3,$4,$5,$6,$7)")
         .bind(Uuid::now_v7()).bind(input.claim.device_id).bind(input.claim.token)
         .bind(revision_bytes).bind(manifest_count).bind(snapshot_bytes)
         .bind(revision_bytes.unwrap_or(0) + snapshot_bytes)
-        .bind(matcher_evidence_bytes)
         .execute(pool).await?;
     Ok(Staged {
         candidates,
@@ -175,7 +168,7 @@ async fn previous_slices(
 /// Algorithm and configuration identity retained with each Activity Revision.
 fn config(input: &Input) -> Value {
     json!({
-        "algorithms":["anchored-spatial-dwell-v1","continuous-movement-multimode-v1","windowed-mode-evidence-hysteresis-v1","chunked-hybrid-osrm-match-v1","raw-quality-classification-v1","observed-gap-detection-v1","bounded-evidence-continuity-v1"],
+        "algorithms":["anchored-spatial-dwell-v1","continuous-movement-multimode-v1","windowed-mode-evidence-hysteresis-v1","processed-gps-route-v1","raw-quality-classification-v1","observed-gap-detection-v1","bounded-evidence-continuity-v1"],
         "radius_m":input.target.stop_radius_m,"minimum_duration_s":input.target.stop_min_duration_s,
         "observation_gap_s":input.target.observation_gap_s,
         "max_hdop":input.target.policy.max_hdop,
@@ -187,14 +180,6 @@ fn config(input: &Input) -> Value {
         "mode_enter_confidence":input.target.mode_enter_confidence,
         "mode_exit_confidence":input.target.mode_exit_confidence,
         "mode_unknown_grace_s":input.target.mode_unknown_grace_s,
-        "match_min_confidence":input.target.match_min_confidence,
-        "match_max_attempts":input.target.match_max_attempts,
-        "match_retry_delay_ms":input.target.match_retry_delay_ms,
-        "match_total_budget_ms":input.target.match_total_budget_ms,
-        "matcher_engine_id":input.target.matcher_engine_id,
-        "matcher_dataset_id":input.target.matcher_dataset_id,
-        "match_chunk_max_points":input.target.match_chunk_max_points,
-        "match_chunk_overlap_points":input.target.match_chunk_overlap_points,
         "reducer_version":REDUCER_VERSION
     })
 }

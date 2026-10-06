@@ -30,14 +30,14 @@ pub(super) fn supported(points: &[Observation], target: &Target) -> Supported {
         }
         start = end;
     }
-    let supported = points
+    let supported: Vec<_> = points
         .iter()
         .zip(&bridged)
         .filter(|(_, bridged)| !**bridged)
         .map(|(point, _)| point.clone())
         .collect();
     Supported {
-        points: supported,
+        points: unique_epochs(supported),
         bridged,
     }
 }
@@ -63,4 +63,32 @@ pub(super) fn records_between(
     let start = points.partition_point(|point| point.recorded_at < from);
     let end = points.partition_point(|point| point.recorded_at <= until);
     &points[start..end]
+}
+
+/// Exact timestamp duplicates have no elapsed time for playback. Keep one
+/// deterministic representative for derived geometry, preserving every Raw
+/// record and all distinct millisecond epochs.
+fn unique_epochs(points: Vec<Observation>) -> Vec<Observation> {
+    let mut unique: Vec<Observation> = Vec::with_capacity(points.len());
+    for point in points {
+        if let Some(previous) = unique.last_mut()
+            && previous.recorded_at == point.recorded_at
+        {
+            let rank = |p: &Observation| {
+                (
+                    p.classification.is_usable(),
+                    p.fix_quality,
+                    std::cmp::Reverse(p.hdop.unwrap_or(f64::INFINITY).to_bits()),
+                    p.satellites,
+                    std::cmp::Reverse(p.id),
+                )
+            };
+            if rank(&point) > rank(previous) {
+                *previous = point;
+            }
+        } else {
+            unique.push(point);
+        }
+    }
+    unique
 }

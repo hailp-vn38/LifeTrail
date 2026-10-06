@@ -68,6 +68,7 @@ pub struct Published {
     pub router: axum::Router,
     pub view: Value,
     pub device_id: Uuid,
+    pub token: String,
     pub pool: PgPool,
 }
 
@@ -120,6 +121,7 @@ pub async fn publish(records: &[Value]) -> Published {
         router,
         view,
         device_id: device.id,
+        token,
         pool,
     }
 }

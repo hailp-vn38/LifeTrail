@@ -29,13 +29,6 @@ VITE_MAPTILER_KEY=... scripts/lifetrail build web
 The `server-tests` profile runs the migration/provisioning integration test
 against the real Compose PostGIS service.
 
-For the prepared Vietnam routing graphs, start the three internal OSRM services:
+Phase 2 runtime consists only of `web`, `server` (including its durable worker), and `postgres`. Geometry comes from processed GPS; no routing containers, profiles, URLs or graphs are required. Historical routing preparation tools/provenance are deferred to a later phase.
 
-```sh
-docker compose --env-file deploy/osrm-vietnam.env -f deploy/docker-compose.yml \
-  --profile osrm up -d osrm-car osrm-bike osrm-foot
-```
-
-Use the same env file when recreating these services. Source download,
-three-profile preprocessing and dataset provenance are documented in
-[`tools/README.md`](../tools/README.md#vietnam-dataset).
+After upgrading from the earlier topology, stop the old routing containers explicitly. Do not remove graph files or PostgreSQL volumes. Migration 0015 queues processed-GPS publications while retaining old snapshots until replacement succeeds.

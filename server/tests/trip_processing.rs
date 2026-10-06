@@ -129,7 +129,7 @@ async fn movement_between_stops_publishes_unknown_trips_with_server_owned_progre
     assert_eq!(first_trip["movement_segment_count"], 1);
     let segment = &first_trip["movement_segments"][0];
     assert_eq!(segment["mode"], "unknown");
-    assert_eq!(segment["source"], "raw");
+    assert_eq!(segment["source"], "processed_gps");
     assert_eq!(segment["quality"], "sufficient");
     // Both boundaries confirmed by an adjoining Stop transition.
     assert_eq!(first_trip["start_boundary"], "confirmed");
@@ -153,7 +153,7 @@ async fn movement_between_stops_publishes_unknown_trips_with_server_owned_progre
     assert_eq!(parts.len(), 2);
     assert_eq!(parts[0]["trip_id"], first_trip["id"]);
     assert_eq!(parts[0]["movement_segment_id"], segment["id"]);
-    assert_eq!(parts[0]["source"], "raw");
+    assert_eq!(parts[0]["source"], "processed_gps");
     assert_eq!(parts[0]["quality"], "sufficient");
     assert_eq!(parts[0]["observed_from_at"], "2026-10-05T08:07:00Z");
     assert_eq!(parts[0]["observed_until_at"], "2026-10-05T08:13:00Z");
