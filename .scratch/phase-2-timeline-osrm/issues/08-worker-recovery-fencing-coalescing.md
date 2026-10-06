@@ -26,4 +26,4 @@ Blocked by: 07
 
 Implemented durable per-Device recovery protocol: skip-locked claims issue monotonically renewed fencing tokens, record every attempt with its captured generations/target and reclaim expired or failed work. Activation now renews at durable boundaries, validates the current fencing authority, and only a matching token may requeue or mark the job idle; stale candidates remain retained but cannot activate. Existing Device-control serialization retains new dirty work while a job runs.
 
-Added immutable-attempt diagnostics and storage measurements for revision, manifest, snapshot and candidate bytes (matcher evidence remains NULL until matching is introduced). The PostGIS integration test controls an expired lease directly, verifies reclaim to a new token and checks the single successful activation/measurement without wall-clock waits.
+Added immutable-attempt diagnostics and storage measurements for revision, manifest, snapshot, candidate and matcher-evidence bytes. The PostGIS integration test controls an expired lease directly, verifies reclaim to a new token and checks the single successful activation/measurement without wall-clock waits.

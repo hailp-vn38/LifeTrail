@@ -4,6 +4,7 @@ use super::{
     staging,
 };
 use sqlx::PgPool;
+use std::time::Duration;
 
 pub(super) async fn activate(pool: &PgPool, input: Input) -> Result<(), sqlx::Error> {
     // Staging is intentionally outside an activation transaction.  Renew at
@@ -13,7 +14,7 @@ pub(super) async fn activate(pool: &PgPool, input: Input) -> Result<(), sqlx::Er
         claim::finish(pool, input.claim, "superseded").await?;
         return Ok(());
     }
-    let candidates = staging::stage(pool, &input).await?;
+    let candidates = stage_while_renewing(pool, &input).await?;
     if !claim::renew(pool, input.claim).await? {
         claim::finish(pool, input.claim, "superseded").await?;
         return Ok(());
@@ -70,4 +71,28 @@ pub(super) async fn activate(pool: &PgPool, input: Input) -> Result<(), sqlx::Er
         .await?;
     tx.commit().await?;
     claim::finish(pool, input.claim, "activated").await
+}
+
+/// Matcher I/O belongs outside SQL transactions, but it can exceed a lease.
+/// Keep authority alive only while the same fencing token is still current;
+/// dropping a stale staging future can leave retained candidates, never an
+/// activation path.
+async fn stage_while_renewing(
+    pool: &PgPool,
+    input: &Input,
+) -> Result<Vec<(chrono::NaiveDate, uuid::Uuid)>, sqlx::Error> {
+    let mut staging = Box::pin(staging::stage(pool, input));
+    let mut heartbeat = tokio::time::interval(Duration::from_secs(10));
+    heartbeat.tick().await; // consume interval's immediate first tick
+    loop {
+        tokio::select! {
+            result = &mut staging => return result,
+            _ = heartbeat.tick() => {
+                if !claim::renew(pool, input.claim).await? {
+                    claim::finish(pool, input.claim, "superseded").await?;
+                    return Ok(Vec::new());
+                }
+            }
+        }
+    }
 }
