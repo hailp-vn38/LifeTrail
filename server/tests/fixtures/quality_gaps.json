@@ -1,0 +1,196 @@
+[
+  {
+    "name": "genuine timestamp absence",
+    "comment": "Six reliable observations with eleven minutes of no observation at all between 08:02 and 08:13.",
+    "records": [
+      {"ts_s": 0, "lat": 10.7700, "fix_quality": 1},
+      {"ts_s": 60, "lat": 10.7705, "fix_quality": 1},
+      {"ts_s": 120, "lat": 10.7710, "fix_quality": 1},
+      {"ts_s": 780, "lat": 10.7715, "fix_quality": 1},
+      {"ts_s": 840, "lat": 10.7720, "fix_quality": 1},
+      {"ts_s": 900, "lat": 10.7725, "fix_quality": 1}
+    ],
+    "kinds": ["trip", "gap", "trip"],
+    "gaps": [["2026-10-05T08:02:00Z", "2026-10-05T08:13:00Z"]],
+    "holes": [],
+    "trip_bounds": [
+      ["2026-10-05T08:00:00Z", "2026-10-05T08:02:00Z"],
+      ["2026-10-05T08:13:00Z", "2026-10-05T08:15:00Z"]
+    ],
+    "trip_legs": 4,
+    "evidence_state": "sufficient",
+    "usable_point_count": 6,
+    "excluded_point_count": 0
+  },
+  {
+    "name": "continuous low-quality observations",
+    "comment": "The same timestamps as the absence case, with poor records in the middle: an Evidence Hole, never a GPS Gap.",
+    "records": [
+      {"ts_s": 0, "lat": 10.7700, "fix_quality": 1},
+      {"ts_s": 60, "lat": 10.7705, "fix_quality": 1},
+      {"ts_s": 120, "lat": 10.7710, "fix_quality": 1},
+      {"ts_s": 240, "lat": 10.77125, "fix_quality": 0},
+      {"ts_s": 360, "lat": 10.77135, "fix_quality": 0},
+      {"ts_s": 480, "lat": 10.77145, "fix_quality": 0},
+      {"ts_s": 600, "lat": 10.77155, "fix_quality": 0},
+      {"ts_s": 720, "lat": 10.77165, "fix_quality": 0},
+      {"ts_s": 780, "lat": 10.7715, "fix_quality": 1},
+      {"ts_s": 840, "lat": 10.7720, "fix_quality": 1},
+      {"ts_s": 900, "lat": 10.7725, "fix_quality": 1}
+    ],
+    "kinds": ["trip", "trip"],
+    "gaps": [],
+    "holes": [["insufficient_quality", "2026-10-05T08:02:00Z", "2026-10-05T08:13:00Z", 7]],
+    "trip_bounds": [
+      ["2026-10-05T08:00:00Z", "2026-10-05T08:02:00Z"],
+      ["2026-10-05T08:13:00Z", "2026-10-05T08:15:00Z"]
+    ],
+    "trip_legs": 4,
+    "evidence_state": "partial",
+    "usable_point_count": 6,
+    "excluded_point_count": 5
+  },
+  {
+    "name": "one impossible jump",
+    "comment": "A 5.5 km displacement in one minute stays in Raw GPS and contributes no derived geometry or distance.",
+    "records": [
+      {"ts_s": 0, "lat": 10.7700, "fix_quality": 1},
+      {"ts_s": 60, "lat": 10.7705, "fix_quality": 1},
+      {"ts_s": 120, "lat": 10.7710, "fix_quality": 1},
+      {"ts_s": 180, "lat": 10.8200, "fix_quality": 1},
+      {"ts_s": 240, "lat": 10.7720, "fix_quality": 1},
+      {"ts_s": 300, "lat": 10.7725, "fix_quality": 1},
+      {"ts_s": 360, "lat": 10.7730, "fix_quality": 1}
+    ],
+    "kinds": ["trip", "trip"],
+    "gaps": [],
+    "holes": [["insufficient_geometry", "2026-10-05T08:02:00Z", "2026-10-05T08:04:00Z", 3]],
+    "trip_bounds": [
+      ["2026-10-05T08:00:00Z", "2026-10-05T08:02:00Z"],
+      ["2026-10-05T08:04:00Z", "2026-10-05T08:06:00Z"]
+    ],
+    "trip_legs": 4,
+    "evidence_state": "partial",
+    "usable_point_count": 6,
+    "excluded_point_count": 1
+  },
+  {
+    "name": "gap and evidence hole in one day",
+    "comment": "A genuine absence and an unreliable run are disclosed by different means, in their own order.",
+    "records": [
+      {"ts_s": 0, "lat": 10.7700, "fix_quality": 1},
+      {"ts_s": 60, "lat": 10.7705, "fix_quality": 1},
+      {"ts_s": 120, "lat": 10.7710, "fix_quality": 1},
+      {"ts_s": 780, "lat": 10.7715, "fix_quality": 1},
+      {"ts_s": 840, "lat": 10.7720, "fix_quality": 1},
+      {"ts_s": 900, "lat": 10.7725, "fix_quality": 1},
+      {"ts_s": 960, "lat": 10.7726, "fix_quality": 0},
+      {"ts_s": 1020, "lat": 10.7727, "fix_quality": 0},
+      {"ts_s": 1080, "lat": 10.7730, "fix_quality": 1},
+      {"ts_s": 1140, "lat": 10.7735, "fix_quality": 1}
+    ],
+    "kinds": ["trip", "gap", "trip", "trip"],
+    "gaps": [["2026-10-05T08:02:00Z", "2026-10-05T08:13:00Z"]],
+    "holes": [["insufficient_quality", "2026-10-05T08:15:00Z", "2026-10-05T08:18:00Z", 4]],
+    "trip_bounds": [
+      ["2026-10-05T08:00:00Z", "2026-10-05T08:02:00Z"],
+      ["2026-10-05T08:13:00Z", "2026-10-05T08:15:00Z"],
+      ["2026-10-05T08:18:00Z", "2026-10-05T08:19:00Z"]
+    ],
+    "trip_legs": 5,
+    "evidence_state": "partial",
+    "usable_point_count": 8,
+    "excluded_point_count": 2
+  },
+  {
+    "name": "entirely unusable day",
+    "comment": "Nothing reliable was recorded: a successful empty view, with poor-quality coverage disclosed.",
+    "records": [
+      {"ts_s": 0, "lat": 10.7700, "fix_quality": 0},
+      {"ts_s": 60, "lat": 10.7700, "fix_quality": 0},
+      {"ts_s": 120, "lat": 10.7700, "fix_quality": 0},
+      {"ts_s": 180, "lat": 10.7700, "fix_quality": 0},
+      {"ts_s": 240, "lat": 10.7700, "fix_quality": 0}
+    ],
+    "kinds": [],
+    "gaps": [],
+    "holes": [["insufficient_quality", "2026-10-05T08:00:00Z", "2026-10-05T08:04:00Z", 5]],
+    "trip_bounds": [],
+    "trip_legs": 0,
+    "evidence_state": "insufficient",
+    "usable_point_count": 0,
+    "excluded_point_count": 5
+  },
+  {
+    "name": "reliable observations with ambiguous activity",
+    "comment": "A pause below the Stop minimum is reliable evidence of no particular activity.",
+    "records": [
+      {"ts_s": 0, "lat": 10.7700, "fix_quality": 1},
+      {"ts_s": 60, "lat": 10.7700, "fix_quality": 1},
+      {"ts_s": 120, "lat": 10.7700, "fix_quality": 1}
+    ],
+    "kinds": [],
+    "gaps": [],
+    "holes": [["ambiguous_activity", "2026-10-05T08:00:00Z", "2026-10-05T08:02:00Z", 3]],
+    "trip_bounds": [],
+    "trip_legs": 0,
+    "evidence_state": "insufficient",
+    "usable_point_count": 3,
+    "excluded_point_count": 0
+  },
+  {
+    "name": "poor dilution of precision",
+    "comment": "A fixed claim with HDOP above the configured maximum is present but not reliable.",
+    "records": [
+      {"ts_s": 0, "lat": 10.7700, "fix_quality": 1, "hdop": 9.0},
+      {"ts_s": 60, "lat": 10.7700, "fix_quality": 1, "hdop": 9.0},
+      {"ts_s": 120, "lat": 10.7700, "fix_quality": 1, "hdop": 9.0},
+      {"ts_s": 180, "lat": 10.7700, "fix_quality": 1, "hdop": 9.0},
+      {"ts_s": 240, "lat": 10.7700, "fix_quality": 1, "hdop": 9.0}
+    ],
+    "kinds": [],
+    "gaps": [],
+    "holes": [["insufficient_quality", "2026-10-05T08:00:00Z", "2026-10-05T08:04:00Z", 5]],
+    "trip_bounds": [],
+    "trip_legs": 0,
+    "evidence_state": "insufficient",
+    "usable_point_count": 0,
+    "excluded_point_count": 5
+  },
+  {
+    "name": "a fix without satellites",
+    "comment": "A claimed fix with no satellite in view cannot support a position.",
+    "records": [
+      {"ts_s": 0, "lat": 10.7700, "fix_quality": 1, "satellites": 0},
+      {"ts_s": 60, "lat": 10.7700, "fix_quality": 1, "satellites": 0},
+      {"ts_s": 120, "lat": 10.7700, "fix_quality": 1, "satellites": 0},
+      {"ts_s": 180, "lat": 10.7700, "fix_quality": 1, "satellites": 0}
+    ],
+    "kinds": [],
+    "gaps": [],
+    "holes": [["insufficient_quality", "2026-10-05T08:00:00Z", "2026-10-05T08:03:00Z", 4]],
+    "trip_bounds": [],
+    "trip_legs": 0,
+    "evidence_state": "insufficient",
+    "usable_point_count": 0,
+    "excluded_point_count": 4
+  },
+  {
+    "name": "receiver reports an impossible speed",
+    "comment": "A stationary trace whose receiver reports 120 m/s is impossible however little it moved.",
+    "records": [
+      {"ts_s": 0, "lat": 10.7700, "fix_quality": 1, "speed_mps": 120.0},
+      {"ts_s": 60, "lat": 10.7700, "fix_quality": 1, "speed_mps": 120.0},
+      {"ts_s": 120, "lat": 10.7700, "fix_quality": 1, "speed_mps": 120.0},
+      {"ts_s": 180, "lat": 10.7700, "fix_quality": 1, "speed_mps": 120.0}
+    ],
+    "kinds": [],
+    "gaps": [],
+    "holes": [["insufficient_geometry", "2026-10-05T08:00:00Z", "2026-10-05T08:03:00Z", 4]],
+    "trip_bounds": [],
+    "trip_legs": 0,
+    "evidence_state": "insufficient",
+    "usable_point_count": 0,
+    "excluded_point_count": 4
+  }
+]

@@ -1,16 +1,16 @@
 //! Build one published Daily Snapshot body from derived activity.
 use super::{
     clip,
-    derived::Derived,
+    derived::{Derived, REDUCER_VERSION},
     events,
-    evidence::UnresolvedInterval,
+    evidence::EvidenceHole,
     model::{Day, Input},
 };
 use serde_json::{Value, json};
 use uuid::Uuid;
 
 pub(super) fn body(input: &Input, day: &Day, manifest: Uuid, derived: &Derived) -> Value {
-    let timeline = events::timeline(&derived.stops, &derived.trips, day);
+    let timeline = events::timeline(&derived.stops, &derived.trips, &derived.gaps, day);
     let route_parts = clip::visible_parts(&derived.parts, day.from, day.until);
     let duration = |kind: &str| -> i64 {
         timeline
@@ -25,24 +25,25 @@ pub(super) fn body(input: &Input, day: &Day, manifest: Uuid, derived: &Derived) 
     let stop_duration = duration("stop");
     let gap_duration = duration("gap");
     let distance_m: f64 = route_parts.iter().map(|part| part.visible_distance_m).sum();
-    let visible_intervals = clip_intervals(&derived.unresolved_intervals, day);
-    let evidence = if timeline.is_empty() {
+    let evidence_holes = clip_intervals(&derived.evidence_holes, day);
+    // Evidence describes supported activity coverage. An explicit GPS Gap is a
+    // truthful absence rather than unresolved coverage, so it never downgrades
+    // an otherwise reliable day.
+    let supported = count("trip") + count("stop") > 0;
+    let evidence = if !supported {
         "insufficient"
-    } else if visible_intervals.is_empty() {
+    } else if evidence_holes.is_empty() {
         "sufficient"
     } else {
         "partial"
     };
-    let (evidence_holes, unresolved_intervals): (Vec<_>, Vec<_>) = visible_intervals
-        .into_iter()
-        .partition(|interval| interval["reason"] == "unusable_observations");
     json!({
         "device_id":input.claim.device_id,"date":day.date,"timezone":input.target.timezone,
         "processing_state":"processed","evidence_state":evidence,
         // Processed Route Parts are canonical; `route`, `start` and `end` stay
         // empty so processed parts never enter the legacy Raw playback contract.
         "route":null,"start":null,"end":null,"route_parts":route_parts,
-        "timeline":timeline,"evidence_holes":evidence_holes,"unresolved_intervals":unresolved_intervals,
+        "timeline":timeline,"evidence_holes":evidence_holes,
         "summary":{
             "point_count":day.point_count,"usable_point_count":day.usable_count,
             "excluded_point_count":day.point_count-day.usable_count,
@@ -56,12 +57,12 @@ pub(super) fn body(input: &Input, day: &Day, manifest: Uuid, derived: &Derived) 
             "manifest_version":manifest,"source_raw_generation":input.target.input_generation,
             "processed_through_generation":input.target.input_generation,
             "processing_target":input.target.target_id,"processing_target_generation":input.target.target_generation,
-            "timezone_generation":input.target.timezone_generation,"reducer_version":1,"projection_schema_version":1
+            "timezone_generation":input.target.timezone_generation,"reducer_version":REDUCER_VERSION,"projection_schema_version":1
         }
     })
 }
 
-fn clip_intervals(intervals: &[UnresolvedInterval], day: &Day) -> Vec<Value> {
+fn clip_intervals(intervals: &[EvidenceHole], day: &Day) -> Vec<Value> {
     intervals
         .iter()
         .filter_map(|interval| {

@@ -98,7 +98,8 @@ async fn movement_between_stops_publishes_unknown_trips_with_server_owned_progre
     assert_eq!(view["processing_state"], "processed");
     assert_eq!(view["evidence_state"], "sufficient");
     assert!(view["evidence_holes"].as_array().unwrap().is_empty());
-    assert!(view["unresolved_intervals"].as_array().unwrap().is_empty());
+    // Evidence coverage and absence of observations are separate disclosures.
+    assert!(view.get("unresolved_intervals").is_none());
 
     // Raw GPS stays untouched and separately selectable after publication.
     let raw_view = read(&router, &format!("{path}?view=raw")).await;
@@ -431,14 +432,19 @@ async fn daily_distance_conserves_part_length_across_days_without_connectors() {
     assert!(second_distance > tail["visible_distance_m"].as_f64().unwrap());
     assert!(second_distance < total);
 
-    // The absence is disclosed and never bridged by a Route Part.
-    let reasons: Vec<&str> = second["unresolved_intervals"]
+    // The absence is published as a GPS Gap and never bridged by a Route Part.
+    let gaps: Vec<&Value> = second["timeline"]
         .as_array()
         .unwrap()
         .iter()
-        .map(|interval| interval["reason"].as_str().unwrap())
+        .filter(|item| item["kind"] == "gap")
         .collect();
-    assert!(reasons.contains(&"missing_observations"), "{reasons:?}");
+    assert_eq!(gaps.len(), 1, "{gaps:?}");
+    assert_eq!(gaps[0]["observed_from_at"], "2026-10-06T00:02:00Z");
+    assert_eq!(gaps[0]["observed_until_at"], "2026-10-06T00:42:00Z");
+    assert_eq!(gaps[0]["daily_observed_duration_s"], 2400);
+    // An explicit Gap alone does not downgrade reliable activity to partial.
+    assert_eq!(second["evidence_state"], json!("sufficient"));
     // No published part's observed coverage spans the observation absence.
     let absent_from = "2026-10-06T00:02:00Z";
     let absent_until = "2026-10-06T00:42:00Z";
@@ -457,7 +463,16 @@ async fn daily_distance_conserves_part_length_across_days_without_connectors() {
         .collect();
     assert_eq!(trips.len(), 2, "{trips:?}");
     assert_ne!(trips[0], trips[1]);
-    assert_eq!(second["evidence_state"], json!("partial"));
+    // The Trips on either side of the Gap keep open boundaries: the absence
+    // provides no evidence for a confirmed start or end.
+    for trip in second["timeline"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|item| item["kind"] == "trip")
+    {
+        assert!(trip["actual_end_at"].is_null() || trip["actual_start_at"].is_null());
+    }
 }
 
 /// Sub-second spacing between two accepted records at different positions is one
@@ -527,14 +542,14 @@ async fn sub_second_spacing_stays_one_trip_while_a_real_absence_splits() {
         .collect();
     assert_eq!(
         kinds,
-        ["trip", "trip"],
-        "a real absence ends the first Trip"
+        ["trip", "gap", "trip"],
+        "a real absence ends the first Trip and is published as a Gap"
     );
 
     let parts = view["route_parts"].as_array().unwrap();
     assert_eq!(parts.len(), 2, "one Route Part per Trip");
     let first = &view["timeline"][0];
-    let second = &view["timeline"][1];
+    let second = &view["timeline"][2];
     assert_eq!(first["observed_from_at"], "2026-10-05T08:07:00Z");
     assert_eq!(first["observed_until_at"], "2026-10-05T08:10:00Z");
     assert_eq!(first["movement_segment_count"], 1);
@@ -568,13 +583,18 @@ async fn sub_second_spacing_stays_one_trip_while_a_real_absence_splits() {
         "published parts carry every leg of the day"
     );
     assert!((view["summary"]["distance_m"].as_f64().unwrap() - summed).abs() < 1e-9);
-    let reasons: Vec<&str> = view["unresolved_intervals"]
+    // The real absence is a GPS Gap with its own bounds, not evidence coverage.
+    let gaps: Vec<&Value> = view["timeline"]
         .as_array()
         .unwrap()
         .iter()
-        .map(|interval| interval["reason"].as_str().unwrap())
+        .filter(|item| item["kind"] == "gap")
         .collect();
-    assert_eq!(reasons, ["missing_observations"], "{reasons:?}");
+    assert_eq!(gaps.len(), 1, "{gaps:?}");
+    assert_eq!(gaps[0]["observed_from_at"], "2026-10-05T08:10:00Z");
+    assert_eq!(gaps[0]["observed_until_at"], "2026-10-05T08:17:00Z");
+    assert_eq!(view["summary"]["gap_duration_s"], 420);
+    assert!(view["evidence_holes"].as_array().unwrap().is_empty());
 }
 
 /// Daily clipping must rebase visible progress to zero and place an anchor at a

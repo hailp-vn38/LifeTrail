@@ -5,7 +5,14 @@
  * wider so Phase 2 (trip, stop, photo, audio) extends the timeline without
  * changing the component contracts.
  */
-export type TimelineEventKind = "start" | "end" | "trip" | "stop" | "photo" | "audio";
+export type TimelineEventKind =
+  | "start"
+  | "end"
+  | "trip"
+  | "stop"
+  | "gap"
+  | "photo"
+  | "audio";
 
 export interface TimelineEvent {
   id: string;

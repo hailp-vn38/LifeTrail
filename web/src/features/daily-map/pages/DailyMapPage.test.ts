@@ -229,15 +229,40 @@ it("shows a stationary Stop map, observed daily totals and synchronized Timeline
   Reflect.deleteProperty(HTMLElement.prototype, "scrollIntoView");
 });
 
-it("distinguishes unusable observations and absent GPS beside a published Stop", async () => {
+it("distinguishes unreliable observations from absent GPS beside a published Stop", async () => {
   const view = stationaryView();
   view.evidence_state = "partial";
-  view.evidence_holes = [{ observed_from_at: "2026-10-05T16:40:00Z", observed_until_at: "2026-10-05T16:45:00Z", reason: "unusable_observations", source_record_count: 3 }];
-  view.unresolved_intervals = [{ observed_from_at: "2026-10-05T16:45:00Z", observed_until_at: "2026-10-05T16:50:00Z", reason: "missing_observations", source_record_count: 2 }];
+  view.evidence_holes = [{ observed_from_at: "2026-10-05T16:40:00Z", observed_until_at: "2026-10-05T16:45:00Z", reason: "insufficient_quality", source_record_count: 3 }];
+  // A GPS Gap is absent observations: its own Timeline item, not hole coverage.
+  view.timeline = [
+    { ...view.timeline![0] },
+    {
+      id: "rev:gap:0",
+      kind: "gap",
+      activity_revision: "rev",
+      observed_from_at: "2026-10-05T16:45:00Z",
+      observed_until_at: "2026-10-05T16:50:00Z",
+      observed_duration_s: 300,
+      visible_from_at: "2026-10-05T16:45:00Z",
+      visible_until_at: "2026-10-05T16:50:00Z",
+      daily_observed_duration_s: 300,
+      continues_before: false,
+      continues_after: false,
+    },
+  ];
   mockedUseDailyView.mockReturnValue(queryState({ data: ref(view) }) as never);
   const wrapper = await mountPage();
+  // The unreliable interval keeps its own explanation and record count.
   expect(wrapper.text()).toContain("Có GPS nhưng chất lượng chưa đủ");
+  expect(wrapper.text()).toContain("3 bản ghi GPS");
+  // The absent interval is a distinct Timeline item explaining the absence.
+  expect(wrapper.findAll(".timeline-item--gap")).toHaveLength(1);
   expect(wrapper.text()).toContain("Thiếu quan sát GPS");
+  expect(wrapper.text()).toContain("Không suy ra di chuyển");
+  // An Evidence Hole notice never claims observations are missing.
+  const notice = wrapper.find(".evidence-notice");
+  expect(notice.exists()).toBe(true);
+  expect(notice.text()).not.toContain("Thiếu quan sát GPS");
   expect(wrapper.findAll(".timeline-item--stop")).toHaveLength(1);
   wrapper.unmount();
 });

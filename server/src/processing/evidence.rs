@@ -1,67 +1,102 @@
-//! Unresolved intervals remain explicit until every interval is resolved.
+//! Evidence Holes: intervals that contain Raw observations which cannot support
+//! reliable activity or geometry.
+//!
+//! A hole is always bounded by observations that exist, so it is distinct from
+//! a GPS Gap. A hole never asserts one Trip or an inferred Stop across it, and
+//! the activity beside it keeps open actual boundaries.
 use super::{
     model::{Observation, Target},
+    quality::QualityClass,
     stops::Stop,
     trips::Trip,
 };
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 
+/// Projected interval of existing observations with unresolved coverage.
 #[derive(Serialize)]
-pub(super) struct UnresolvedInterval {
+pub(super) struct EvidenceHole {
     pub observed_from_at: DateTime<Utc>,
     pub observed_until_at: DateTime<Utc>,
     pub reason: &'static str,
     pub source_record_count: usize,
 }
 
-pub(super) fn unresolved(
+pub(super) fn holes(
     points: &[Observation],
     stops: &[Stop],
     trips: &[Trip],
     target: &Target,
-) -> Vec<UnresolvedInterval> {
-    let mut unresolved_intervals: Vec<UnresolvedInterval> = Vec::new();
+) -> Vec<EvidenceHole> {
+    let mut holes: Vec<EvidenceHole> = Vec::new();
     for pair in points.windows(2) {
-        // An actual absence of Raw observations and unusable Raw records are
-        // disclosed even when derived activity covers both sides, because a
-        // derived Trip must not imply continuity across them.
-        let absent =
-            (pair[1].recorded_at - pair[0].recorded_at).num_seconds() > target.observation_gap_s;
-        let unusable = !pair[0].usable || !pair[1].usable;
-        if !absent && !unusable && resolved(&pair[0], &pair[1], stops, trips) {
+        // An actual absence of Raw observations is a GPS Gap, published as its
+        // own Timeline event. It is never evidence coverage: a hole always
+        // contains records that exist but cannot support activity.
+        if absent(pair, target) {
             continue;
         }
-        let reason = if absent {
-            "missing_observations"
-        } else if unusable {
-            "unusable_observations"
+        // Unreliable records are disclosed even when derived activity covers
+        // both sides, because derived activity must not imply reliability there.
+        // Reliable observations that no Stop or Trip explains are ambiguous
+        // activity, never missing observations.
+        let reason = if let Some(reason) = unreliable(pair) {
+            reason
+        } else if resolved(&pair[0], &pair[1], stops, trips) {
+            continue;
         } else {
-            "unresolved_activity"
+            "ambiguous_activity"
         };
-        if let Some(last) = unresolved_intervals.last_mut()
-            && last.reason == reason
-            && last.observed_until_at == pair[0].recorded_at
-        {
-            last.observed_until_at = pair[1].recorded_at;
-            last.source_record_count += 1;
-        } else {
-            unresolved_intervals.push(UnresolvedInterval {
-                observed_from_at: pair[0].recorded_at,
-                observed_until_at: pair[1].recorded_at,
-                reason,
-                source_record_count: 2,
-            });
-        }
+        extend(&mut holes, pair, reason);
     }
-    unresolved_intervals
+    holes
+}
+
+/// The stronger claim wins: an impossible position cannot support geometry even
+/// when a neighbouring record is merely of poor quality.
+fn unreliable(pair: &[Observation]) -> Option<&'static str> {
+    if pair
+        .iter()
+        .any(|point| point.classification == QualityClass::Excluded)
+    {
+        Some("insufficient_geometry")
+    } else if pair.iter().any(|point| !point.usable()) {
+        Some("insufficient_quality")
+    } else {
+        None
+    }
+}
+
+fn extend(holes: &mut Vec<EvidenceHole>, pair: &[Observation], reason: &'static str) {
+    let (from, until) = (pair[0].recorded_at, pair[1].recorded_at);
+    if let Some(last) = holes.last_mut()
+        && last.reason == reason
+        && last.observed_until_at == from
+    {
+        last.observed_until_at = until;
+        last.source_record_count += 1;
+    } else {
+        holes.push(EvidenceHole {
+            observed_from_at: from,
+            observed_until_at: until,
+            reason,
+            source_record_count: 2,
+        });
+    }
 }
 
 /// An interval is resolved when both of its observations belong to a derived
 /// activity. A Stop and an adjacent Trip each resolve their own side, so the
-/// transition between them is activity rather than missing evidence.
+/// transition between them is activity rather than a hole.
 fn resolved(from: &Observation, until: &Observation, stops: &[Stop], trips: &[Trip]) -> bool {
     within(from, stops, trips) && within(until, stops, trips)
+}
+
+/// Temporal absence between two Raw observations, using the same millisecond
+/// precision and threshold as GPS Gap detection.
+fn absent(pair: &[Observation], target: &Target) -> bool {
+    (pair[1].recorded_at - pair[0].recorded_at).num_milliseconds()
+        > target.observation_gap_s * 1_000
 }
 
 fn within(point: &Observation, stops: &[Stop], trips: &[Trip]) -> bool {

@@ -66,7 +66,7 @@ export function tripView(): DailyView {
       } as components["schemas"]["DailyStop"],
       openTrip,
     ],
-    evidence_holes: [], unresolved_intervals: [],
+    evidence_holes: [],
     summary: {
       point_count: 8, usable_point_count: 8, excluded_point_count: 0,
       distance_m: 2204, duration_s: 2880, trip_duration_s: 1200,

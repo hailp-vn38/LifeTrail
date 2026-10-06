@@ -18,7 +18,7 @@ pub(super) fn runs(points: &[Observation], stops: &[Stop], target: &Target) -> V
     let mut runs = Vec::new();
     let mut start: Option<usize> = None;
     for (index, point) in points.iter().enumerate() {
-        if !point.usable || covered(stops, index) {
+        if !point.usable() || covered(stops, index) {
             close(&mut runs, &mut start, index);
             continue;
         }
