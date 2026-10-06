@@ -50,6 +50,7 @@ describe("buildTimelineEvents", () => {
 });
 
 import { stationaryView } from "../../test/fixtures/stationary";
+import { tripView } from "../../test/fixtures/trips";
 
 it("renders observed Stop time and daily overlap with unknown actual boundaries", () => {
   const events = buildTimelineEvents(stationaryView());
@@ -60,4 +61,24 @@ it("renders observed Stop time and daily overlap with unknown actual boundaries"
   expect(events[0].subtitle).toContain("10 phút");
   expect(events[0].subtitle).toContain("Đến: chưa xác định");
   expect(events[0].subtitle).toContain("Rời: chưa xác định");
+});
+
+it("renders a Trip with its published distance, unknown mode and pause-inclusive time", () => {
+  const events = buildTimelineEvents(tripView());
+  const trip = events.find((event) => event.kind === "trip");
+  expect(trip?.title).toBe("Trip");
+  expect(trip?.subtitle).toContain("2.20 km");
+  expect(trip?.subtitle).toContain("chưa xác định");
+  expect(trip?.subtitle).toContain("bao gồm dừng ngắn");
+  expect(trip?.subtitle).toContain("20 phút");
+  expect(trip?.coordinate).toBeUndefined();
+});
+
+it("keeps projected Trip and Stop items in the server's chronological order", () => {
+  const events = buildTimelineEvents(tripView());
+  expect(events.map((event) => event.kind)).toEqual(["stop", "trip"]);
+  expect(events.map((event) => event.recordedAtMs)).toEqual([
+    Date.parse("2026-10-05T02:30:00Z"),
+    Date.parse("2026-10-05T03:00:00Z"),
+  ]);
 });

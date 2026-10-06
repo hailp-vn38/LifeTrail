@@ -30,6 +30,17 @@ defineProps<{ dailyView: DailyView }>();
         <dd class="tabular">{{ formatTimestamp(dailyView.summary.last_fix_at, dailyView.timezone) }}</dd>
       </div>
       <div v-if="dailyView.processing_state === 'processed'" class="daily-map-stats__item">
+        <dt>Trips trong ngày</dt>
+        <dd>{{ formatCount(dailyView.summary.trip_count ?? 0) }}</dd>
+      </div>
+      <div v-if="dailyView.processing_state === 'processed'" class="daily-map-stats__item">
+        <dt>Thời gian trong Trip</dt>
+        <dd>{{ formatDuration(dailyView.summary.trip_duration_s ?? 0) }}</dd>
+        <p class="daily-map-stats__note">
+          Gồm cả dừng ngắn chưa đủ điều kiện thành Stop.
+        </p>
+      </div>
+      <div v-if="dailyView.processing_state === 'processed'" class="daily-map-stats__item">
         <dt>Stops trong ngày</dt>
         <dd>{{ formatCount(dailyView.summary.stop_count ?? 0) }}</dd>
       </div>
@@ -74,5 +85,9 @@ defineProps<{ dailyView: DailyView }>();
 .daily-map-stats__item dd {
   font-size: var(--font-size-sm);
   font-weight: 650;
+}
+.daily-map-stats__note {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
 }
 </style>

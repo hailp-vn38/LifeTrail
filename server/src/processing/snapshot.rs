@@ -1,44 +1,31 @@
+//! Build one published Daily Snapshot body from derived activity.
 use super::{
+    clip,
+    derived::Derived,
+    events,
     evidence::UnresolvedInterval,
     model::{Day, Input},
-    stops::Stop,
 };
 use serde_json::{Value, json};
 use uuid::Uuid;
 
-pub(super) fn body(
-    input: &Input,
-    day: &Day,
-    manifest: Uuid,
-    stops: &[Stop],
-    intervals: &[UnresolvedInterval],
-) -> Value {
-    let timeline: Vec<_> = stops
-        .iter()
-        .filter_map(|stop| {
-            let from = stop.observed_from_at.max(day.from);
-            let until = stop.observed_until_at.min(day.until);
-            if from >= until {
-                return None;
-            }
-            let mut item = serde_json::to_value(stop).expect("Stop serializes");
-            item["visible_from_at"] = json!(from);
-            item["visible_until_at"] = json!(until);
-            item["daily_observed_duration_s"] = json!((until - from).num_seconds());
-            item["continues_before"] = json!(stop.observed_from_at < day.from);
-            item["continues_after"] = json!(stop.observed_until_at > day.until);
-            Some(item)
-        })
-        .collect();
-    let stop_duration: i64 = timeline
-        .iter()
-        .map(|s| s["daily_observed_duration_s"].as_i64().unwrap())
-        .sum();
-    let visible_intervals: Vec<_> = intervals.iter().filter_map(|hole| {
-        let from = hole.observed_from_at.max(day.from);
-        let until = hole.observed_until_at.min(day.until);
-        (from < until).then(|| json!({"observed_from_at":from,"observed_until_at":until,"reason":hole.reason,"source_record_count":hole.source_record_count}))
-    }).collect();
+pub(super) fn body(input: &Input, day: &Day, manifest: Uuid, derived: &Derived) -> Value {
+    let timeline = events::timeline(&derived.stops, &derived.trips, day);
+    let route_parts = clip::visible_parts(&derived.parts, day.from, day.until);
+    let duration = |kind: &str| -> i64 {
+        timeline
+            .iter()
+            .filter(|item| item["kind"] == kind)
+            .map(|item| item["daily_observed_duration_s"].as_i64().unwrap_or(0))
+            .sum()
+    };
+    let count =
+        |kind: &str| -> usize { timeline.iter().filter(|item| item["kind"] == kind).count() };
+    let trip_duration = duration("trip");
+    let stop_duration = duration("stop");
+    let gap_duration = duration("gap");
+    let distance_m: f64 = route_parts.iter().map(|part| part.visible_distance_m).sum();
+    let visible_intervals = clip_intervals(&derived.unresolved_intervals, day);
     let evidence = if timeline.is_empty() {
         "insufficient"
     } else if visible_intervals.is_empty() {
@@ -52,12 +39,18 @@ pub(super) fn body(
     json!({
         "device_id":input.claim.device_id,"date":day.date,"timezone":input.target.timezone,
         "processing_state":"processed","evidence_state":evidence,
-        "route":null,"start":null,"end":null,"route_parts":[],"timeline":timeline,"evidence_holes":evidence_holes,"unresolved_intervals":unresolved_intervals,
+        // Processed Route Parts are canonical; `route`, `start` and `end` stay
+        // empty so processed parts never enter the legacy Raw playback contract.
+        "route":null,"start":null,"end":null,"route_parts":route_parts,
+        "timeline":timeline,"evidence_holes":evidence_holes,"unresolved_intervals":unresolved_intervals,
         "summary":{
             "point_count":day.point_count,"usable_point_count":day.usable_count,
             "excluded_point_count":day.point_count-day.usable_count,
-            "distance_m":0.0,"duration_s":stop_duration,"trip_duration_s":0,"stop_duration_s":stop_duration,"gap_duration_s":0,
-            "trip_count":0,"stop_count":timeline.len(),"gap_count":0,"first_fix_at":day.first,"last_fix_at":day.last
+            "distance_m":distance_m,
+            "duration_s":trip_duration+stop_duration+gap_duration,
+            "trip_duration_s":trip_duration,"stop_duration_s":stop_duration,"gap_duration_s":gap_duration,
+            "trip_count":count("trip"),"stop_count":count("stop"),"gap_count":count("gap"),
+            "first_fix_at":day.first,"last_fix_at":day.last
         },
         "provenance":{
             "manifest_version":manifest,"source_raw_generation":input.target.input_generation,
@@ -66,4 +59,20 @@ pub(super) fn body(
             "timezone_generation":input.target.timezone_generation,"reducer_version":1,"projection_schema_version":1
         }
     })
+}
+
+fn clip_intervals(intervals: &[UnresolvedInterval], day: &Day) -> Vec<Value> {
+    intervals
+        .iter()
+        .filter_map(|interval| {
+            let from = interval.observed_from_at.max(day.from);
+            let until = interval.observed_until_at.min(day.until);
+            (from < until).then(|| {
+                json!({
+                    "observed_from_at":from,"observed_until_at":until,
+                    "reason":interval.reason,"source_record_count":interval.source_record_count
+                })
+            })
+        })
+        .collect()
 }

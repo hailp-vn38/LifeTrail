@@ -2,13 +2,20 @@
 mod activation;
 mod capture;
 mod claim;
+mod clip;
+mod derived;
+mod events;
 mod evidence;
+mod geo;
 mod model;
+mod movement;
 mod queue;
 mod read;
+mod route_parts;
 mod snapshot;
 mod staging;
 mod stops;
+mod trips;
 
 pub use queue::queue_day;
 pub(crate) use queue::{lock_device, schedule_batch};

@@ -7,6 +7,7 @@ import { MAP_STYLE_STORAGE_KEY, useMapPreferencesStore } from "../stores/map-pre
 
 const { MockMap } = vi.hoisted(() => {
   class MockSource {
+    constructor(readonly data?: unknown) {}
     setData = vi.fn();
   }
   class MockMap {
@@ -35,8 +36,8 @@ const { MockMap } = vi.hoisted(() => {
       return true;
     }
     once() {}
-    addSource(id: string) {
-      this.sources.set(id, new MockSource());
+    addSource(id: string, source?: { data?: unknown }) {
+      this.sources.set(id, new MockSource(source?.data));
     }
     addLayer(layer: unknown) {
       this.addedLayers.push(layer);
@@ -387,6 +388,7 @@ describe("RouteMap", () => {
 import { nextTick } from "vue";
 import { useMapStore } from "../stores/map.store";
 import { stationaryView, openStop } from "../test/fixtures/stationary";
+import { tripView, openTrip, rawPart } from "../test/fixtures/trips";
 
 it("focuses and highlights a Stop disk and selects the same Timeline item from its map feature", async () => {
   const wrapper = mountRouteMap(stationaryView());
@@ -407,5 +409,60 @@ it("focuses and highlights a Stop disk and selects the same Timeline item from i
   const callback = registration?.[2] as unknown as (event: unknown) => void;
   callback({ features: [{ properties: { eventId: openStop.id } }] });
   expect(store.selectedEventId).toBe(openStop.id);
+  wrapper.unmount();
+});
+
+it("highlights and fits a Trip Route Part and selects its Timeline item from the map", async () => {
+  const wrapper = mountRouteMap(tripView());
+  const map = lastMap();
+  // Processed Route Parts are rendered, and playback stays disabled because the
+  // processed view publishes no legacy Raw route clock.
+  expect(map.sources.has("activity-route-parts")).toBe(true);
+  expect(map.addedLayers).toEqual(expect.arrayContaining([
+    expect.objectContaining({ id: "trip-route-parts", type: "line" }),
+  ]));
+  expect(wrapper.find(".playback-bar").exists()).toBe(false);
+  // One GeoJSON line feature per published Route Part, carrying its Trip id.
+  const source = map.sources.get("activity-route-parts");
+  const collection = source?.data as FeatureCollection<LineString>;
+  expect(collection.features).toHaveLength(1);
+  expect(collection.features[0].properties).toEqual({
+    eventId: openTrip.id, partId: rawPart.id,
+  });
+  expect(collection.features[0].geometry.coordinates).toEqual(
+    rawPart.geometry.coordinates,
+  );
+
+  const store = useMapStore();
+  store.selectEvent(openTrip.id);
+  await nextTick();
+  expect(map.fitBounds).toHaveBeenCalled();
+  expect(map.setPaintProperty).toHaveBeenCalledWith(
+    "trip-route-parts", "line-width", expect.any(Array),
+  );
+  store.clearSelection();
+
+  const registration = map.on.mock.calls.find(
+    (args) => args[0] === "click" && args[1] === "trip-route-parts",
+  );
+  expect(registration).toBeDefined();
+  const callback = registration?.[2] as unknown as (event: unknown) => void;
+  callback({ features: [{ properties: { eventId: openTrip.id, partId: rawPart.id } }] });
+  expect(store.selectedEventId).toBe(openTrip.id);
+  wrapper.unmount();
+});
+
+it("renders processed Route Parts without deriving length from their coordinates", () => {
+  const view = tripView();
+  // The fixture's coordinates describe a shorter span than the published length,
+  // so a Web-side recomputation would contradict the server-owned metric.
+  const part = view.route_parts![0];
+  expect(part.distance_m).toBe(2204);
+  expect(part.vertex_distance_m[0]).toBe(0);
+  const wrapper = mountRouteMap(view);
+  const map = lastMap();
+  expect(map.sources.get("activity-route-parts")).toBeDefined();
+  // Processed playback is a separate concern, so the Raw playback clock stays absent.
+  expect(wrapper.find('button[aria-label="Phát"]').exists()).toBe(false);
   wrapper.unmount();
 });

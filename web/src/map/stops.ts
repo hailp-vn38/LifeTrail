@@ -1,6 +1,7 @@
 import type { FeatureCollection, Point, Polygon } from "geojson";
 import type { Map, MapLayerMouseEvent, ExpressionSpecification } from "maplibre-gl";
 import type { DailyView } from "../api/queries/daily-view.query";
+import { stopActivities } from "../features/activity/model";
 
 export const STOP_SOURCE = "activity-stops";
 export const STOP_MARKERS = "stop-markers";
@@ -21,7 +22,7 @@ function disk(center: number[], radius: number): number[][] {
 
 export function addStopLayers(map: Map, dailyView: DailyView): void {
   const features: FeatureCollection<Point | Polygon> = { type: "FeatureCollection", features: [] };
-  for (const stop of dailyView.timeline ?? []) {
+  for (const stop of stopActivities(dailyView)) {
     const properties = { eventId: stop.id };
     features.features.push({ type: "Feature", properties, geometry: { type: "Point", coordinates: stop.center } });
     features.features.push({ type: "Feature", properties, geometry: { type: "Polygon", coordinates: [disk(stop.center, stop.radius_m)] } });
@@ -44,7 +45,7 @@ export function highlightStop(map: Map, selectedId: string | null): void {
 }
 
 export function focusStop(map: Map, dailyView: DailyView, selectedId: string | null): boolean {
-  const stop = dailyView.timeline?.find((item) => item.id === selectedId);
+  const stop = stopActivities(dailyView).find((item) => item.id === selectedId);
   if (!stop) return false;
   // Reserve about 200 screen pixels for the disk, with a useful zoom for zero jitter.
   const zoom = Math.min(18, Math.max(0, Math.log2(156543 * Math.cos(stop.center[1] * Math.PI / 180) * 100 / Math.max(10, stop.radius_m))));

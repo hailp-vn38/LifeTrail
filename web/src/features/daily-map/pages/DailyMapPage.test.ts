@@ -203,6 +203,7 @@ describe("DailyMapPage", () => {
 });
 
 import { stationaryView, openStop } from "../../../test/fixtures/stationary";
+import { tripView, openTrip } from "../../../test/fixtures/trips";
 import { useMapStore } from "../../../stores/map.store";
 
 it("shows a stationary Stop map, observed daily totals and synchronized Timeline selection", async () => {
@@ -238,6 +239,43 @@ it("distinguishes unusable observations and absent GPS beside a published Stop",
   expect(wrapper.text()).toContain("Có GPS nhưng chất lượng chưa đủ");
   expect(wrapper.text()).toContain("Thiếu quan sát GPS");
   expect(wrapper.findAll(".timeline-item--stop")).toHaveLength(1);
+  wrapper.unmount();
+});
+
+it("shows a Trip with its daily totals and synchronizes Timeline selection", async () => {
+  mockedUseDailyView.mockReturnValue(queryState({ data: ref(tripView()) }) as never);
+  const wrapper = await mountPage();
+  expect(wrapper.text()).toContain("Trips trong ngày");
+  expect(wrapper.text()).toContain("Thời gian trong Trip");
+  expect(wrapper.text()).toContain("Gồm cả dừng ngắn");
+  expect(wrapper.text()).toContain("bao gồm dừng ngắn");
+  expect(wrapper.text()).toContain("chưa xác định");
+  // Chronological projection: the Stop precedes the Trip.
+  const kinds = wrapper.findAll(".timeline-item").map((item) => item.classes().join(" "));
+  expect(kinds.some((className) => className.includes("timeline-item--stop"))).toBe(true);
+  expect(kinds.some((className) => className.includes("timeline-item--trip"))).toBe(true);
+  expect(wrapper.findAll(".timeline-item")[0].classes().join(" ")).toContain("timeline-item--stop");
+
+  Object.defineProperty(HTMLElement.prototype, "scrollIntoView", { configurable: true, value: vi.fn() });
+  const trip = wrapper.find(".timeline-item--trip");
+  await trip.trigger("click");
+  expect(useMapStore().selectedEventId).toBe(openTrip.id);
+  expect(trip.attributes("aria-pressed")).toBe("true");
+  useMapStore().clearSelection();
+  await wrapper.vm.$nextTick();
+  useMapStore().selectEvent(openTrip.id);
+  await wrapper.vm.$nextTick();
+  expect(trip.attributes("aria-pressed")).toBe("true");
+  wrapper.unmount();
+  Reflect.deleteProperty(HTMLElement.prototype, "scrollIntoView");
+});
+
+it("keeps the complete-day Raw Route selectable after publishing a Trip", async () => {
+  mockedUseDailyView.mockReturnValue(queryState({ data: ref(tripView()) }) as never);
+  const wrapper = await mountPage();
+  expect(wrapper.text()).not.toContain("Start");
+  await wrapper.get('button[aria-label="Xem Raw GPS"]').trigger("click");
+  expect(mockedUseDailyView.mock.calls.at(-1)?.[2]).toMatchObject({ value: true });
   wrapper.unmount();
 });
 

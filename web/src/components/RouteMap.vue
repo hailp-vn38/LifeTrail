@@ -16,6 +16,12 @@ import {
   prefersReducedMotion,
 } from "../map/route-playback/camera";
 import { addStopLayers, bindStopSelection, focusStop, highlightStop } from "../map/stops";
+import {
+  addRoutePartLayers,
+  bindRoutePartSelection,
+  focusTripPart,
+  highlightRoutePart,
+} from "../map/route-parts";
 import { addBuildings } from "../map/buildings";
 import { mapStylePreset } from "../map/style-presets";
 import { PlaybackInteraction } from "../map/route-playback/interaction";
@@ -47,6 +53,7 @@ import type {
 } from "../map/route-playback/types";
 import PlaybackBar from "../features/playback/components/PlaybackBar.vue";
 import type { PlaybackSpeed } from "../features/playback/playback.types";
+import { stopActivities } from "../features/activity/model";
 import { useMapStore } from "../stores/map.store";
 import { useMapPreferencesStore } from "../stores/map-preferences.store";
 import { usePlaybackStore } from "../stores/playback.store";
@@ -123,6 +130,7 @@ function applySelectionHighlight(): void {
   if (!map) return;
   const selectedId = mapStore.selectedEventId;
   highlightStop(map, selectedId);
+  highlightRoutePart(map, selectedId);
   if (props.dailyView.start) {
     map.setPaintProperty(LAYER_START, "circle-radius", selectionRadiusExpression(selectedId));
   }
@@ -140,7 +148,13 @@ function fitRoute(map: MapLibreMap) {
     coordinates.push(props.dailyView.end.geometry.coordinates as MapCoordinate);
   }
   if (!coordinates.length) {
-    for (const stop of props.dailyView.timeline ?? []) coordinates.push([stop.center[0], stop.center[1]]);
+    // Processed activity: fit the published Route Parts, then any Stop centers.
+    for (const part of props.dailyView.route_parts ?? []) {
+      coordinates.push(...(part.geometry.coordinates as MapCoordinate[]));
+    }
+  }
+  if (!coordinates.length) {
+    for (const stop of stopActivities(props.dailyView)) coordinates.push([stop.center[0], stop.center[1]]);
   }
   if (!coordinates.length) return;
   const bounds = coordinates.reduce(
@@ -279,6 +293,7 @@ function restoreMapStyle() {
   addBuildings(map);
   addRouteLayers(map, props.dailyView, playbackPoints);
   addStopLayers(map, props.dailyView);
+  addRoutePartLayers(map, props.dailyView);
   mapReady.value = true;
   if (lastFrame) applyFrame(lastFrame);
   applySelectionHighlight();
@@ -294,6 +309,7 @@ watch(
   (selectedId) => {
     if (!map || !mapReady.value) return;
     applySelectionHighlight();
+    if (focusTripPart(map, props.dailyView, selectedId)) return;
     if (focusStop(map, props.dailyView, selectedId)) return;
     const target =
       selectedId === "start"
@@ -350,7 +366,9 @@ onMounted(() => {
     addBuildings(activeMap);
     addRouteLayers(activeMap, props.dailyView, playbackPoints);
     addStopLayers(activeMap, props.dailyView);
+    addRoutePartLayers(activeMap, props.dailyView);
     bindStopSelection(activeMap, mapStore.selectEvent);
+    bindRoutePartSelection(activeMap, mapStore.selectEvent);
     fitRoute(activeMap);
     if (controller) {
       playbackInteraction = new PlaybackInteraction(activeMap);

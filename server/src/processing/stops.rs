@@ -1,5 +1,8 @@
 //! Spatial dwell on continuous UTC observations, independent of calendar projection.
-use super::model::{Observation, Target};
+use super::{
+    geo,
+    model::{Observation, Target},
+};
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 use uuid::Uuid;
@@ -23,6 +26,15 @@ pub(super) struct Stop {
     pub source_record_count: usize,
     pub usable_record_count: usize,
     pub source_record_ids: Vec<i64>,
+    /// Observation range this Stop covers; used to bound adjacent Trips.
+    #[serde(skip)]
+    pub(super) start_index: usize,
+    #[serde(skip)]
+    pub(super) end_index: usize,
+    #[serde(skip)]
+    pub(super) start_confirmed: bool,
+    #[serde(skip)]
+    pub(super) end_confirmed: bool,
 }
 
 pub(super) fn detect(points: &[Observation], target: &Target, revision: Uuid) -> Vec<Stop> {
@@ -40,7 +52,7 @@ pub(super) fn detect(points: &[Observation], target: &Target, revision: Uuid) ->
         let mut radius_m: f64 = 0.0;
         while end < points.len() {
             let point = &points[end];
-            let distance = distance_m(center, [point.lon, point.lat]);
+            let distance = geo::distance_m(center, [point.lon, point.lat]);
             if !point.usable
                 || (point.recorded_at - points[end - 1].recorded_at).num_seconds()
                     > target.observation_gap_s
@@ -54,11 +66,11 @@ pub(super) fn detect(points: &[Observation], target: &Target, revision: Uuid) ->
         let first = points[start].recorded_at;
         let last = points[end - 1].recorded_at;
         let duration = (last - first).num_seconds();
+        let confirmed_before =
+            start > 0 && transition(&points[start - 1], &points[start], center, target);
+        let confirmed_after =
+            end < points.len() && transition(&points[end], &points[end - 1], center, target);
         if duration >= target.stop_min_duration_s {
-            let confirmed_before =
-                start > 0 && transition(&points[start - 1], &points[start], center, target);
-            let confirmed_after =
-                end < points.len() && transition(&points[end], &points[end - 1], center, target);
             stops.push(Stop {
                 id: format!("{revision}:stop:{}", stops.len()),
                 kind: "stop",
@@ -81,6 +93,10 @@ pub(super) fn detect(points: &[Observation], target: &Target, revision: Uuid) ->
                 source_record_count: end - start,
                 usable_record_count: end - start,
                 source_record_ids: points[start..end].iter().map(|p| p.id).collect(),
+                start_index: start,
+                end_index: end,
+                start_confirmed: confirmed_before,
+                end_confirmed: confirmed_after,
             });
             start = end;
         } else {
@@ -104,14 +120,5 @@ fn transition(
             .abs()
             <= target.observation_gap_s
         && outside.recorded_at != inside.recorded_at
-        && distance_m(center, [outside.lon, outside.lat]) > target.stop_radius_m
-}
-
-fn distance_m(a: [f64; 2], b: [f64; 2]) -> f64 {
-    let lat = (b[1] - a[1]).to_radians();
-    let lon = (b[0] - a[0]).to_radians();
-    let chord = ((lat / 2.0).sin().powi(2)
-        + a[1].to_radians().cos() * b[1].to_radians().cos() * (lon / 2.0).sin().powi(2))
-    .clamp(0.0, 1.0);
-    2.0 * 6_371_000.0 * chord.sqrt().asin()
+        && geo::distance_m(center, [outside.lon, outside.lat]) > target.stop_radius_m
 }

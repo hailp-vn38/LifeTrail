@@ -1,6 +1,17 @@
 import type { DailyView } from "../../api/queries/daily-view.query";
-import { formatDuration, formatTimestamp } from "../../lib/format";
+import { tripDistanceM, type MovementSegment } from "../activity/model";
+import { formatDistance, formatDuration, formatTimestamp } from "../../lib/format";
 import type { TimelineEvent } from "./types";
+
+/** Ordered Movement Segment modes; `unknown` is shown as undetermined. */
+function describeSegments(segments: MovementSegment[]): string {
+  const modes: string[] = [];
+  for (const segment of segments) {
+    const mode = segment.mode === "unknown" ? "chưa xác định" : segment.mode;
+    if (modes[modes.length - 1] !== mode) modes.push(mode);
+  }
+  return `Phương tiện: ${modes.join(" → ")}`;
+}
 
 function pointCoordinate(feature: unknown): [number, number] | undefined {
   const geometry = (feature as { geometry?: { coordinates?: unknown } })?.geometry;
@@ -28,17 +39,41 @@ function recordedAtMs(feature: unknown): number | undefined {
 /** Project published activity or the established Raw Start/End view. */
 export function buildTimelineEvents(dailyView: DailyView): TimelineEvent[] {
   if (dailyView.processing_state === "processed") {
-    return (dailyView.timeline ?? []).map((stop) => ({
-      id: stop.id, kind: stop.kind, title: "Stop",
-      subtitle: [
-        `Quan sát: ${formatTimestamp(stop.observed_from_at, dailyView.timezone)} – ${formatTimestamp(stop.observed_until_at, dailyView.timezone)} (${formatDuration(stop.observed_duration_s)})`,
-        `Trong ngày: ${formatDuration(stop.daily_observed_duration_s)}`,
-        `Đến: ${stop.actual_start_at ? formatTimestamp(stop.actual_start_at, dailyView.timezone) : "chưa xác định"}`,
-        `Rời: ${stop.actual_end_at ? formatTimestamp(stop.actual_end_at, dailyView.timezone) : "chưa xác định"}`,
-      ].join(" · "),
-      coordinate: [stop.center[0], stop.center[1]],
-      recordedAtMs: Date.parse(stop.visible_from_at),
-    }));
+    // The server publishes chronological Trip/Stop items, so their order is kept.
+    return (dailyView.timeline ?? []).map((activity) => {
+      const observed = [
+        `Quan sát: ${formatTimestamp(activity.observed_from_at, dailyView.timezone)} – ${formatTimestamp(activity.observed_until_at, dailyView.timezone)} (${formatDuration(activity.observed_duration_s)})`,
+        `Trong ngày: ${formatDuration(activity.daily_observed_duration_s)}`,
+      ].join(" · ");
+      if (activity.kind === "stop") {
+        return {
+          id: activity.id,
+          kind: activity.kind,
+          title: "Stop",
+          subtitle: [
+            observed,
+            `Đến: ${activity.actual_start_at ? formatTimestamp(activity.actual_start_at, dailyView.timezone) : "chưa xác định"}`,
+            `Rời: ${activity.actual_end_at ? formatTimestamp(activity.actual_end_at, dailyView.timezone) : "chưa xác định"}`,
+          ].join(" · "),
+          coordinate: [activity.center[0], activity.center[1]],
+          recordedAtMs: Date.parse(activity.visible_from_at),
+        };
+      }
+      return {
+        id: activity.id,
+        kind: activity.kind,
+        title: "Trip",
+        subtitle: [
+          observed,
+          // Trip time includes pauses below the Stop criteria, so it is never
+          // presented as physical moving duration.
+          `Trong Trip (bao gồm dừng ngắn): ${formatDuration(activity.daily_observed_duration_s)}`,
+          `Quãng đường: ${formatDistance(tripDistanceM(dailyView, activity.id))}`,
+          describeSegments(activity.movement_segments),
+        ].join(" · "),
+        recordedAtMs: Date.parse(activity.visible_from_at),
+      };
+    });
   }
   const events: TimelineEvent[] = [];
 

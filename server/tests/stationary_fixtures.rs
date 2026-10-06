@@ -79,7 +79,12 @@ async fn stationary_fixtures_distinguish_dwell_pauses_missing_and_unusable_obser
             assert_eq!(raw["route"]["geometry"]["type"], "LineString", "{name}");
             assert!(raw["start"].is_object(), "{name}");
         }
-        let stops = view["timeline"].as_array().unwrap();
+        let stops = view["timeline"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|item| item["kind"] == "stop")
+            .collect::<Vec<_>>();
         let durations: Vec<Value> = stops
             .iter()
             .map(|s| s["observed_duration_s"].clone())
@@ -87,7 +92,31 @@ async fn stationary_fixtures_distinguish_dwell_pauses_missing_and_unusable_obser
         assert_eq!(json!(durations), case["durations"], "{name}");
         assert_eq!(view["summary"]["point_count"], records.len(), "{name}");
         assert_eq!(view["summary"]["stop_count"], stops.len(), "{name}");
-        assert!(view["route"].is_null(), "{name}: no invented movement");
+        // Movement between Stops becomes a Trip with one raw UNKNOWN segment.
+        let trips = view["timeline"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|item| item["kind"] == "trip")
+            .collect::<Vec<_>>();
+        let trip_durations: Vec<Value> = trips
+            .iter()
+            .map(|trip| trip["observed_duration_s"].clone())
+            .collect();
+        assert_eq!(json!(trip_durations), case["trips"], "{name}");
+        assert_eq!(view["summary"]["trip_count"], trips.len(), "{name}");
+        assert_eq!(
+            view["route_parts"].as_array().unwrap().len(),
+            trips.len(),
+            "{name}"
+        );
+        for trip in &trips {
+            assert_eq!(trip["movement_segment_count"], 1, "{name}");
+            let segment = &trip["movement_segments"][0];
+            assert_eq!(segment["mode"], "unknown", "{name}");
+            assert_eq!(segment["source"], "raw", "{name}");
+        }
+        assert!(view["route"].is_null(), "{name}: no invented Raw route");
         if let Some(reason) = case.get("reason") {
             assert!(
                 view["evidence_holes"]
@@ -99,17 +128,38 @@ async fn stationary_fixtures_distinguish_dwell_pauses_missing_and_unusable_obser
                 "{name}"
             );
         }
+        let boundaries = case
+            .get("boundaries")
+            .and_then(|value| value.as_array())
+            .cloned()
+            .unwrap_or_default();
         for (index, stop) in stops.iter().enumerate() {
-            assert_eq!(
-                stop["start_boundary"], case["boundaries"][index][0],
-                "{name}"
-            );
-            assert_eq!(stop["end_boundary"], case["boundaries"][index][1], "{name}");
+            assert_eq!(stop["start_boundary"], boundaries[index][0], "{name}");
+            assert_eq!(stop["end_boundary"], boundaries[index][1], "{name}");
             if stop["start_boundary"] == "open" || stop["end_boundary"] == "open" {
                 assert!(stop["full_duration_s"].is_null(), "{name}");
             } else {
                 assert_eq!(
                     stop["full_duration_s"], stop["observed_duration_s"],
+                    "{name}"
+                );
+            }
+        }
+        // Activity boundaries stay distinct: an open boundary has no actual time
+        // and therefore no full duration.
+        for trip in &trips {
+            if trip["start_boundary"] == "open" {
+                assert!(trip["actual_start_at"].is_null(), "{name}");
+            } else {
+                assert_eq!(trip["actual_start_at"], trip["observed_from_at"], "{name}");
+            }
+            if trip["end_boundary"] == "open" {
+                assert!(trip["actual_end_at"].is_null(), "{name}");
+                assert!(trip["full_duration_s"].is_null(), "{name}");
+            } else {
+                assert_eq!(trip["actual_end_at"], trip["observed_until_at"], "{name}");
+                assert_eq!(
+                    trip["full_duration_s"], trip["observed_duration_s"],
                     "{name}"
                 );
             }

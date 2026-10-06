@@ -138,7 +138,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Read the published or Raw Daily View for one Device Owner-local calendar day. */
+        /**
+         * Read the published or Raw Daily View for one Device Owner-local calendar day.
+         * @description A published response carries the complete snapshot: chronological projected Trips and Stops, canonical Route Parts with server-owned progress, evidence state and provenance. Raw GPS remains immutable and separately selectable.
+         */
         get: {
             parameters: {
                 query?: {
@@ -310,18 +313,22 @@ export interface components {
             /** @enum {string} */
             evidence_state?: "sufficient" | "partial" | "insufficient";
             provenance?: components["schemas"]["SnapshotProvenance"];
-            /** @description Sparse snapshots have no drawable activity. */
-            route_parts?: Record<string, never>[];
-            timeline?: components["schemas"]["DailyStop"][];
+            /** @description Canonical processed geometry, in movement order. Each part is a drawable portion of one Movement Segment with server-owned progress; Web never recomputes Route length from the coordinates. */
+            route_parts?: components["schemas"]["RoutePart"][];
+            /** @description Projected Trip and Stop items in chronological observed order. */
+            timeline?: components["schemas"]["DailyActivity"][];
             /** @description Pending activity and actual observation absences; neither is fabricated activity. */
             unresolved_intervals?: components["schemas"]["UnresolvedEvidence"][];
             evidence_holes?: components["schemas"]["UnresolvedEvidence"][];
         } & unknown;
-        /** @description Revision-local UTC Stop with a daily projection. Only positive observed overlap is counted. Actual boundaries are null when open; no calendar or current-time extrapolation. */
-        DailyStop: {
+        /** @description Revision-local UTC Trip or Stop with its Owner-local daily projection. */
+        DailyActivity: components["schemas"]["DailyTrip"] | components["schemas"]["DailyStop"];
+        /** @description Shared projection fields. Actual boundaries are null when open, so an unknown arrival or departure is never presented as confirmed; observed bounds are always known and never extrapolated to the current time or the end of the calendar day. */
+        DailyActivityBoundaries: {
+            /** @description Revision-local event identity, stable only within its creating Activity Revision. */
             id: string;
             /** @enum {string} */
-            kind: "stop";
+            kind: "trip" | "stop";
             /** Format: uuid */
             activity_revision: string;
             /** Format: date-time */
@@ -338,10 +345,6 @@ export interface components {
             /** @enum {string} */
             end_boundary: "confirmed" | "open";
             full_duration_s: number | null;
-            /** @description Server-derived dwell anchor in longitude/latitude order. */
-            center: number[];
-            /** @description Maximum observed distance from the dwell anchor. */
-            radius_m: number;
             /** @enum {string} */
             quality: "sufficient";
             source_record_count: number;
@@ -351,9 +354,93 @@ export interface components {
             visible_from_at: string;
             /** Format: date-time */
             visible_until_at: string;
+            /** @description Only strictly positive observed overlap with this day counts. */
             daily_observed_duration_s: number;
+            /** @description Observed coverage extends before this day; not inferred unobserved continuation. */
+            continues_before: boolean;
+            /** @description Observed coverage extends after this day; not inferred unobserved continuation. */
+            continues_after: boolean;
+        };
+        DailyTrip: components["schemas"]["DailyActivityBoundaries"] & {
+            /** @enum {string} */
+            kind: "trip";
+            /** @description Sum of this Trip's published Route Part lengths in UTC history. */
+            distance_m: number;
+            movement_segment_count: number;
+            /** @description Ordered Movement Segments. A mode change separates segments without ending the Trip. */
+            movement_segments: components["schemas"]["MovementSegment"][];
+        };
+        /** @description A portion of a Trip with a relatively homogeneous transport mode. This slice publishes raw-derived UNKNOWN segments only; `unknown` never means a guessed profile. */
+        MovementSegment: {
+            /** @description Revision-local Movement Segment identity. */
+            id: string;
+            /** @enum {string} */
+            mode: "unknown";
+            /** @enum {string} */
+            source: "raw";
+            /** Format: date-time */
+            observed_from_at: string;
+            /** Format: date-time */
+            observed_until_at: string;
+            observed_duration_s: number;
+            distance_m: number;
+            /** @enum {string} */
+            quality: "sufficient";
+            /** @description Ordered drawable Route Parts for this Movement Segment. */
+            route_part_ids: string[];
+            source_record_count: number;
+        };
+        /** @description A contiguous drawable portion of the derived Route for one Movement Segment, clipped to this day. Coordinates come from accepted GPS Records: no coordinate or timestamp is invented, and a Part is never padded to satisfy the LineString contract. */
+        RoutePart: {
+            id: string;
+            /** @enum {string} */
+            kind: "route_part";
+            trip_id: string;
+            movement_segment_id: string;
+            /** @enum {string} */
+            source: "raw";
+            /**
+             * Format: date-time
+             * @description Observed coverage of the whole Movement Segment portion, independent of the day.
+             */
+            observed_from_at: string;
+            /** Format: date-time */
+            observed_until_at: string;
+            /** @description Length of the whole Part in UTC history, server-owned. */
+            distance_m: number;
+            /** @description The Part's contribution to this day: the difference in original progress at the clipping endpoints. Adjacent days conserve distance_m. */
+            visible_distance_m: number;
+            /** @enum {string} */
+            quality: "sufficient";
+            source_record_count: number;
+            /** Format: date-time */
+            visible_from_at: string;
+            /** Format: date-time */
+            visible_until_at: string;
             continues_before: boolean;
             continues_after: boolean;
+            geometry: components["schemas"]["LineStringGeometry"];
+            /** @description Cumulative progress from zero, aligned one-to-one with geometry.coordinates. Non-decreasing, and the final value equals visible_distance_m within numerical tolerance. Clients use this metric rather than recomputing Route length. */
+            vertex_distance_m: number[];
+            /** @description Historical instants mapped to progress along this Part. Times increase strictly, progress is non-decreasing and bounded by distance_m, and both endpoints carry an anchor. Clipping may add a synthetic anchor at a calendar boundary. There is deliberately no one-timestamp-per-vertex contract. */
+            progress_anchors: components["schemas"]["ProgressAnchor"][];
+        };
+        ProgressAnchor: {
+            /** Format: date-time */
+            at: string;
+            /**
+             * Format: double
+             * @description Progress at `at`, rebased so the first visible anchor is zero.
+             */
+            distance_m: number;
+        };
+        DailyStop: components["schemas"]["DailyActivityBoundaries"] & {
+            /** @enum {string} */
+            kind: "stop";
+            /** @description Server-derived dwell anchor in longitude/latitude order. */
+            center: number[];
+            /** @description Maximum observed distance from the dwell anchor. */
+            radius_m: number;
         };
         /** @description Observed bounds of unresolved evidence. Missing observations are distinct from unusable Raw records and unresolved activity; none asserts a Trip, Stop or fabricated duration. */
         UnresolvedEvidence: {
@@ -366,14 +453,20 @@ export interface components {
             source_record_count: number;
         };
         DailySummary: {
+            /** @description Every Raw GPS Record in the local day, independently of usable quality. */
             point_count: number;
-            /** Format: double */
+            /**
+             * Format: double
+             * @description Sum of published Route Part lengths visible in this day; no rejected geometry or implicit connector.
+             */
             distance_m: number;
+            /** @description Observed activity duration in this day across Trips, Stops and GPS Gaps. */
             duration_s: number;
             first_fix_at: string | null;
             last_fix_at: string | null;
             usable_point_count?: number;
             excluded_point_count?: number;
+            /** @description Observed time inside Trips, including pauses below the Stop criteria. This is not physical moving duration and must not be labeled as such. */
             trip_duration_s?: number;
             stop_duration_s?: number;
             gap_duration_s?: number;

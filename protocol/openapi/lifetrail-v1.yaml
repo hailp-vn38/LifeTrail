@@ -80,6 +80,11 @@ paths:
   /api/v1/devices/{deviceId}/days/{date}:
     get:
       summary: Read the published or Raw Daily View for one Device Owner-local calendar day.
+      description: >-
+        A published response carries the complete snapshot: chronological
+        projected Trips and Stops, canonical Route Parts with server-owned
+        progress, evidence state and provenance. Raw GPS remains immutable and
+        separately selectable.
       parameters:
         - name: deviceId
           in: path
@@ -246,46 +251,187 @@ components:
         evidence_state: { type: string, enum: [sufficient, partial, insufficient] }
         provenance:
           $ref: '#/components/schemas/SnapshotProvenance'
-        route_parts: { type: array, maxItems: 0, items: { type: object }, description: Sparse snapshots have no drawable activity. }
-        timeline: { type: array, items: { $ref: '#/components/schemas/DailyStop' } }
+        route_parts:
+          type: array
+          description: >-
+            Canonical processed geometry, in movement order. Each part is a
+            drawable portion of one Movement Segment with server-owned progress;
+            Web never recomputes Route length from the coordinates.
+          items: { $ref: '#/components/schemas/RoutePart' }
+        timeline:
+          type: array
+          description: Projected Trip and Stop items in chronological observed order.
+          items: { $ref: '#/components/schemas/DailyActivity' }
         unresolved_intervals: { type: array, items: { $ref: '#/components/schemas/UnresolvedEvidence' }, description: Pending activity and actual observation absences; neither is fabricated activity. }
         evidence_holes: { type: array, items: { $ref: '#/components/schemas/UnresolvedEvidence' } }
-    DailyStop:
+    DailyActivity:
+      description: Revision-local UTC Trip or Stop with its Owner-local daily projection.
+      oneOf:
+        - $ref: '#/components/schemas/DailyTrip'
+        - $ref: '#/components/schemas/DailyStop'
+    DailyActivityBoundaries:
       type: object
-      additionalProperties: false
-      description: Revision-local UTC Stop with a daily projection. Only positive observed overlap is counted. Actual boundaries are null when open; no calendar or current-time extrapolation.
-      required: [id, kind, activity_revision, observed_from_at, observed_until_at, observed_duration_s, actual_start_at, actual_end_at, start_boundary, end_boundary, full_duration_s, center, radius_m, quality, source_record_count, usable_record_count, source_record_ids, visible_from_at, visible_until_at, daily_observed_duration_s, continues_before, continues_after]
+      description: >-
+        Shared projection fields. Actual boundaries are null when open, so an
+        unknown arrival or departure is never presented as confirmed; observed
+        bounds are always known and never extrapolated to the current time or the
+        end of the calendar day.
+      required: [id, kind, activity_revision, observed_from_at, observed_until_at, observed_duration_s, actual_start_at, actual_end_at, start_boundary, end_boundary, full_duration_s, quality, source_record_count, usable_record_count, source_record_ids, visible_from_at, visible_until_at, daily_observed_duration_s, continues_before, continues_after]
       properties:
-        id: { type: string }
-        kind: { type: string, enum: [stop] }
+        id:
+          type: string
+          description: Revision-local event identity, stable only within its creating Activity Revision.
+        kind: { type: string, enum: [trip, stop] }
         activity_revision: { type: string, format: uuid }
         observed_from_at: { type: string, format: date-time }
         observed_until_at: { type: string, format: date-time }
-        observed_duration_s: { type: integer, minimum: 1 }
+        observed_duration_s: { type: integer, minimum: 0 }
         actual_start_at: { type: [string, 'null'], format: date-time }
         actual_end_at: { type: [string, 'null'], format: date-time }
         start_boundary: { type: string, enum: [confirmed, open] }
         end_boundary: { type: string, enum: [confirmed, open] }
-        full_duration_s: { type: [integer, 'null'], minimum: 1 }
-        center:
-          type: array
-          minItems: 2
-          maxItems: 2
-          items: { type: number }
-          description: Server-derived dwell anchor in longitude/latitude order.
-        radius_m: { type: number, minimum: 0, description: Maximum observed distance from the dwell anchor. }
+        full_duration_s: { type: [integer, 'null'], minimum: 0 }
         quality: { type: string, enum: [sufficient] }
-        source_record_count: { type: integer, minimum: 2 }
-        usable_record_count: { type: integer, minimum: 2 }
+        source_record_count: { type: integer, minimum: 0 }
+        usable_record_count: { type: integer, minimum: 0 }
         source_record_ids:
           type: array
-          minItems: 2
           items: { type: integer }
         visible_from_at: { type: string, format: date-time }
         visible_until_at: { type: string, format: date-time }
-        daily_observed_duration_s: { type: integer, minimum: 0 }
+        daily_observed_duration_s:
+          type: integer
+          minimum: 0
+          description: Only strictly positive observed overlap with this day counts.
+        continues_before:
+          type: boolean
+          description: Observed coverage extends before this day; not inferred unobserved continuation.
+        continues_after:
+          type: boolean
+          description: Observed coverage extends after this day; not inferred unobserved continuation.
+    DailyTrip:
+      unevaluatedProperties: false
+      allOf:
+        - $ref: '#/components/schemas/DailyActivityBoundaries'
+        - type: object
+          required: [kind, distance_m, movement_segment_count, movement_segments]
+          properties:
+            kind: { type: string, enum: [trip] }
+            distance_m:
+              type: number
+              minimum: 0
+              description: Sum of this Trip's published Route Part lengths in UTC history.
+            movement_segment_count: { type: integer, minimum: 1 }
+            movement_segments:
+              type: array
+              minItems: 1
+              description: Ordered Movement Segments. A mode change separates segments without ending the Trip.
+              items: { $ref: '#/components/schemas/MovementSegment' }
+    MovementSegment:
+      type: object
+      additionalProperties: false
+      description: >-
+        A portion of a Trip with a relatively homogeneous transport mode. This
+        slice publishes raw-derived UNKNOWN segments only; `unknown` never means
+        a guessed profile.
+      required: [id, mode, source, observed_from_at, observed_until_at, observed_duration_s, distance_m, quality, route_part_ids, source_record_count]
+      properties:
+        id: { type: string, description: Revision-local Movement Segment identity. }
+        mode: { type: string, enum: [unknown] }
+        source: { type: string, enum: [raw] }
+        observed_from_at: { type: string, format: date-time }
+        observed_until_at: { type: string, format: date-time }
+        observed_duration_s: { type: integer, minimum: 0 }
+        distance_m: { type: number, minimum: 0 }
+        quality: { type: string, enum: [sufficient] }
+        route_part_ids:
+          type: array
+          items: { type: string }
+          description: Ordered drawable Route Parts for this Movement Segment.
+        source_record_count: { type: integer, minimum: 0 }
+    RoutePart:
+      type: object
+      additionalProperties: false
+      description: >-
+        A contiguous drawable portion of the derived Route for one Movement
+        Segment, clipped to this day. Coordinates come from accepted GPS Records:
+        no coordinate or timestamp is invented, and a Part is never padded to
+        satisfy the LineString contract.
+      required: [id, kind, trip_id, movement_segment_id, source, observed_from_at, observed_until_at, distance_m, visible_distance_m, quality, source_record_count, visible_from_at, visible_until_at, continues_before, continues_after, geometry, vertex_distance_m, progress_anchors]
+      properties:
+        id: { type: string }
+        kind: { type: string, enum: [route_part] }
+        trip_id: { type: string }
+        movement_segment_id: { type: string }
+        source: { type: string, enum: [raw] }
+        observed_from_at:
+          type: string
+          format: date-time
+          description: Observed coverage of the whole Movement Segment portion, independent of the day.
+        observed_until_at: { type: string, format: date-time }
+        distance_m:
+          type: number
+          minimum: 0
+          description: Length of the whole Part in UTC history, server-owned.
+        visible_distance_m:
+          type: number
+          minimum: 0
+          description: >-
+            The Part's contribution to this day: the difference in original
+            progress at the clipping endpoints. Adjacent days conserve
+            distance_m.
+        quality: { type: string, enum: [sufficient] }
+        source_record_count: { type: integer, minimum: 2 }
+        visible_from_at: { type: string, format: date-time }
+        visible_until_at: { type: string, format: date-time }
         continues_before: { type: boolean }
         continues_after: { type: boolean }
+        geometry: { $ref: '#/components/schemas/LineStringGeometry' }
+        vertex_distance_m:
+          type: array
+          minItems: 2
+          description: >-
+            Cumulative progress from zero, aligned one-to-one with
+            geometry.coordinates. Non-decreasing, and the final value equals
+            visible_distance_m within numerical tolerance. Clients use this
+            metric rather than recomputing Route length.
+          items: { type: number, format: double, minimum: 0 }
+        progress_anchors:
+          type: array
+          minItems: 2
+          description: >-
+            Historical instants mapped to progress along this Part. Times
+            increase strictly, progress is non-decreasing and bounded by
+            distance_m, and both endpoints carry an anchor. Clipping may add a
+            synthetic anchor at a calendar boundary. There is deliberately no
+            one-timestamp-per-vertex contract.
+          items: { $ref: '#/components/schemas/ProgressAnchor' }
+    ProgressAnchor:
+      type: object
+      additionalProperties: false
+      required: [at, distance_m]
+      properties:
+        at: { type: string, format: date-time }
+        distance_m:
+          type: number
+          format: double
+          minimum: 0
+          description: Progress at `at`, rebased so the first visible anchor is zero.
+    DailyStop:
+      unevaluatedProperties: false
+      allOf:
+        - $ref: '#/components/schemas/DailyActivityBoundaries'
+        - type: object
+          required: [kind, center, radius_m]
+          properties:
+            kind: { type: string, enum: [stop] }
+            center:
+              type: array
+              minItems: 2
+              maxItems: 2
+              items: { type: number }
+              description: Server-derived dwell anchor in longitude/latitude order.
+            radius_m: { type: number, minimum: 0, description: Maximum observed distance from the dwell anchor. }
     UnresolvedEvidence:
       type: object
       additionalProperties: false
@@ -301,9 +447,19 @@ components:
       additionalProperties: false
       required: [point_count, distance_m, duration_s, first_fix_at, last_fix_at]
       properties:
-        point_count: { type: integer, minimum: 0 }
-        distance_m: { type: number, format: double, minimum: 0 }
-        duration_s: { type: integer, minimum: 0 }
+        point_count:
+          type: integer
+          minimum: 0
+          description: Every Raw GPS Record in the local day, independently of usable quality.
+        distance_m:
+          type: number
+          format: double
+          minimum: 0
+          description: Sum of published Route Part lengths visible in this day; no rejected geometry or implicit connector.
+        duration_s:
+          type: integer
+          minimum: 0
+          description: Observed activity duration in this day across Trips, Stops and GPS Gaps.
         first_fix_at:
           oneOf:
             - type: string
@@ -316,7 +472,13 @@ components:
             - type: 'null'
         usable_point_count: { type: integer, minimum: 0 }
         excluded_point_count: { type: integer, minimum: 0 }
-        trip_duration_s: { type: integer, minimum: 0 }
+        trip_duration_s:
+          type: integer
+          minimum: 0
+          description: >-
+            Observed time inside Trips, including pauses below the Stop
+            criteria. This is not physical moving duration and must not be
+            labeled as such.
         stop_duration_s: { type: integer, minimum: 0 }
         gap_duration_s: { type: integer, minimum: 0 }
         trip_count: { type: integer, minimum: 0 }
