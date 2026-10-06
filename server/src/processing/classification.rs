@@ -177,6 +177,12 @@ mod tests {
             mode_enter_confidence: 0.70,
             mode_exit_confidence: 0.55,
             mode_unknown_grace_s: 90,
+            match_min_confidence: 0.70,
+            match_max_attempts: 2,
+            match_retry_delay_ms: 50,
+            match_total_budget_ms: 1000,
+            matcher_engine_id: "test".into(),
+            matcher_dataset_id: "test".into(),
             policy: Policy {
                 max_hdop: 5.0,
                 max_implied_speed_mps: 70.0,

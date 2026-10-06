@@ -10,6 +10,7 @@ mod gaps;
 mod geo;
 mod holes;
 mod manifest;
+mod matcher;
 mod model;
 mod movement;
 mod quality;

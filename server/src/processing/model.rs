@@ -14,6 +14,7 @@ pub(super) const TARGET_COLUMNS: &str = "c.input_generation,c.work_generation,c.
 c.stop_radius_m,c.stop_min_duration_s,c.observation_gap_s,\
 c.max_hdop,c.max_implied_speed_mps,c.jump_distance_floor_m,\
 c.mode_window_s,c.mode_change_min_duration_s,c.mode_enter_confidence,c.mode_exit_confidence,c.mode_unknown_grace_s,\
+c.match_min_confidence,c.match_max_attempts,c.match_retry_delay_ms,c.match_total_budget_ms,c.matcher_engine_id,c.matcher_dataset_id,\
 u.timezone,u.timezone_generation";
 /// The identity of one Device's processing configuration.
 ///
@@ -38,6 +39,12 @@ pub(super) struct Target {
     pub mode_enter_confidence: f64,
     pub mode_exit_confidence: f64,
     pub mode_unknown_grace_s: i64,
+    pub match_min_confidence: f64,
+    pub match_max_attempts: i64,
+    pub match_retry_delay_ms: i64,
+    pub match_total_budget_ms: i64,
+    pub matcher_engine_id: String,
+    pub matcher_dataset_id: String,
     #[sqlx(flatten)]
     pub policy: quality::Policy,
 }
