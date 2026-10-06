@@ -13,6 +13,7 @@ pub(super) struct Claim {
 pub(super) const TARGET_COLUMNS: &str = "c.input_generation,c.work_generation,c.target_generation,c.target_id,c.fencing_token,\
 c.stop_radius_m,c.stop_min_duration_s,c.observation_gap_s,\
 c.max_hdop,c.max_implied_speed_mps,c.jump_distance_floor_m,\
+c.mode_window_s,c.mode_change_min_duration_s,c.mode_enter_confidence,c.mode_exit_confidence,c.mode_unknown_grace_s,\
 u.timezone,u.timezone_generation";
 /// The identity of one Device's processing configuration.
 ///
@@ -31,6 +32,11 @@ pub(super) struct Target {
     pub stop_radius_m: f64,
     pub stop_min_duration_s: i64,
     pub observation_gap_s: i64,
+    pub mode_window_s: i64,
+    pub mode_change_min_duration_s: i64,
+    pub mode_enter_confidence: f64,
+    pub mode_exit_confidence: f64,
+    pub mode_unknown_grace_s: i64,
     #[sqlx(flatten)]
     pub policy: quality::Policy,
 }

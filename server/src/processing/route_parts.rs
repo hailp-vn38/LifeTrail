@@ -28,6 +28,8 @@ pub(super) struct RoutePart {
     pub trip_id: String,
     pub movement_segment_id: String,
     pub source: &'static str,
+    pub mode: &'static str,
+    pub classification_confidence: f64,
     pub observed_from_at: DateTime<Utc>,
     pub observed_until_at: DateTime<Utc>,
     pub distance_m: f64,
@@ -51,6 +53,8 @@ pub(super) fn build(
     movement_segment_id: String,
     points: &[Observation],
     run: &MovementRun,
+    mode: &'static str,
+    classification_confidence: f64,
 ) -> RoutePart {
     let members = &points[run.start..run.end];
     let coordinates: Vec<[f64; 2]> = members.iter().map(|point| [point.lon, point.lat]).collect();
@@ -70,6 +74,8 @@ pub(super) fn build(
         trip_id,
         movement_segment_id,
         source: "raw",
+        mode,
+        classification_confidence,
         observed_from_at,
         observed_until_at,
         distance_m: progress,

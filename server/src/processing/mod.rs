@@ -2,6 +2,7 @@
 mod activation;
 mod capture;
 mod claim;
+mod classification;
 mod clip;
 mod derived;
 mod events;

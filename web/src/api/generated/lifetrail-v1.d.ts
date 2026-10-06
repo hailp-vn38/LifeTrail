@@ -369,12 +369,13 @@ export interface components {
             /** @description Ordered Movement Segments. A mode change separates segments without ending the Trip. */
             movement_segments: components["schemas"]["MovementSegment"][];
         };
-        /** @description A portion of a Trip with a relatively homogeneous transport mode. This slice publishes raw-derived UNKNOWN segments only; `unknown` never means a guessed profile. */
+        /** @description A portion of a Trip with a relatively homogeneous transport mode. Classification never follows matching success. */
         MovementSegment: {
             /** @description Revision-local Movement Segment identity. */
             id: string;
             /** @enum {string} */
-            mode: "unknown";
+            mode: "unknown" | "walk" | "bike" | "car";
+            classification_confidence: number;
             /** @enum {string} */
             source: "raw";
             /** Format: date-time */
@@ -398,6 +399,9 @@ export interface components {
             movement_segment_id: string;
             /** @enum {string} */
             source: "raw";
+            /** @enum {string} */
+            mode: "unknown" | "walk" | "bike" | "car";
+            classification_confidence: number;
             /**
              * Format: date-time
              * @description Observed coverage of the whole Movement Segment portion, independent of the day.
