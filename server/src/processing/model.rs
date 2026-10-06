@@ -10,7 +10,7 @@ pub(super) struct Claim {
 }
 /// Processing target columns, shared by capture and activation so the identity
 /// checked at activation is always the identity that was captured.
-pub(super) const TARGET_COLUMNS: &str = "c.input_generation,c.work_generation,c.target_generation,c.target_id,c.fencing_token,\
+pub(super) const TARGET_COLUMNS: &str = "c.input_generation,c.work_generation,c.target_generation,c.target_id,c.fencing_token,c.active_manifest_id,\
 c.stop_radius_m,c.stop_min_duration_s,c.observation_gap_s,\
 c.max_hdop,c.max_implied_speed_mps,c.jump_distance_floor_m,\
 c.mode_window_s,c.mode_change_min_duration_s,c.mode_enter_confidence,c.mode_exit_confidence,c.mode_unknown_grace_s,\
@@ -30,6 +30,7 @@ pub(super) struct Target {
     pub timezone: String,
     pub timezone_generation: i64,
     pub fencing_token: i64,
+    pub active_manifest_id: Option<Uuid>,
     pub stop_radius_m: f64,
     pub stop_min_duration_s: i64,
     pub observation_gap_s: i64,

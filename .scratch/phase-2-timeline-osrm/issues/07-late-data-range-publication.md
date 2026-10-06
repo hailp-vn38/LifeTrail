@@ -1,6 +1,6 @@
 # 07: Refresh late data with atomic semantic-range publication
 
-Status: ready-for-agent
+Status: resolved
 Type: task
 Labels: ready-for-agent
 Blocked by: 06
@@ -22,3 +22,9 @@ Blocked by: 06
 - [ ] A new publication triggers one complete Daily View fetch and atomic UI replacement, clears selection and pauses/resets playback; unchanged publication does not redownload geometry.
 - [ ] Provide an operator reprocessing/backfill command using the same revision/publication flow, without Raw mutation or synchronous OSRM on reads. IDs may change across revisions without reconciliation.
 - [ ] Acceptance covers overlapping range splices, late cross-midnight activity, concurrent reads, failure/rejection and revision-local identities; retained old snapshots/manifests/revisions/candidates remain readable with no automatic GC.
+
+## Answer
+
+Implemented durable dirty-range tracking and immutable semantic-range publication. Each accepted Batch coalesces its UTC dirty bounds while preserving the last published Daily Snapshot. Activity Revisions declare superseded coverage; an explicit active-manifest pointer is activated atomically with all Daily Snapshot pointers and is composed through ordered, non-overlapping half-open slices rather than revision recency. The operator `process-day` flow continues to use the same fenced worker/publication path.
+
+The Web now polls the lightweight status endpoint every five seconds only for visible queued/running work, refreshes status on focus/visibility restoration, and refetches the complete Daily View only when the published revision changes; the existing revision-keyed map remount clears selection and resets playback atomically.
