@@ -168,6 +168,7 @@ mod tests {
             timezone: "UTC".into(),
             timezone_generation: 0,
             fencing_token: 0,
+            active_manifest_id: None,
             stop_radius_m: 30.0,
             stop_min_duration_s: 180,
             observation_gap_s: 300,
