@@ -8,7 +8,7 @@ import type { TimelineEvent } from "./types";
 function describeSegments(segments: MovementSegment[]): string {
   const modes: string[] = [];
   for (const segment of segments) {
-    const mode = segment.mode === "unknown" ? "chưa xác định" : segment.mode;
+    const mode = ({ unknown: "chưa xác định", walk: "đi bộ", bike: "xe đạp", car: "ô tô" } as const)[segment.mode];
     if (modes[modes.length - 1] !== mode) modes.push(mode);
   }
   return `Phương tiện: ${modes.join(" → ")}`;

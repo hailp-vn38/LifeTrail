@@ -12,7 +12,7 @@ use uuid::Uuid;
 /// Version of the activity reducer that produced a revision and its Daily
 /// Snapshots. Bumped whenever derivation semantics change, and recorded with
 /// every Activity Revision and snapshot as provenance.
-pub(super) const REDUCER_VERSION: i64 = 2;
+pub(super) const REDUCER_VERSION: i64 = 3;
 
 pub(super) struct Derived {
     pub stops: Vec<Stop>,
