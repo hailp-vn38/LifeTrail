@@ -61,6 +61,42 @@ pub(super) async fn stage(
             .bind(snapshot::body(input,day,manifest,&derived).to_string()).execute(pool).await?;
         candidates.push((day.date, id));
     }
+    // Candidate and evidence artifacts are retained; record their size at the
+    // time this attempt created them so capacity planning never needs to infer
+    // it from whichever manifest happens to be active later.
+    let revision_bytes: Option<i64> = sqlx::query_scalar(
+        "SELECT octet_length(body::text) + octet_length(config::text) FROM activity_revisions WHERE id=$1",
+    )
+    .bind(revision)
+    .fetch_optional(pool)
+    .await?;
+    let snapshot_bytes: i64 = sqlx::query_scalar(
+        "SELECT COALESCE(sum(octet_length(body::text)),0)::bigint FROM daily_snapshots WHERE manifest_id=$1",
+    )
+    .bind(manifest)
+    .fetch_one(pool)
+    .await?;
+    let manifest_count: i64 =
+        sqlx::query_scalar("SELECT count(*) FROM activity_manifests WHERE device_id=$1")
+            .bind(input.claim.device_id)
+            .fetch_one(pool)
+            .await?;
+    let matcher_evidence_bytes: i64 = derived
+        .parts
+        .iter()
+        .filter_map(|part| part.matcher_evidence.as_ref())
+        .map(|evidence| {
+            serde_json::to_string(evidence)
+                .expect("matcher evidence serializes")
+                .len() as i64
+        })
+        .sum();
+    sqlx::query("INSERT INTO processing_storage_measurements(id,device_id,fencing_token,activity_revision_bytes,manifest_count,snapshot_bytes,candidate_bytes,matcher_evidence_bytes) VALUES($1,$2,$3,$4,$5,$6,$7,$8)")
+        .bind(Uuid::now_v7()).bind(input.claim.device_id).bind(input.claim.token)
+        .bind(revision_bytes).bind(manifest_count).bind(snapshot_bytes)
+        .bind(revision_bytes.unwrap_or(0) + snapshot_bytes)
+        .bind(matcher_evidence_bytes)
+        .execute(pool).await?;
     Ok(candidates)
 }
 

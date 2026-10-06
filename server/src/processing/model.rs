@@ -7,6 +7,7 @@ use uuid::Uuid;
 pub(super) struct Claim {
     pub device_id: Uuid,
     pub token: i64,
+    pub attempt: i64,
 }
 /// Processing target columns, shared by capture and activation so the identity
 /// checked at activation is always the identity that was captured.
