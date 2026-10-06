@@ -1,0 +1,60 @@
+{
+  "id": "phase2-master-hcmc-2026-10-05",
+  "timezone": "Asia/Ho_Chi_Minh",
+  "seed": 20261006,
+  "waypoints": {
+    "home": {
+      "lon": 106.6895,
+      "lat": 10.7821
+    },
+    "parking": {
+      "lon": 106.6912,
+      "lat": 10.7831
+    },
+    "cafe": {
+      "lon": 106.7001,
+      "lat": 10.7758
+    },
+    "office": {
+      "lon": 106.72155,
+      "lat": 10.79485
+    },
+    "restaurant": {
+      "lon": 106.7069,
+      "lat": 10.7833
+    },
+    "supermarket": {
+      "lon": 106.6953,
+      "lat": 10.79
+    },
+    "night_walk": {
+      "lon": 106.6927,
+      "lat": 10.786
+    }
+  },
+  "fixture_contract": {
+    "raw_schema": "gps/1",
+    "all_ndjson_final_lf": true,
+    "strictly_increasing_ts_within_batch": true,
+    "timestamp_overlap_across_batches_allowed": true,
+    "raw_records_are_immutable": true
+  },
+  "stages": [
+    {
+      "name": "stage-01-base",
+      "purpose": "Initial publication with true GPS gap, evidence hole, impossible jump and midnight missing interval."
+    },
+    {
+      "name": "stage-02-late-midnight-gap-fill",
+      "purpose": "Late data fills midnight gap and forces cross-day activity revision + atomic publication."
+    },
+    {
+      "name": "stage-03-overlap-better-quality",
+      "purpose": "New Batch overlaps existing timestamps with better quality to test same-second reducer and generation."
+    },
+    {
+      "name": "stage-04-replay-and-conflict",
+      "purpose": "Verify replay/conflict do not increment input_generation."
+    }
+  ]
+}

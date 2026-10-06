@@ -1,10 +1,5 @@
 #!/usr/bin/env bash
-# Manage the local LifeTrail Compose applications.
-#
-# Topology:
-#   web       Nginx + built Vue SPA, owns host port 8080, proxies /api/* to server
-#   server    Rust/Axum API, internal Compose network only (server:8080)
-#   postgres  PostgreSQL/PostGIS, internal only
+# Manage LifeTrail services and one-shot tools.
 set -euo pipefail
 
 readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
@@ -12,115 +7,53 @@ readonly REPOSITORY_DIR="$(cd -- "$SCRIPT_DIR/.." && pwd)"
 readonly COMPOSE_FILE="$REPOSITORY_DIR/deploy/docker-compose.yml"
 readonly WEB_ENV_FILE="$REPOSITORY_DIR/web/.env.local"
 
-usage() {
-  cat <<'EOF'
-Usage: scripts/lifetrail <command> [app]
-
-Commands:
-  start [all|web|server|postgres]    Build if needed and start an app.
-  stop [all|web|server|postgres]     Stop an app without removing its data.
-  restart [all|web|server|postgres]  Restart an app.
-  status                              Show Compose application status.
-  logs [all|web|server|postgres]     Follow application logs.
-  build [all|web|server]              Build images (default: web and server).
-  test                                Check the public web entrypoint and the
-                                      API path through Nginx at :8080.
-
-Examples:
-  scripts/lifetrail start all
-  scripts/lifetrail logs web
-  VITE_MAPTILER_KEY=... scripts/lifetrail build web
-EOF
-}
-
-compose() {
-  local -a env_file_args=()
-
-  if [[ -f "$WEB_ENV_FILE" ]]; then
-    env_file_args=(--env-file "$WEB_ENV_FILE")
-  fi
-
-  docker compose "${env_file_args[@]}" -f "$COMPOSE_FILE" "$@"
-}
-
-app_service() {
-  case "${1:-all}" in
-    all) printf '%s\n' "" ;;
-    web|server|postgres) printf '%s\n' "$1" ;;
-    *)
-      printf 'Unknown app: %s\n' "$1" >&2
-      usage >&2
-      exit 2
-      ;;
-  esac
-}
+source "$SCRIPT_DIR/lib/lifetrail/compose.sh"
+source "$SCRIPT_DIR/lib/lifetrail/targets.sh"
+source "$SCRIPT_DIR/lib/lifetrail/usage.sh"
 
 command="${1:-}"
-app="${2:-all}"
-
 case "$command" in
-  start)
-    service="$(app_service "$app")"
-    if [[ -n "$service" ]]; then
-      compose up -d --build "$service"
-    else
-      compose up -d --build
-    fi
-    ;;
-  stop)
-    service="$(app_service "$app")"
-    if [[ -n "$service" ]]; then
-      compose stop "$service"
-    else
-      compose stop
-    fi
-    ;;
-  restart)
-    service="$(app_service "$app")"
-    if [[ -n "$service" ]]; then
-      compose restart "$service"
-    else
-      compose restart
-    fi
-    ;;
-  status)
-    [[ $# -eq 1 ]] || { usage >&2; exit 2; }
-    compose ps
-    ;;
-  logs)
-    service="$(app_service "$app")"
-    if [[ -n "$service" ]]; then
-      compose logs --follow "$service"
-    else
-      compose logs --follow
-    fi
+  start|stop|restart|status|logs)
+    [[ $# -le 2 ]] || { usage >&2; exit 2; }
+    select_apps "${2:-all}" || { usage >&2; exit 2; }
+    case "$command" in
+      start) compose "${COMPOSE_PROFILE_ARGS[@]}" up -d --build "${SERVICES[@]}" ;;
+      stop|restart) compose "${COMPOSE_PROFILE_ARGS[@]}" "$command" "${SERVICES[@]}" ;;
+      status) compose "${COMPOSE_PROFILE_ARGS[@]}" ps --all "${SERVICES[@]}" ;;
+      logs) compose "${COMPOSE_PROFILE_ARGS[@]}" logs --follow "${SERVICES[@]}" ;;
+    esac
     ;;
   build)
-    case "$app" in
+    [[ $# -le 2 ]] || { usage >&2; exit 2; }
+    case "${2:-all}" in
       all) compose build web server ;;
-      web) compose build web ;;
-      server) compose build server ;;
-      *)
-        printf 'Unknown build target: %s\n' "$app" >&2
-        usage >&2
-        exit 2
-        ;;
+      web|server) compose build "$2" ;;
+      *) printf 'Unknown build target: %s\n' "$2" >&2; usage >&2; exit 2 ;;
     esac
     ;;
   test)
-    [[ $# -eq 1 ]] || { usage >&2; exit 2; }
-    curl --fail --silent --show-error --max-time 10 \
-      --output /dev/null --write-out 'LifeTrail web: HTTP %{http_code}\n' \
-      http://localhost:8080/
-    curl --fail --silent --show-error --max-time 10 \
-      --output /dev/null --write-out 'LifeTrail api (through Nginx): HTTP %{http_code}\n' \
-      http://localhost:8080/api/v1/devices
+    [[ $# -le 2 ]] || { usage >&2; exit 2; }
+    case "${2:-all}" in
+      server-tests)
+        compose --profile test run --rm --build server-tests \
+          cargo test -- --include-ignored --test-threads=1
+        ;;
+      all)
+        curl --fail --silent --show-error --max-time 10 \
+          --output /dev/null --write-out 'LifeTrail web: HTTP %{http_code}\n' \
+          http://localhost:8080/
+        curl --fail --silent --show-error --max-time 10 \
+          --output /dev/null --write-out 'LifeTrail api (through Nginx): HTTP %{http_code}\n' \
+          http://localhost:8080/api/v1/devices
+        ;;
+      *) printf 'Unknown test target: %s\n' "$2" >&2; usage >&2; exit 2 ;;
+    esac
     ;;
-  -h|--help|help)
-    usage
+  simulate)
+    shift
+    if [[ "${1:-}" == -- ]]; then shift; fi
+    compose --profile osrm-tools run --rm simulator "$@"
     ;;
-  *)
-    usage >&2
-    exit 2
-    ;;
+  -h|--help|help) usage ;;
+  *) usage >&2; exit 2 ;;
 esac

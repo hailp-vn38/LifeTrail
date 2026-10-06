@@ -1,0 +1,49 @@
+{
+  "case": "same_second_reduction",
+  "observations": [
+    {
+      "id": "a",
+      "ts_ms": 1791166200100,
+      "usable": true,
+      "quality_rank": 1,
+      "hdop": 1.2,
+      "satellites": 8
+    },
+    {
+      "id": "b",
+      "ts_ms": 1791166200500,
+      "usable": true,
+      "quality_rank": 2,
+      "hdop": 0.8,
+      "satellites": 11
+    },
+    {
+      "id": "c",
+      "ts_ms": 1791166200900,
+      "usable": true,
+      "quality_rank": 2,
+      "hdop": 0.8,
+      "satellites": 13
+    },
+    {
+      "id": "d",
+      "ts_ms": 1791166200950,
+      "usable": false,
+      "quality_rank": 3,
+      "hdop": 0.5,
+      "satellites": 14
+    }
+  ],
+  "expect": {
+    "selected_id": "c",
+    "ranking": [
+      "usable",
+      "quality_rank",
+      "hdop_low",
+      "satellites_high",
+      "ts_ms_early",
+      "record_id"
+    ],
+    "timestamp_rewrite_allowed": false
+  }
+}

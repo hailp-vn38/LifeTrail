@@ -1,0 +1,27 @@
+{
+  "case": "cross_midnight_distance_conservation",
+  "timezone": "Asia/Ho_Chi_Minh",
+  "part": {
+    "observed_from": "2026-10-05T16:58:00Z",
+    "observed_until": "2026-10-05T17:03:00Z",
+    "distance_m": 1500.0,
+    "anchors": [
+      {
+        "ts": "2026-10-05T16:58:00Z",
+        "distance_m": 1200.0
+      },
+      {
+        "ts": "2026-10-05T17:03:00Z",
+        "distance_m": 1500.0
+      }
+    ]
+  },
+  "midnight_utc": "2026-10-05T17:00:00Z",
+  "expected_midnight_progress_m": 1320.0,
+  "expected": {
+    "day_2026_10_05_m": 120.0,
+    "day_2026_10_06_m": 180.0,
+    "sum_m": 300.0,
+    "connector_distance_m": 0.0
+  }
+}

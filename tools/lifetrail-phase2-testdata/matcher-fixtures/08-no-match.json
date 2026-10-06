@@ -1,0 +1,11 @@
+{
+  "case": "osrm_no_match",
+  "osrm_normalized": {
+    "status": "no_match"
+  },
+  "expect": {
+    "retry": false,
+    "publish_source": "raw_fallback",
+    "must_not_create_gap": true
+  }
+}

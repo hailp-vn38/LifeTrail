@@ -1,0 +1,7 @@
+{
+  "use_batch_id": "bc63d63a-d640-43c7-88a7-6a7fcfe94e5a",
+  "use_original_headers": true,
+  "expected_http": 200,
+  "expected_duplicate": true,
+  "expected_input_generation_delta": 0
+}

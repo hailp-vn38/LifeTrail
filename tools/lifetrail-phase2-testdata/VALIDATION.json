@@ -1,0 +1,11 @@
+{
+  "ok": true,
+  "errors": [],
+  "master_counts": {
+    "stage1": 20820,
+    "stage2": 120,
+    "stage3": 61
+  },
+  "scale_record_count": 30000,
+  "seed": 20261006
+}

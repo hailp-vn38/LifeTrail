@@ -1,0 +1,22 @@
+{
+  "case": "transient_osrm_timeout",
+  "attempts": [
+    {
+      "result": "timeout"
+    },
+    {
+      "result": "timeout"
+    },
+    {
+      "result": "timeout"
+    }
+  ],
+  "config": {
+    "max_attempts": 3,
+    "total_budget_ms": 5000
+  },
+  "expect": {
+    "publish_source": "raw_fallback",
+    "automatic_upgrade_after_publish": false
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "stage": "stage-02-late-midnight-gap-fill",
+  "batch_count": 2,
+  "record_count": 120,
+  "expected_input_generation_delta": 2,
+  "batches": [
+    {
+      "file": "batches/001_6dad4aba-2d56-4108-ac97-1f7c81bf37b0.ndjson",
+      "manifest": "manifests/001_6dad4aba-2d56-4108-ac97-1f7c81bf37b0.manifest.json",
+      "batch_id": "6dad4aba-2d56-4108-ac97-1f7c81bf37b0",
+      "schema": "gps/1",
+      "byte_length": 8962,
+      "sha256": "d88a874f275cd3609afb268de4521361682572ca336a4a3e94d020aa27093aa3",
+      "record_count": 60,
+      "first_ts_ms": 1791219300000,
+      "last_ts_ms": 1791219595000
+    },
+    {
+      "file": "batches/002_ace5897f-7714-4039-9d5e-1ea05e22e32e.ndjson",
+      "manifest": "manifests/002_ace5897f-7714-4039-9d5e-1ea05e22e32e.manifest.json",
+      "batch_id": "ace5897f-7714-4039-9d5e-1ea05e22e32e",
+      "schema": "gps/1",
+      "byte_length": 8962,
+      "sha256": "5d3e55a3752989c019b04353f896222f9f0b22fea5294dfc7fbcdc6827e89340",
+      "record_count": 60,
+      "first_ts_ms": 1791219600000,
+      "last_ts_ms": 1791219895000
+    }
+  ]
+}

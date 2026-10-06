@@ -1,0 +1,22 @@
+{
+  "sequence": [
+    {
+      "processing_state": "running",
+      "published_revision": 7,
+      "action": "poll_again"
+    },
+    {
+      "processing_state": "running",
+      "published_revision": 7,
+      "action": "poll_again"
+    },
+    {
+      "processing_state": "idle",
+      "published_revision": 8,
+      "action": "refetch_full_daily_view_once"
+    }
+  ],
+  "poll_interval_seconds": 5,
+  "hidden_tab_behavior": "stop",
+  "focus_behavior": "immediate_status_refetch"
+}

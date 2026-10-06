@@ -1,0 +1,107 @@
+{
+  "case": "good_match",
+  "input": [
+    {
+      "source_id": "gps-0",
+      "ts_ms": 1791160200000,
+      "lon": 106.7,
+      "lat": 10.776
+    },
+    {
+      "source_id": "gps-1",
+      "ts_ms": 1791160260000,
+      "lon": 106.70100000000001,
+      "lat": 10.7767
+    },
+    {
+      "source_id": "gps-2",
+      "ts_ms": 1791160320000,
+      "lon": 106.702,
+      "lat": 10.7774
+    },
+    {
+      "source_id": "gps-3",
+      "ts_ms": 1791160380000,
+      "lon": 106.703,
+      "lat": 10.7781
+    },
+    {
+      "source_id": "gps-4",
+      "ts_ms": 1791160440000,
+      "lon": 106.70400000000001,
+      "lat": 10.7788
+    },
+    {
+      "source_id": "gps-5",
+      "ts_ms": 1791160500000,
+      "lon": 106.705,
+      "lat": 10.7795
+    }
+  ],
+  "osrm_normalized": {
+    "status": "matched",
+    "confidence": 0.94,
+    "geometry": [
+      [
+        106.7,
+        10.776
+      ],
+      [
+        106.70100000000001,
+        10.7767
+      ],
+      [
+        106.702,
+        10.7774
+      ],
+      [
+        106.703,
+        10.7781
+      ],
+      [
+        106.70400000000001,
+        10.7788
+      ],
+      [
+        106.705,
+        10.7795
+      ]
+    ],
+    "anchors": [
+      {
+        "source_id": "gps-0",
+        "ts_ms": 1791160200000,
+        "distance_m": 0.0
+      },
+      {
+        "source_id": "gps-1",
+        "ts_ms": 1791160260000,
+        "distance_m": 145.0
+      },
+      {
+        "source_id": "gps-2",
+        "ts_ms": 1791160320000,
+        "distance_m": 290.0
+      },
+      {
+        "source_id": "gps-3",
+        "ts_ms": 1791160380000,
+        "distance_m": 435.0
+      },
+      {
+        "source_id": "gps-4",
+        "ts_ms": 1791160440000,
+        "distance_m": 580.0
+      },
+      {
+        "source_id": "gps-5",
+        "ts_ms": 1791160500000,
+        "distance_m": 725.0
+      }
+    ]
+  },
+  "expect": {
+    "publish_source": "osrm_match",
+    "anchor_validation": "pass"
+  }
+}

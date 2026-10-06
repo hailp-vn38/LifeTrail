@@ -1,0 +1,77 @@
+{
+  "case": "matched_geometry_but_invalid_anchors",
+  "input": [
+    {
+      "source_id": "gps-0",
+      "ts_ms": 1791160200000,
+      "lon": 106.7,
+      "lat": 10.776
+    },
+    {
+      "source_id": "gps-1",
+      "ts_ms": 1791160260000,
+      "lon": 106.70100000000001,
+      "lat": 10.7767
+    },
+    {
+      "source_id": "gps-2",
+      "ts_ms": 1791160320000,
+      "lon": 106.702,
+      "lat": 10.7774
+    },
+    {
+      "source_id": "gps-3",
+      "ts_ms": 1791160380000,
+      "lon": 106.703,
+      "lat": 10.7781
+    }
+  ],
+  "osrm_normalized": {
+    "status": "matched",
+    "confidence": 0.97,
+    "geometry": [
+      [
+        106.7,
+        10.776
+      ],
+      [
+        106.70100000000001,
+        10.7767
+      ],
+      [
+        106.702,
+        10.7774
+      ],
+      [
+        106.703,
+        10.7781
+      ]
+    ],
+    "anchors": [
+      {
+        "source_id": "gps-0",
+        "ts_ms": 1791160200000,
+        "distance_m": 0
+      },
+      {
+        "source_id": "gps-1",
+        "ts_ms": 1791160260000,
+        "distance_m": 180
+      },
+      {
+        "source_id": "gps-2",
+        "ts_ms": 1791160320000,
+        "distance_m": 120
+      },
+      {
+        "source_id": "gps-3",
+        "ts_ms": 1791160380000,
+        "distance_m": 410
+      }
+    ]
+  },
+  "expect": {
+    "matched_geometry_rejected": true,
+    "fallback_scope": "movement_segment_if_no_safe_partition"
+  }
+}

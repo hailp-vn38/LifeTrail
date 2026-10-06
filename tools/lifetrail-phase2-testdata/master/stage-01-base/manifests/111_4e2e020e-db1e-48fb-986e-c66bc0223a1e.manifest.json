@@ -1,0 +1,9 @@
+{
+  "batch_id": "4e2e020e-db1e-48fb-986e-c66bc0223a1e",
+  "schema": "gps/1",
+  "byte_length": 8963,
+  "sha256": "5384fa886bdaee5a10ef138cbb71fadf8320d19a880f5493ccf13a6ac889747a",
+  "record_count": 60,
+  "first_ts_ms": 1791189600000,
+  "last_ts_ms": 1791189895000
+}

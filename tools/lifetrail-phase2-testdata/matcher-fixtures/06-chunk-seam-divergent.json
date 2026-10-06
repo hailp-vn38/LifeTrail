@@ -1,0 +1,84 @@
+{
+  "case": "chunk_overlap_divergent",
+  "chunk_a": {
+    "coverage": [
+      "s1",
+      "s80"
+    ],
+    "shared": [
+      {
+        "source_id": "s76",
+        "ts_ms": 76000,
+        "lon": 106.70076,
+        "lat": 10.78
+      },
+      {
+        "source_id": "s77",
+        "ts_ms": 77000,
+        "lon": 106.70077,
+        "lat": 10.78
+      },
+      {
+        "source_id": "s78",
+        "ts_ms": 78000,
+        "lon": 106.70078000000001,
+        "lat": 10.78
+      },
+      {
+        "source_id": "s79",
+        "ts_ms": 79000,
+        "lon": 106.70079,
+        "lat": 10.78
+      },
+      {
+        "source_id": "s80",
+        "ts_ms": 80000,
+        "lon": 106.7008,
+        "lat": 10.78
+      }
+    ]
+  },
+  "chunk_b": {
+    "coverage": [
+      "s76",
+      "s155"
+    ],
+    "shared": [
+      {
+        "source_id": "s76",
+        "ts_ms": 76000,
+        "lon": 106.70176,
+        "lat": 10.781
+      },
+      {
+        "source_id": "s77",
+        "ts_ms": 77000,
+        "lon": 106.70177,
+        "lat": 10.781
+      },
+      {
+        "source_id": "s78",
+        "ts_ms": 78000,
+        "lon": 106.70178,
+        "lat": 10.781
+      },
+      {
+        "source_id": "s79",
+        "ts_ms": 79000,
+        "lon": 106.70178999999999,
+        "lat": 10.781
+      },
+      {
+        "source_id": "s80",
+        "ts_ms": 80000,
+        "lon": 106.70179999999999,
+        "lat": 10.781
+      }
+    ]
+  },
+  "expect": {
+    "safe_seam_exists": false,
+    "connector_allowed": false,
+    "fallback_required": true
+  }
+}

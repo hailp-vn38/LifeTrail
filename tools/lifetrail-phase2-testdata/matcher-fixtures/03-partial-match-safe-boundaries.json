@@ -1,0 +1,109 @@
+{
+  "case": "partial_match_safe_boundaries",
+  "input": [
+    {
+      "source_id": "gps-0",
+      "ts_ms": 1791160200000,
+      "lon": 106.7,
+      "lat": 10.776
+    },
+    {
+      "source_id": "gps-1",
+      "ts_ms": 1791160260000,
+      "lon": 106.70100000000001,
+      "lat": 10.7767
+    },
+    {
+      "source_id": "gps-2",
+      "ts_ms": 1791160320000,
+      "lon": 106.702,
+      "lat": 10.7774
+    },
+    {
+      "source_id": "gps-3",
+      "ts_ms": 1791160380000,
+      "lon": 106.703,
+      "lat": 10.7781
+    },
+    {
+      "source_id": "gps-4",
+      "ts_ms": 1791160440000,
+      "lon": 106.70400000000001,
+      "lat": 10.7788
+    },
+    {
+      "source_id": "gps-5",
+      "ts_ms": 1791160500000,
+      "lon": 106.705,
+      "lat": 10.7795
+    }
+  ],
+  "osrm_normalized": {
+    "status": "partial",
+    "confidence": 0.82,
+    "unmatched_source_ids": [
+      "gps-2",
+      "gps-3"
+    ],
+    "matched_parts": [
+      {
+        "coverage": [
+          "gps-0",
+          "gps-1"
+        ],
+        "geometry": [
+          [
+            106.7,
+            10.776
+          ],
+          [
+            106.70100000000001,
+            10.7767
+          ]
+        ]
+      },
+      {
+        "coverage": [
+          "gps-4",
+          "gps-5"
+        ],
+        "geometry": [
+          [
+            106.70400000000001,
+            10.7788
+          ],
+          [
+            106.705,
+            10.7795
+          ]
+        ]
+      }
+    ],
+    "anchors": [
+      {
+        "source_id": "gps-0",
+        "ts_ms": 1791160200000,
+        "distance_m": 0.0
+      },
+      {
+        "source_id": "gps-1",
+        "ts_ms": 1791160260000,
+        "distance_m": 130.0
+      },
+      {
+        "source_id": "gps-4",
+        "ts_ms": 1791160440000,
+        "distance_m": 515.0
+      },
+      {
+        "source_id": "gps-5",
+        "ts_ms": 1791160500000,
+        "distance_m": 650.0
+      }
+    ]
+  },
+  "expect": {
+    "hybrid_allowed_only_if_raw_fallback_boundary_safe": true,
+    "must_not_create_gap": true
+  }
+}

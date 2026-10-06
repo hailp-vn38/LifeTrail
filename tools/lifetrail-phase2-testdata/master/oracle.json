@@ -1,0 +1,81 @@
+{
+  "timezone": "Asia/Ho_Chi_Minh",
+  "seed": 20261006,
+  "notes": [
+    "Times below are Owner-local Asia/Ho_Chi_Minh.",
+    "Activity IDs are labels for the test oracle only; production IDs are revision-scoped.",
+    "Stage 1 omits the midnight interval 23:55-00:05. Stage 2 fills it as late data."
+  ],
+  "stage_01_expected": {
+    "open_left": {
+      "type": "stop",
+      "observed_from": "2026-10-05 06:30:00",
+      "confirmed_end": "2026-10-05 06:40:00"
+    },
+    "multimodal_trip": {
+      "from": "2026-10-05 06:40:00",
+      "until": "2026-10-05 07:10:00",
+      "segments": [
+        {
+          "mode": "walk",
+          "from": "06:40:00",
+          "until": "06:48:00"
+        },
+        {
+          "mode": "car",
+          "from": "06:48:00",
+          "until": "07:10:00"
+        }
+      ]
+    },
+    "evidence_hole": {
+      "from": "2026-10-05 12:05:00",
+      "until": "2026-10-05 12:10:00",
+      "reason": "insufficient_quality",
+      "must_not_be_gap": true
+    },
+    "raw_gap": {
+      "from": "2026-10-05 17:45:00",
+      "until": "2026-10-05 17:55:00",
+      "must_be_gap": true,
+      "distance_connector_must_be_zero": true
+    },
+    "impossible_jump": {
+      "at": "2026-10-05 18:45:00",
+      "must_remain_raw": true,
+      "must_be_excluded_from_published_geometry": true
+    },
+    "midnight_gap": {
+      "from": "2026-10-05 23:55:00",
+      "until": "2026-10-06 00:05:00",
+      "must_be_gap": true
+    },
+    "open_right": {
+      "type": "stop",
+      "observed_until": "2026-10-06 00:44:55",
+      "confirmed_end": null
+    }
+  },
+  "stage_02_expected_changes": {
+    "midnight_gap_removed": true,
+    "cross_midnight_stop": {
+      "from": "2026-10-05 19:00:00",
+      "until": "2026-10-06 00:20:00",
+      "same_event_across_daily_projections": true,
+      "day_2026_10_05_visible_seconds": 18000,
+      "day_2026_10_06_visible_seconds": 1200
+    },
+    "requires_multiday_atomic_publication": [
+      "2026-10-05",
+      "2026-10-06"
+    ]
+  },
+  "stage_03_expected_changes": {
+    "activities_should_not_change": true,
+    "same_second_reduction_range": [
+      "2026-10-05 07:30:00",
+      "2026-10-05 07:31:00"
+    ],
+    "preferred_records": "stage-03 records because fix_quality=2, hdop=0.55, satellites=14"
+  }
+}

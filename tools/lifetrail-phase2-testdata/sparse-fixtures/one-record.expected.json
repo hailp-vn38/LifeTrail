@@ -1,0 +1,12 @@
+{
+  "processing_state": "ready",
+  "evidence_state": "insufficient",
+  "point_count": 1,
+  "route_parts": [],
+  "timeline": [],
+  "must_not_infer": [
+    "trip",
+    "stop",
+    "gap"
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "case": "unknown_transport_mode",
+  "classification": {
+    "mode": "unknown",
+    "confidence": 0.41
+  },
+  "expect": {
+    "osrm_match_called": false,
+    "publish_source": "raw_fallback"
+  }
+}

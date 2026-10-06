@@ -1,0 +1,11 @@
+{
+  "old_published_revision": 7,
+  "new_published_revision": 8,
+  "old_selected_event_id": "trip:R7:T3",
+  "expect": {
+    "clear_selection": true,
+    "pause_playback": true,
+    "reset_playback": true,
+    "stable_event_id_required": false
+  }
+}

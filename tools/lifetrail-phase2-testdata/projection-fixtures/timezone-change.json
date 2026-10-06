@@ -1,0 +1,12 @@
+{
+  "activity_revision": "AR-12",
+  "activities_utc_unchanged": true,
+  "old_timezone": "Asia/Ho_Chi_Minh",
+  "new_timezone": "Asia/Tokyo",
+  "expect": {
+    "rerun_activity_processing": false,
+    "rerun_osrm": false,
+    "rebuild_daily_projections": true,
+    "serve_old_timezone_projection_under_new_date": false
+  }
+}

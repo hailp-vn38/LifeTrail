@@ -1,0 +1,9 @@
+{
+  "use_batch_id": "bc63d63a-d640-43c7-88a7-6a7fcfe94e5a",
+  "sha256": "df50a8adb5d0cbc8df9705bff90acc72281d94580f84e4f88115d631110ef0ca",
+  "byte_length": 8966,
+  "record_count": 60,
+  "expected_http": 409,
+  "expected_code": "batch_conflict",
+  "expected_input_generation_delta": 0
+}

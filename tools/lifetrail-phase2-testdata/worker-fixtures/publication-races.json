@@ -1,0 +1,60 @@
+{
+  "cases": [
+    {
+      "id": "generation-changed-before-publish",
+      "claim": {
+        "input_generation": 100,
+        "target": "T7",
+        "fencing_token": 41
+      },
+      "before_publish": {
+        "input_generation": 101,
+        "target": "T7",
+        "active_fencing_token": 41
+      },
+      "expect": "reject_candidate_and_requeue"
+    },
+    {
+      "id": "target-changed-before-publish",
+      "claim": {
+        "input_generation": 100,
+        "target": "T7",
+        "fencing_token": 42
+      },
+      "before_publish": {
+        "input_generation": 100,
+        "target": "T8",
+        "active_fencing_token": 42
+      },
+      "expect": "reject_candidate_and_requeue"
+    },
+    {
+      "id": "expired-worker-fenced",
+      "claim": {
+        "input_generation": 100,
+        "target": "T7",
+        "fencing_token": 43
+      },
+      "before_publish": {
+        "input_generation": 100,
+        "target": "T7",
+        "active_fencing_token": 44
+      },
+      "expect": "reject_candidate"
+    },
+    {
+      "id": "all-current",
+      "claim": {
+        "input_generation": 100,
+        "target": "T7",
+        "fencing_token": 45
+      },
+      "before_publish": {
+        "input_generation": 100,
+        "target": "T7",
+        "active_fencing_token": 45
+      },
+      "expect": "atomic_multiday_publish"
+    }
+  ]
+}

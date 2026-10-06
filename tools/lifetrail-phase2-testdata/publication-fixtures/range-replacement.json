@@ -1,0 +1,37 @@
+{
+  "old_activity_revisions": [
+    {
+      "id": "AR-10",
+      "range": [
+        "2026-10-05T00:00:00Z",
+        "2026-10-05T15:30:00Z"
+      ]
+    },
+    {
+      "id": "AR-11",
+      "range": [
+        "2026-10-05T15:30:00Z",
+        "2026-10-06T02:00:00Z"
+      ]
+    },
+    {
+      "id": "AR-12",
+      "range": [
+        "2026-10-06T02:00:00Z",
+        "2026-10-07T00:00:00Z"
+      ]
+    }
+  ],
+  "new_revision": {
+    "id": "AR-13",
+    "replacement_range": [
+      "2026-10-05T16:30:00Z",
+      "2026-10-05T18:00:00Z"
+    ]
+  },
+  "expect": {
+    "reuse_unchanged_history": true,
+    "full_device_history_copy": false,
+    "new_revision_immutable": true
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "record_count": 30000,
+  "batch_count": 100,
+  "sample_rate_hz": 1,
+  "purpose": "Phase 2 acceptance/performance benchmark. Semantics are intentionally simple; use master scenario for domain correctness.",
+  "expected_input_generation_delta": 100
+}
