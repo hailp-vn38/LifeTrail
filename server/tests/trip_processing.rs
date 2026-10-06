@@ -460,6 +460,123 @@ async fn daily_distance_conserves_part_length_across_days_without_connectors() {
     assert_eq!(second["evidence_state"], json!("partial"));
 }
 
+/// Sub-second spacing between two accepted records at different positions is one
+/// continuous movement chain, while a real absence above `observation_gap_s`
+/// still ends it. `gps_points` has no uniqueness on `(device_id, recorded_at)`,
+/// so two records may share a second.
+#[tokio::test]
+#[ignore = "requires PostgreSQL/PostGIS"]
+async fn sub_second_spacing_stays_one_trip_while_a_real_absence_splits() {
+    let pool = db::connect(&std::env::var("LT_TEST_DATABASE_URL").unwrap())
+        .await
+        .unwrap();
+    db::migrate(&pool).await.unwrap();
+    sqlx::query("TRUNCATE users CASCADE")
+        .execute(&pool)
+        .await
+        .unwrap();
+    let owner = db::create_owner(&pool, "Owner", "UTC").await.unwrap();
+    let token = generate_device_token();
+    let device = db::create_device(&pool, owner.id, "Device", &token)
+        .await
+        .unwrap();
+    let router = app::router(AppState { db: pool.clone() }, None);
+
+    // One continuous run whose third and second records share the second 08:08,
+    // then a 400 second absence, then movement that resumes.
+    let base = at(8, 7);
+    let leg = |ts_ms: i64, offset: f64| record(ts_ms, 10.7700 + offset, 106.7000);
+    let records = vec![
+        leg(base, 0.0),
+        leg(base + 60_000, STEP),
+        leg(base + 60_400, 2.0 * STEP),
+        leg(base + 120_000, 3.0 * STEP),
+        leg(base + 180_000, 4.0 * STEP),
+        leg(base + 600_000, 5.0 * STEP),
+        leg(base + 660_000, 6.0 * STEP),
+    ];
+    assert_eq!(
+        upload(&router, &token, Uuid::new_v4(), &ndjson(&records))
+            .await
+            .0,
+        StatusCode::OK
+    );
+    let raw: Vec<String> =
+        sqlx::query_scalar("SELECT row_to_json(g)::text FROM gps_points g ORDER BY id")
+            .fetch_all(&pool)
+            .await
+            .unwrap();
+    assert!(processing::process_next(&pool).await.unwrap());
+
+    let path = format!("/api/v1/devices/{}/days/2026-10-05", device.id);
+    let view = read(&router, &path).await;
+    let after: Vec<String> =
+        sqlx::query_scalar("SELECT row_to_json(g)::text FROM gps_points g ORDER BY id")
+            .fetch_all(&pool)
+            .await
+            .unwrap();
+    assert_eq!(raw, after, "Raw GPS is immutable");
+    assert_eq!(raw.len(), 7, "every uploaded record is stored");
+
+    // The absence still splits the day into exactly two Trips.
+    let kinds: Vec<&str> = view["timeline"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|item| item["kind"].as_str().unwrap())
+        .collect();
+    assert_eq!(
+        kinds,
+        ["trip", "trip"],
+        "a real absence ends the first Trip"
+    );
+
+    let parts = view["route_parts"].as_array().unwrap();
+    assert_eq!(parts.len(), 2, "one Route Part per Trip");
+    let first = &view["timeline"][0];
+    let second = &view["timeline"][1];
+    assert_eq!(first["observed_from_at"], "2026-10-05T08:07:00Z");
+    assert_eq!(first["observed_until_at"], "2026-10-05T08:10:00Z");
+    assert_eq!(first["movement_segment_count"], 1);
+    assert_eq!(second["observed_from_at"], "2026-10-05T08:17:00Z");
+    assert_eq!(second["observed_until_at"], "2026-10-05T08:18:00Z");
+
+    // The whole run, including both same-second records, is one drawable Part.
+    assert_route_part(&parts[0], "sub-second part", TOLERANCE_M);
+    assert_eq!(parts[0]["trip_id"], first["id"]);
+    assert_eq!(parts[0]["source_record_count"], 5);
+    assert_eq!(
+        parts[0]["geometry"]["coordinates"]
+            .as_array()
+            .unwrap()
+            .len(),
+        5,
+        "both same-second observations keep their coordinate"
+    );
+    let leg_m = STEP * METER_PER_DEGREE;
+    assert!((parts[0]["distance_m"].as_f64().unwrap() - 4.0 * leg_m).abs() < TOLERANCE_M);
+    assert!((parts[1]["distance_m"].as_f64().unwrap() - leg_m).abs() < TOLERANCE_M);
+    // Five connected legs in total; the absence carries none.
+    let legs = 5.0 * leg_m;
+    // No distance is silently dropped at the sub-second boundary.
+    let summed: f64 = parts
+        .iter()
+        .map(|part| part["distance_m"].as_f64().unwrap())
+        .sum();
+    assert!(
+        (summed - legs).abs() < TOLERANCE_M,
+        "published parts carry every leg of the day"
+    );
+    assert!((view["summary"]["distance_m"].as_f64().unwrap() - summed).abs() < 1e-9);
+    let reasons: Vec<&str> = view["unresolved_intervals"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|interval| interval["reason"].as_str().unwrap())
+        .collect();
+    assert_eq!(reasons, ["missing_observations"], "{reasons:?}");
+}
+
 /// Daily clipping must rebase visible progress to zero and place an anchor at a
 /// calendar boundary without extending the source Part's observed coverage.
 #[tokio::test]

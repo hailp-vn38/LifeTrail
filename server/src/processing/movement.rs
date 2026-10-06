@@ -56,8 +56,14 @@ fn close(runs: &mut Vec<MovementRun>, start: &mut Option<usize>, end: usize) {
 
 fn continuous(points: &[Observation], index: usize, target: &Target) -> bool {
     let previous = points[index - 1].recorded_at;
-    let elapsed = (points[index].recorded_at - previous).num_seconds();
-    elapsed > 0 && elapsed <= target.observation_gap_s
+    // Compare at millisecond precision, matching `evidence` and `stops`. GPS Records
+    // carry millisecond timestamps and `gps_points` has no uniqueness on
+    // `(device_id, recorded_at)`, so two accepted records may share a second. A
+    // sub-second spacing is an immediate re-observation, not an absence: truncating to
+    // whole seconds would end the run and split one continuous chain into two Trips.
+    // Only a gap longer than the threshold ends a run.
+    let elapsed_ms = (points[index].recorded_at - previous).num_milliseconds();
+    elapsed_ms <= target.observation_gap_s * 1_000
 }
 
 fn covered(stops: &[Stop], index: usize) -> bool {

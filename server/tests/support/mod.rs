@@ -110,13 +110,19 @@ pub fn assert_route_part(part: &Value, context: &str, tolerance: f64) {
     );
     let anchors = part["progress_anchors"].as_array().expect("anchors");
     assert!(anchors.len() >= 2, "{context}: start and end anchors");
-    let mut previous: Option<String> = None;
+    // Anchor times compare as instants: records may share a second, so an optional
+    // fractional part makes lexical order differ from chronological order.
+    let instant = |anchor: &Value| {
+        chrono::DateTime::parse_from_rfc3339(anchor["at"].as_str().expect("anchor time"))
+            .expect("anchor time is RFC 3339")
+    };
+    let mut previous: Option<chrono::DateTime<chrono::FixedOffset>> = None;
     let mut previous_distance = 0.0;
     for anchor in anchors {
         let at = anchor["at"].as_str().expect("anchor time").to_owned();
         if let Some(previous) = &previous {
             assert!(
-                at > *previous,
+                instant(anchor) > *previous,
                 "{context}: anchor times increase strictly ({at} after {previous})"
             );
         }
@@ -129,7 +135,7 @@ pub fn assert_route_part(part: &Value, context: &str, tolerance: f64) {
             anchor_distance <= distance + tolerance,
             "{context}: anchor progress is bounded by the part distance"
         );
-        previous = Some(at);
+        previous = Some(instant(anchor));
         previous_distance = anchor_distance;
     }
     assert_eq!(
