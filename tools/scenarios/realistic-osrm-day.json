@@ -1,0 +1,28 @@
+{
+  "id": "monaco-realistic-day-v1",
+  "timezone": "Europe/Monaco",
+  "seed": "monaco-realistic-day-v1",
+  "started_at": "2026-10-05T07:40:00+02:00",
+  "interval_s": 5,
+  "places": {
+    "home": [7.4205, 43.7302],
+    "coffee": [7.4230, 43.7311],
+    "office": [7.4262, 43.7336],
+    "restaurant": [7.4242, 43.7345],
+    "supermarket": [7.4211, 43.7320]
+  },
+  "activities": [
+    {"kind": "move", "from": "home", "to": "coffee", "mode": "foot", "duration_s": 720},
+    {"kind": "stop", "at": "coffee", "duration_s": 1800, "label": "Coffee"},
+    {"kind": "move", "from": "coffee", "to": "office", "mode": "car", "duration_s": 900},
+    {"kind": "stop", "at": "office", "duration_s": 14400, "label": "Office"},
+    {"kind": "move", "from": "office", "to": "restaurant", "mode": "foot", "duration_s": 600},
+    {"kind": "stop", "at": "restaurant", "duration_s": 2700, "label": "Restaurant"},
+    {"kind": "move", "from": "restaurant", "to": "office", "mode": "foot", "duration_s": 540},
+    {"kind": "stop", "at": "office", "duration_s": 180, "label": "Short pause"},
+    {"kind": "move", "from": "office", "to": "supermarket", "mode": "bike", "duration_s": 780,
+      "degradations": [{"kind": "poor_quality", "from_s": 180, "until_s": 300}, {"kind": "impossible_jump", "at_s": 480, "north_m": 1200}, {"kind": "gnss_loss", "from_s": 600, "until_s": 660}]},
+    {"kind": "stop", "at": "supermarket", "duration_s": 1200, "label": "Supermarket"},
+    {"kind": "move", "from": "supermarket", "to": "home", "mode": "car", "duration_s": 720}
+  ]
+}
