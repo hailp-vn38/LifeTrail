@@ -1,6 +1,6 @@
 use super::{
     model::{Claim, Day, Input, Observation, TARGET_COLUMNS, Target},
-    quality::{self, Policy},
+    quality::{self, QualityClass},
 };
 use chrono::NaiveDate;
 use sqlx::PgPool;
@@ -23,7 +23,7 @@ pub(super) async fn capture(pool: &PgPool, claim: Claim) -> Result<Input, sqlx::
         .bind(claim.device_id).bind(&target.timezone).fetch_all(&mut *tx).await?;
     let mut observations: Vec<Observation>=sqlx::query_as("SELECT id,recorded_at,lat,lon,fix_quality,hdop,satellites,speed_mps FROM gps_points WHERE device_id=$1 ORDER BY recorded_at,id")
         .bind(claim.device_id).fetch_all(&mut *tx).await?;
-    quality::classify(&mut observations, &Policy::from_target(&target));
+    quality::classify(&mut observations, &target.policy);
     let mut days = Vec::new();
     for date in dates {
         let (from, until) = sqlx::query_as(
@@ -37,8 +37,13 @@ pub(super) async fn capture(pool: &PgPool, claim: Claim) -> Result<Input, sqlx::
             .iter()
             .filter(|p| p.recorded_at >= from && p.recorded_at < until)
             .collect();
+        // Each class is counted from the classifier's own variants. Deriving the
+        // poorer classes by subtraction would publish a low-quality record as an
+        // impossible one and collapse the three-way distinction.
+        let count = |class: QualityClass| {
+            points.iter().filter(|p| p.classification == class).count() as i64
+        };
         let point_count = points.len() as i64;
-        let usable_count = points.iter().filter(|p| p.usable()).count() as i64;
         let first = points.first().map(|p| p.recorded_at);
         let last = points.last().map(|p| p.recorded_at);
         days.push(Day {
@@ -46,7 +51,9 @@ pub(super) async fn capture(pool: &PgPool, claim: Claim) -> Result<Input, sqlx::
             from,
             until,
             point_count,
-            usable_count,
+            usable_count: count(QualityClass::Usable),
+            low_quality_count: count(QualityClass::LowQuality),
+            excluded_count: count(QualityClass::Excluded),
             first,
             last,
         });

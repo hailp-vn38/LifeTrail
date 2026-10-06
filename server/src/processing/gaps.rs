@@ -41,10 +41,15 @@ pub(super) fn detect(points: &[Observation], target: &Target, revision: Uuid) ->
         .collect()
 }
 
+/// The one predicate that defines a GPS Gap: an interval without Raw
+/// observations between two known observed boundaries.
+///
 /// Compare at millisecond precision, like `movement`. GPS Records carry
 /// millisecond timestamps and two accepted records may share a second, so a
 /// sub-second spacing is an immediate re-observation rather than an absence.
-fn absent(pair: &[Observation], target: &Target) -> bool {
+/// `holes` asks this same predicate so a Gap and an Evidence Hole can never be
+/// derived from two disagreeing notions of absence.
+pub(super) fn absent(pair: &[Observation], target: &Target) -> bool {
     (pair[1].recorded_at - pair[0].recorded_at).num_milliseconds()
         > target.observation_gap_s * 1_000
 }

@@ -1,7 +1,7 @@
 //! Compose every derived activity for one captured observation range.
 use super::{
-    evidence::{self, EvidenceHole},
     gaps::{self, GpsGap},
+    holes::{self, EvidenceHole},
     model::{Observation, Target},
     route_parts::RoutePart,
     stops::{self, Stop},
@@ -28,7 +28,7 @@ pub(super) fn derive(points: &[Observation], target: &Target, revision: Uuid) ->
     // Gaps come from the Raw series before quality filtering, holes only from
     // observations that exist, so the two never describe the same interval.
     let gaps = gaps::detect(points, target, revision);
-    let evidence_holes = evidence::holes(points, &stops, &activity.trips, target);
+    let evidence_holes = holes::holes(points, &stops, &activity.trips, target);
     Derived {
         stops,
         trips: activity.trips,

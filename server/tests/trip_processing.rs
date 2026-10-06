@@ -7,7 +7,7 @@ use lifetrail_server::{
     db, processing,
 };
 use serde_json::{Value, json};
-use support::{assert_route_part, ndjson, read, record, upload};
+use support::{assert_route_part, at, ndjson, read, record, upload};
 use uuid::Uuid;
 
 /// Meters per degree of latitude on the sphere used by the server's geodesic
@@ -16,12 +16,6 @@ const METER_PER_DEGREE: f64 = 111_194.926_644_558_74;
 /// 0.0005 degrees of latitude: 55.6 m, beyond the default 30 m Stop radius.
 const STEP: f64 = 0.0005;
 const TOLERANCE_M: f64 = 0.5;
-
-fn at(hour: u32, minute: u32) -> i64 {
-    chrono::DateTime::parse_from_rfc3339(&format!("2026-10-05T{hour:02}:{minute:02}:00Z"))
-        .unwrap()
-        .timestamp_millis()
-}
 
 fn offsets(base: i64, minutes: &[(u32, f64)]) -> Vec<Value> {
     minutes

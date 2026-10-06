@@ -3,7 +3,7 @@ use super::{
     clip,
     derived::{Derived, REDUCER_VERSION},
     events,
-    evidence::EvidenceHole,
+    holes::EvidenceHole,
     model::{Day, Input},
 };
 use serde_json::{Value, json};
@@ -45,8 +45,12 @@ pub(super) fn body(input: &Input, day: &Day, manifest: Uuid, derived: &Derived) 
         "route":null,"start":null,"end":null,"route_parts":route_parts,
         "timeline":timeline,"evidence_holes":evidence_holes,
         "summary":{
+            // All three classification classes are published separately, so the
+            // Owner can tell an impossible record from a merely poor one. The
+            // counts always partition `point_count`.
             "point_count":day.point_count,"usable_point_count":day.usable_count,
-            "excluded_point_count":day.point_count-day.usable_count,
+            "low_quality_point_count":day.low_quality_count,
+            "excluded_point_count":day.excluded_count,
             "distance_m":distance_m,
             "duration_s":trip_duration+stop_duration+gap_duration,
             "trip_duration_s":trip_duration,"stop_duration_s":stop_duration,"gap_duration_s":gap_duration,

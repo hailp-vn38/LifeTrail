@@ -472,10 +472,10 @@ export interface components {
             /** Format: date-time */
             observed_until_at: string;
             /**
-             * @description Why the existing observations cannot support activity. `insufficient_quality` is unreliable acquisition metadata, `insufficient_geometry` includes an impossible jump, `ambiguous_activity` is reliable evidence of no particular activity, and `unsupported_classification` is activity this slice cannot classify. A matcher failure alone is not a hole.
+             * @description Why the existing observations cannot support activity. `insufficient_quality` is unreliable acquisition metadata, `insufficient_geometry` includes an impossible jump, and `ambiguous_activity` is reliable evidence of no particular activity. A matcher failure alone is not a hole.
              * @enum {string}
              */
-            reason: "insufficient_quality" | "insufficient_geometry" | "ambiguous_activity" | "unsupported_classification";
+            reason: "insufficient_quality" | "insufficient_geometry" | "ambiguous_activity";
             /** @description Raw GPS Records inside this interval. */
             source_record_count: number;
         };
@@ -491,7 +491,11 @@ export interface components {
             duration_s: number;
             first_fix_at: string | null;
             last_fix_at: string | null;
+            /** @description Raw GPS Records classified reliable enough to support a Stop, Trip or Route Part. */
             usable_point_count?: number;
+            /** @description Raw GPS Records that exist but whose acquisition metadata cannot support reliable activity. Disclosed coverage, not an impossible position. */
+            low_quality_point_count?: number;
+            /** @description Raw GPS Records withheld from derived geometry as impossible. Still present in Raw GPS. The three class counts always sum to point_count. */
             excluded_point_count?: number;
             /** @description Observed time inside Trips, including pauses below the Stop criteria. This is not physical moving duration and must not be labeled as such. */
             trip_duration_s?: number;

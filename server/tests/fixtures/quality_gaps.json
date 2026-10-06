@@ -20,6 +20,7 @@
     "trip_legs": 4,
     "evidence_state": "sufficient",
     "usable_point_count": 6,
+    "low_quality_point_count": 0,
     "excluded_point_count": 0
   },
   {
@@ -48,7 +49,8 @@
     "trip_legs": 4,
     "evidence_state": "partial",
     "usable_point_count": 6,
-    "excluded_point_count": 5
+    "low_quality_point_count": 5,
+    "excluded_point_count": 0
   },
   {
     "name": "one impossible jump",
@@ -72,6 +74,7 @@
     "trip_legs": 4,
     "evidence_state": "partial",
     "usable_point_count": 6,
+    "low_quality_point_count": 0,
     "excluded_point_count": 1
   },
   {
@@ -100,7 +103,35 @@
     "trip_legs": 5,
     "evidence_state": "partial",
     "usable_point_count": 8,
-    "excluded_point_count": 2
+    "low_quality_point_count": 2,
+    "excluded_point_count": 0
+  },
+  {
+    "name": "a poor record beside an impossible one",
+    "comment": "The stronger claim wins: an interval whose left record is poor-quality and whose right record is impossible is disclosed as insufficient_geometry, never as merely poor quality.",
+    "records": [
+      {"ts_s": 0, "lat": 10.7700, "fix_quality": 1},
+      {"ts_s": 60, "lat": 10.7705, "fix_quality": 1},
+      {"ts_s": 120, "lat": 10.7706, "fix_quality": 0},
+      {"ts_s": 180, "lat": 10.7706, "fix_quality": 1, "speed_mps": 120.0},
+      {"ts_s": 240, "lat": 10.7710, "fix_quality": 1},
+      {"ts_s": 300, "lat": 10.7715, "fix_quality": 1}
+    ],
+    "kinds": ["trip", "trip"],
+    "gaps": [],
+    "holes": [
+      ["insufficient_quality", "2026-10-05T08:01:00Z", "2026-10-05T08:02:00Z", 2],
+      ["insufficient_geometry", "2026-10-05T08:02:00Z", "2026-10-05T08:04:00Z", 3]
+    ],
+    "trip_bounds": [
+      ["2026-10-05T08:00:00Z", "2026-10-05T08:01:00Z"],
+      ["2026-10-05T08:04:00Z", "2026-10-05T08:05:00Z"]
+    ],
+    "trip_legs": 2,
+    "evidence_state": "partial",
+    "usable_point_count": 4,
+    "low_quality_point_count": 1,
+    "excluded_point_count": 1
   },
   {
     "name": "entirely unusable day",
@@ -119,7 +150,8 @@
     "trip_legs": 0,
     "evidence_state": "insufficient",
     "usable_point_count": 0,
-    "excluded_point_count": 5
+    "low_quality_point_count": 5,
+    "excluded_point_count": 0
   },
   {
     "name": "reliable observations with ambiguous activity",
@@ -136,6 +168,7 @@
     "trip_legs": 0,
     "evidence_state": "insufficient",
     "usable_point_count": 3,
+    "low_quality_point_count": 0,
     "excluded_point_count": 0
   },
   {
@@ -155,7 +188,8 @@
     "trip_legs": 0,
     "evidence_state": "insufficient",
     "usable_point_count": 0,
-    "excluded_point_count": 5
+    "low_quality_point_count": 5,
+    "excluded_point_count": 0
   },
   {
     "name": "a fix without satellites",
@@ -173,7 +207,8 @@
     "trip_legs": 0,
     "evidence_state": "insufficient",
     "usable_point_count": 0,
-    "excluded_point_count": 4
+    "low_quality_point_count": 4,
+    "excluded_point_count": 0
   },
   {
     "name": "receiver reports an impossible speed",
@@ -191,6 +226,7 @@
     "trip_legs": 0,
     "evidence_state": "insufficient",
     "usable_point_count": 0,
+    "low_quality_point_count": 0,
     "excluded_point_count": 4
   }
 ]

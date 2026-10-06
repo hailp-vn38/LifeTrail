@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { qualityGapView } from "../../test/fixtures/quality-gaps";
-import { describeEvidenceHoles, describeGap } from "./evidence";
+import { describeEvidenceHoles, describeGap, describeWithheldCoverage } from "./evidence";
 
 const view = qualityGapView();
 const gap = view.timeline?.[0];
@@ -43,5 +43,24 @@ describe("describeEvidenceHoles", () => {
     expect(
       describeEvidenceHoles({ evidence_holes: [], timezone: view.timezone }),
     ).toEqual([]);
+  });
+});
+
+describe("describeWithheldCoverage", () => {
+  it("names the low-quality and impossible counts separately", () => {
+    const line = describeWithheldCoverage(view.summary)!;
+
+    expect(line).toContain("5 bản ghi GPS chất lượng thấp");
+    expect(line).toContain("7 bản ghi GPS có vị trí không hợp lý");
+  });
+
+  it("reports nothing when every Raw GPS Record was usable", () => {
+    expect(
+      describeWithheldCoverage({
+        low_quality_point_count: 0,
+        excluded_point_count: 0,
+      }),
+    ).toBeNull();
+    expect(describeWithheldCoverage({})).toBeNull();
   });
 });

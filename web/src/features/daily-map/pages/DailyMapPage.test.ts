@@ -233,6 +233,8 @@ it("distinguishes unreliable observations from absent GPS beside a published Sto
   const view = stationaryView();
   view.evidence_state = "partial";
   view.evidence_holes = [{ observed_from_at: "2026-10-05T16:40:00Z", observed_until_at: "2026-10-05T16:45:00Z", reason: "insufficient_quality", source_record_count: 3 }];
+  view.summary.low_quality_point_count = 2;
+  view.summary.excluded_point_count = 1;
   // A GPS Gap is absent observations: its own Timeline item, not hole coverage.
   view.timeline = [
     { ...view.timeline![0] },
@@ -263,6 +265,10 @@ it("distinguishes unreliable observations from absent GPS beside a published Sto
   const notice = wrapper.find(".evidence-notice");
   expect(notice.exists()).toBe(true);
   expect(notice.text()).not.toContain("Thiếu quan sát GPS");
+  // The two poorer quality classes are named separately, so a poor record is
+  // never presented as an impossible position.
+  expect(notice.text()).toContain("2 bản ghi GPS chất lượng thấp");
+  expect(notice.text()).toContain("1 bản ghi GPS có vị trí không hợp lý");
   expect(wrapper.findAll(".timeline-item--stop")).toHaveLength(1);
   wrapper.unmount();
 });

@@ -387,6 +387,9 @@ describe("RouteMap", () => {
 
 import { nextTick } from "vue";
 import { useMapStore } from "../stores/map.store";
+import { stopActivities } from "../features/activity/model";
+import { PART_SOURCE } from "../map/route-parts";
+import { STOP_SOURCE } from "../map/stops";
 import { stationaryView, openStop } from "../test/fixtures/stationary";
 import { tripView, openTrip, rawPart } from "../test/fixtures/trips";
 
@@ -465,6 +468,22 @@ function mountWithRecordCount(pointCount: number) {
   };
 }
 
+/**
+ * GeoJSON features actually written into every source.
+ *
+ * Source and layer counts stay constant whether a day holds two records or
+ * thirty thousand, so only the feature count inside each source can reveal a
+ * marker loop over GPS Records.
+ */
+function featureCounts(map: InstanceType<typeof MockMap>): Record<string, number> {
+  return Object.fromEntries(
+    [...map.sources.entries()].map(([id, source]) => {
+      const data = source.data as FeatureCollection | undefined;
+      return [id, data?.type === "FeatureCollection" ? data.features.length : 1];
+    }),
+  );
+}
+
 it("draws disconnected geometry across a Gap without a marker per GPS Record", () => {
   const view = tripView();
   // One Part either side of a GPS Gap, from two Trips of the same day.
@@ -504,15 +523,30 @@ it("draws disconnected geometry across a Gap without a marker per GPS Record", (
 });
 
 it("creates no map marker per GPS Record", () => {
-  // A dense day and a sparse day must register exactly the same sources and
-  // layers, so no marker count scales with the Raw GPS Record total.
+  // A dense day and a sparse day differ only in `summary.point_count`. Every
+  // source must therefore carry the same GeoJSON features, so the per-record
+  // marker loop this guards against would show up as a growing feature count
+  // rather than only as a new source or layer.
   const dense = mountWithRecordCount(30_000);
+  const denseFeatures = featureCounts(dense.map);
   dense.wrapper.unmount();
   const sparse = mountWithRecordCount(2);
+  const sparseFeatures = featureCounts(sparse.map);
   sparse.wrapper.unmount();
 
+  expect(sparseFeatures).toEqual(denseFeatures);
   expect(dense.sources).toBe(sparse.sources);
   expect(dense.layers).toBe(sparse.layers);
+
+  // The marker-bearing sources carry exactly the published activity: one line
+  // per Route Part, and a disk plus a centre marker per Stop. Thirty thousand Raw
+  // GPS Records would make a per-record loop publish thirty thousand features.
+  const view = tripView();
+  view.summary.point_count = 30_000;
+  expect(denseFeatures[PART_SOURCE]).toBe(view.route_parts!.length);
+  expect(denseFeatures[STOP_SOURCE]).toBe(2 * stopActivities(view).length);
+  expect(denseFeatures[PART_SOURCE]).toBeLessThan(view.summary.point_count!);
+  expect(denseFeatures[STOP_SOURCE]).toBeLessThan(view.summary.point_count!);
 });
 
 it("renders processed Route Parts without deriving length from their coordinates", () => {

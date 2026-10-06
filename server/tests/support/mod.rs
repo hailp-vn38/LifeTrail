@@ -1,3 +1,5 @@
+pub mod scenarios;
+
 use axum::{
     body::Body,
     http::{Request, StatusCode},
@@ -7,6 +9,17 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use tower::ServiceExt;
 use uuid::Uuid;
+
+/// Milliseconds since the Unix epoch for `2026-10-05T{hour}:{minute}:00Z`.
+///
+/// Every deterministic fixture scenario sits on this one Owner-local day, so
+/// tests read one clock rather than repeating the same RFC 3339 literal.
+#[allow(dead_code)]
+pub fn at(hour: u32, minute: u32) -> i64 {
+    chrono::DateTime::parse_from_rfc3339(&format!("2026-10-05T{hour:02}:{minute:02}:00Z"))
+        .unwrap()
+        .timestamp_millis()
+}
 
 pub async fn read(router: &axum::Router, path: &str) -> Value {
     let response = router

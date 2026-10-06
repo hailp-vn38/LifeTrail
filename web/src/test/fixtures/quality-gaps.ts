@@ -70,7 +70,8 @@ export function qualityGapView(): DailyView {
     summary: {
       point_count: 24,
       usable_point_count: 12,
-      excluded_point_count: 12,
+      low_quality_point_count: 5,
+      excluded_point_count: 7,
       distance_m: 0,
       duration_s: 660,
       first_fix_at: "2026-10-05T02:00:00Z",

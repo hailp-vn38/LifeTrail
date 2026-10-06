@@ -18,7 +18,7 @@ pub(super) fn runs(points: &[Observation], stops: &[Stop], target: &Target) -> V
     let mut runs = Vec::new();
     let mut start: Option<usize> = None;
     for (index, point) in points.iter().enumerate() {
-        if !point.usable() || covered(stops, index) {
+        if !point.classification.is_usable() || covered(stops, index) {
             close(&mut runs, &mut start, index);
             continue;
         }
@@ -56,7 +56,7 @@ fn close(runs: &mut Vec<MovementRun>, start: &mut Option<usize>, end: usize) {
 
 fn continuous(points: &[Observation], index: usize, target: &Target) -> bool {
     let previous = points[index - 1].recorded_at;
-    // Compare at millisecond precision, matching `evidence` and `stops`. GPS Records
+    // Compare at millisecond precision, matching `gaps` and `stops`. GPS Records
     // carry millisecond timestamps and `gps_points` has no uniqueness on
     // `(device_id, recorded_at)`, so two accepted records may share a second. A
     // sub-second spacing is an immediate re-observation, not an absence: truncating to
