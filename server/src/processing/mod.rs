@@ -32,6 +32,7 @@ pub async fn process_next(pool: &PgPool) -> Result<bool, sqlx::Error> {
     let Some(claim) = claim::claim(pool).await? else {
         return Ok(false);
     };
+    tracing::info!(device_id = %claim.device_id, attempt = claim.attempt, fencing_token = claim.token, "processing attempt claimed");
     let result = async {
         let input = capture::capture(pool, claim).await?;
         activation::activate(pool, input).await
