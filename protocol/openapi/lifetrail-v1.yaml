@@ -568,7 +568,7 @@ components:
       required: [state, data_freshness, published_revision, input_generation, timezone, timezone_generation, deferred_reason, failure_message]
       properties:
         state: { type: string, enum: [idle, queued, running, failed] }
-        data_freshness: { type: string, enum: [current, stale, unavailable] }
+        data_freshness: { type: string, enum: [current, stale, stale_source, unavailable] }
         published_revision: { type: [string, 'null'], format: uuid }
         input_generation: { type: integer, minimum: 0 }
         timezone: { type: string }

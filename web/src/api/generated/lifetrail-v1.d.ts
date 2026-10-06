@@ -513,7 +513,7 @@ export interface components {
             /** @enum {string} */
             state: "idle" | "queued" | "running" | "failed";
             /** @enum {string} */
-            data_freshness: "current" | "stale" | "unavailable";
+            data_freshness: "current" | "stale" | "stale_source" | "unavailable";
             /** Format: uuid */
             published_revision: string | null;
             input_generation: number;

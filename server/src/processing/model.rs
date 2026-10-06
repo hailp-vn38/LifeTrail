@@ -46,6 +46,8 @@ pub(super) struct Input {
     pub target: Target,
     pub days: Vec<Day>,
     pub observations: Vec<Observation>,
+    /// A timezone-only target change projects the immutable active manifest.
+    pub projection_only: bool,
 }
 /// One Owner-local day of captured Raw GPS, counted by classification.
 ///

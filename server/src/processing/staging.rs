@@ -3,16 +3,46 @@ use super::{
     derived::{self, REDUCER_VERSION},
     manifest::{self, Slice},
     model::Input,
-    snapshot,
+    reprojection, snapshot,
 };
 use serde_json::{Value, json};
 use sqlx::PgPool;
 use uuid::Uuid;
 
-pub(super) async fn stage(
-    pool: &PgPool,
-    input: &Input,
-) -> Result<Vec<(chrono::NaiveDate, Uuid)>, sqlx::Error> {
+pub(super) struct Staged {
+    pub candidates: Vec<(chrono::NaiveDate, Uuid)>,
+    pub manifest: Uuid,
+    pub projection_only: bool,
+}
+
+pub(super) async fn stage(pool: &PgPool, input: &Input) -> Result<Staged, sqlx::Error> {
+    if input.projection_only {
+        let manifest = input
+            .target
+            .active_manifest_id
+            .ok_or(sqlx::Error::RowNotFound)?;
+        let source_generation: i64 = sqlx::query_scalar(
+            "SELECT input_generation FROM activity_manifests WHERE id=$1 AND device_id=$2",
+        )
+        .bind(manifest)
+        .bind(input.claim.device_id)
+        .fetch_one(pool)
+        .await?;
+        let mut candidates = Vec::new();
+        for day in &input.days {
+            let id = Uuid::now_v7();
+            let body = reprojection::body(pool, input, day, manifest).await?;
+            sqlx::query("INSERT INTO daily_snapshots(id,device_id,manifest_id,local_date,timezone,timezone_generation,source_generation,target_generation,body) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb)")
+                .bind(id).bind(input.claim.device_id).bind(manifest).bind(day.date).bind(&input.target.timezone)
+                .bind(input.target.timezone_generation).bind(source_generation).bind(input.target.target_generation).bind(body.to_string()).execute(pool).await?;
+            candidates.push((day.date, id));
+        }
+        return Ok(Staged {
+            candidates,
+            manifest,
+            projection_only: true,
+        });
+    }
     let manifest = Uuid::now_v7();
     let revision = Uuid::now_v7();
     let derived = derived::derive(&input.observations, &input.target, revision);
@@ -61,7 +91,11 @@ pub(super) async fn stage(
             .bind(snapshot::body(input,day,manifest,&derived).to_string()).execute(pool).await?;
         candidates.push((day.date, id));
     }
-    Ok(candidates)
+    Ok(Staged {
+        candidates,
+        manifest,
+        projection_only: false,
+    })
 }
 
 #[derive(serde::Deserialize)]

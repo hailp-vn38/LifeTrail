@@ -45,9 +45,10 @@ export function useDailyView(
   deviceId: MaybeRefOrGetter<string>,
   date: MaybeRefOrGetter<string>,
   raw: MaybeRefOrGetter<boolean> = false,
+  projectionContext: MaybeRefOrGetter<string | undefined> = undefined,
 ) {
   return useQuery({
-    queryKey: computed(() => queryKeys.dailyView(toValue(deviceId), toValue(date), toValue(raw))),
+    queryKey: computed(() => queryKeys.dailyView(toValue(deviceId), toValue(date), toValue(raw), toValue(projectionContext))),
     queryFn: () => getDailyView(toValue(deviceId), toValue(date), toValue(raw)),
   });
 }

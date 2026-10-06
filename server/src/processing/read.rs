@@ -52,6 +52,10 @@ impl Publication {
             && self.day_state.as_deref() == Some("done")
         {
             "current"
+        } else if self.snapshot_target == Some(self.target_generation)
+            && self.snapshot_target_id.as_deref() == Some(self.target_id.as_str())
+        {
+            "stale_source"
         } else {
             "stale"
         };

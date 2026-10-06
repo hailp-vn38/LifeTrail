@@ -1,6 +1,6 @@
 # 09: Reproject published history after timezone changes
 
-Status: ready-for-agent
+Status: resolved
 Type: task
 Labels: ready-for-agent
 Blocked by: 07
@@ -20,3 +20,7 @@ Blocked by: 07
 - [ ] If M17 becomes M18 or T6 becomes T7 during projection work, reject candidate activation and queue the current combination; new activity publication later replaces affected projections atomically.
 - [ ] Web query identity includes projection/timezone context and prevents old responses from replacing the current view; selection/playback reset on a new publication.
 - [ ] Integration/Web tests exercise stale-source acceptance, both manifest/timezone races, current-timezone fallback, no OSRM calls, source provenance and retained prior history.
+
+## Answer
+
+Implemented timezone-generation projection jobs that reuse the active immutable Activity Manifest without re-running activity derivation. Projection-only activation fences on the captured manifest, timezone generation, input/target/work generations and worker token; it leaves activity publication and dirty input untouched. New snapshots carry pinned source generation provenance and publish `stale_source` while newer Raw input awaits activity processing. The web query identity now includes timezone generation and renders the distinct stale-source notice. Added the PostgreSQL integration seam covering published-history reprojection while later Raw input is pending.

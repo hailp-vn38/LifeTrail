@@ -19,11 +19,21 @@ pub(super) async fn capture(pool: &PgPool, claim: Claim) -> Result<Input, sqlx::
     let target: Target=sqlx::query_as(&format!("SELECT {TARGET_COLUMNS} \
         FROM device_processing_control c JOIN devices d ON d.id=c.device_id JOIN users u ON u.id=d.owner_user_id WHERE c.device_id=$1"))
         .bind(claim.device_id).fetch_one(&mut *tx).await?;
+    // A snapshot in this timezone/generation means an operator request is an
+    // activity refresh.  Its absence after a timezone change means projection
+    // work may reuse the active immutable manifest, including while Raw is
+    // dirty for a newer generation.
+    let projection_only = target.active_manifest_id.is_some()
+        && !sqlx::query_scalar::<_, bool>("SELECT EXISTS(SELECT 1 FROM daily_publications p JOIN daily_snapshots s ON s.id=p.snapshot_id WHERE p.device_id=$1 AND p.timezone=$2 AND s.timezone_generation=$3)")
+            .bind(claim.device_id).bind(&target.timezone).bind(target.timezone_generation)
+            .fetch_one(&mut *tx).await?;
     let dates: Vec<NaiveDate>=sqlx::query_scalar("SELECT local_date FROM processing_days WHERE device_id=$1 AND timezone=$2 UNION SELECT (recorded_at AT TIME ZONE $2)::date FROM gps_points WHERE device_id=$1 ORDER BY local_date")
         .bind(claim.device_id).bind(&target.timezone).fetch_all(&mut *tx).await?;
     let mut observations: Vec<Observation>=sqlx::query_as("SELECT id,recorded_at,lat,lon,fix_quality,hdop,satellites,speed_mps FROM gps_points WHERE device_id=$1 ORDER BY recorded_at,id")
         .bind(claim.device_id).fetch_all(&mut *tx).await?;
-    quality::classify(&mut observations, &target.policy);
+    if !projection_only {
+        quality::classify(&mut observations, &target.policy);
+    }
     let mut days = Vec::new();
     for date in dates {
         let (from, until) = sqlx::query_as(
@@ -51,9 +61,18 @@ pub(super) async fn capture(pool: &PgPool, claim: Claim) -> Result<Input, sqlx::
             from,
             until,
             point_count,
-            usable_count: count(QualityClass::Usable),
-            low_quality_count: count(QualityClass::LowQuality),
-            excluded_count: count(QualityClass::Excluded),
+            // Reprojection does not re-run quality classification. The raw
+            // count remains truthful; class-specific counts are intentionally
+            // unavailable rather than recalculated under a new projection.
+            usable_count: (!projection_only)
+                .then(|| count(QualityClass::Usable))
+                .unwrap_or(0),
+            low_quality_count: (!projection_only)
+                .then(|| count(QualityClass::LowQuality))
+                .unwrap_or(0),
+            excluded_count: (!projection_only)
+                .then(|| count(QualityClass::Excluded))
+                .unwrap_or(0),
             first,
             last,
         });
@@ -64,5 +83,6 @@ pub(super) async fn capture(pool: &PgPool, claim: Claim) -> Result<Input, sqlx::
         target,
         days,
         observations,
+        projection_only,
     })
 }

@@ -15,6 +15,7 @@ mod movement;
 mod quality;
 mod queue;
 mod read;
+mod reprojection;
 mod route_parts;
 mod snapshot;
 mod staging;
