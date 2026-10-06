@@ -8,6 +8,7 @@ mod events;
 mod gaps;
 mod geo;
 mod holes;
+mod manifest;
 mod model;
 mod movement;
 mod quality;

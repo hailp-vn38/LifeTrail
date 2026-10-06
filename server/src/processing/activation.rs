@@ -27,10 +27,24 @@ pub(super) async fn activate(pool: &PgPool, input: Input) -> Result<(), sqlx::Er
         tx.commit().await?;
         return Ok(());
     }
-    for (date, id) in candidates {
+    for (date, id) in &candidates {
         sqlx::query("INSERT INTO daily_publications(device_id,local_date,timezone,snapshot_id) VALUES($1,$2,$3,$4) ON CONFLICT(device_id,local_date,timezone) DO UPDATE SET snapshot_id=EXCLUDED.snapshot_id")
-            .bind(input.claim.device_id).bind(date).bind(&current.timezone).bind(id).execute(&mut *tx).await?;
+        .bind(input.claim.device_id).bind(date).bind(&current.timezone).bind(id).execute(&mut *tx).await?;
     }
+    // This is the sole mutable manifest authority.  It changes in the same
+    // short transaction as all affected Daily Snapshot pointers.
+    let manifest: uuid::Uuid =
+        sqlx::query_scalar("SELECT manifest_id FROM daily_snapshots WHERE id=$1")
+            .bind(
+                candidates
+                    .first()
+                    .map(|(_, id)| *id)
+                    .ok_or(sqlx::Error::RowNotFound)?,
+            )
+            .fetch_one(&mut *tx)
+            .await?;
+    sqlx::query("UPDATE device_processing_control SET active_manifest_id=$2,dirty_from_at=NULL,dirty_until_at=NULL WHERE device_id=$1")
+        .bind(input.claim.device_id).bind(manifest).execute(&mut *tx).await?;
     for day in &input.days {
         sqlx::query("INSERT INTO processing_days(device_id,local_date,timezone,state) VALUES($1,$2,$3,'done') ON CONFLICT(device_id,local_date,timezone) DO UPDATE SET state='done'")
             .bind(input.claim.device_id).bind(day.date).bind(&current.timezone).execute(&mut *tx).await?;
