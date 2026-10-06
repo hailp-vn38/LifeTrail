@@ -1,6 +1,6 @@
 # 11: Publish safe road matches for short Movement Segments
 
-Status: ready-for-agent
+Status: resolved
 Type: task
 Labels: ready-for-agent
 Blocked by: 02, 10
@@ -21,3 +21,9 @@ Blocked by: 02, 10
 - [ ] Retain actual matcher input/parameters, selection mapping, hash, engine/profile/dataset/config identities, normalized result/failure, confidence/status and per-attempt timing.
 - [ ] Historical reads use persisted geometry and succeed with OSRM offline; published fallback does not silently upgrade when OSRM recovers. Explicit reprocessing creates a new retained revision.
 - [ ] Use frozen fake-OSRM HTTP evidence for deterministic processing/outage tests and a live bounded Compose example for each eligible profile, visible on the processed Daily Map.
+
+## Answer
+
+Implemented the server-owned short-segment OSRM Match adapter. Confident WALK/BIKE/CAR segments select only foot/bike/car respectively; UNKNOWN and low-confidence segments retain raw fallback without an OSRM request. Matcher inputs retain original record IDs and timestamps, deterministically select one source record per epoch-second, derive bounded HDOP-based radiuses, and retain request hash, engine/dataset/config identity, normalized decision and attempt timings with the immutable Route Part evidence.
+
+Successful matches publish server-owned vertex distances and strictly increasing historical progress anchors; invalid geometry, non-monotonic anchors, NoMatch, low confidence, invalid input, and bounded dependency failures preserve raw Route Parts rather than creating GPS Gaps. The Activity Revision now captures matcher policy and provenance, so historical Daily View reads use persisted geometry and never invoke OSRM.
