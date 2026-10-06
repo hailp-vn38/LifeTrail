@@ -1,4 +1,4 @@
-use super::quality::QualityClass;
+use super::quality::{self, QualityClass};
 use chrono::{DateTime, NaiveDate, Utc};
 use serde::Serialize;
 use uuid::Uuid;
@@ -14,6 +14,11 @@ pub(super) const TARGET_COLUMNS: &str = "c.input_generation,c.work_generation,c.
 c.stop_radius_m,c.stop_min_duration_s,c.observation_gap_s,\
 c.max_hdop,c.max_implied_speed_mps,c.jump_distance_floor_m,\
 u.timezone,u.timezone_generation";
+/// The identity of one Device's processing configuration.
+///
+/// The target owns the quality policy: the same columns that select it also
+/// carry the configured thresholds, so no caller copies policy fields into a
+/// second configuration value that could drift from the captured one.
 #[derive(sqlx::FromRow)]
 pub(super) struct Target {
     pub input_generation: i64,
@@ -26,9 +31,8 @@ pub(super) struct Target {
     pub stop_radius_m: f64,
     pub stop_min_duration_s: i64,
     pub observation_gap_s: i64,
-    pub max_hdop: f64,
-    pub max_implied_speed_mps: f64,
-    pub jump_distance_floor_m: f64,
+    #[sqlx(flatten)]
+    pub policy: quality::Policy,
 }
 pub(super) struct Input {
     pub claim: Claim,
@@ -36,12 +40,18 @@ pub(super) struct Input {
     pub days: Vec<Day>,
     pub observations: Vec<Observation>,
 }
+/// One Owner-local day of captured Raw GPS, counted by classification.
+///
+/// Every GPS Record falls in exactly one class, so the three counts always
+/// partition `point_count`.
 pub(super) struct Day {
     pub date: NaiveDate,
     pub from: DateTime<Utc>,
     pub until: DateTime<Utc>,
     pub point_count: i64,
     pub usable_count: i64,
+    pub low_quality_count: i64,
+    pub excluded_count: i64,
     pub first: Option<DateTime<Utc>>,
     pub last: Option<DateTime<Utc>>,
 }
@@ -74,11 +84,4 @@ pub(super) struct Observation {
     pub speed_mps: Option<f64>,
     #[sqlx(skip)]
     pub classification: QualityClass,
-}
-
-impl Observation {
-    /// Only a reliable observation supports derived activity.
-    pub(super) fn usable(&self) -> bool {
-        self.classification.is_usable()
-    }
 }

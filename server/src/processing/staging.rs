@@ -52,9 +52,9 @@ fn config(input: &Input) -> Value {
         "algorithms":["anchored-spatial-dwell-v1","continuous-movement-raw-v1","raw-quality-classification-v1","observed-gap-detection-v1"],
         "radius_m":input.target.stop_radius_m,"minimum_duration_s":input.target.stop_min_duration_s,
         "observation_gap_s":input.target.observation_gap_s,
-        "max_hdop":input.target.max_hdop,
-        "max_implied_speed_mps":input.target.max_implied_speed_mps,
-        "jump_distance_floor_m":input.target.jump_distance_floor_m,
+        "max_hdop":input.target.policy.max_hdop,
+        "max_implied_speed_mps":input.target.policy.max_implied_speed_mps,
+        "jump_distance_floor_m":input.target.policy.jump_distance_floor_m,
         "reducer_version":REDUCER_VERSION
     })
 }

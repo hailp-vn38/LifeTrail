@@ -5,8 +5,9 @@
 //! a GPS Gap. A hole never asserts one Trip or an inferred Stop across it, and
 //! the activity beside it keeps open actual boundaries.
 use super::{
+    gaps,
     model::{Observation, Target},
-    quality::QualityClass,
+    quality,
     stops::Stop,
     trips::Trip,
 };
@@ -33,7 +34,7 @@ pub(super) fn holes(
         // An actual absence of Raw observations is a GPS Gap, published as its
         // own Timeline event. It is never evidence coverage: a hole always
         // contains records that exist but cannot support activity.
-        if absent(pair, target) {
+        if gaps::absent(pair, target) {
             continue;
         }
         // Unreliable records are disclosed even when derived activity covers
@@ -52,19 +53,12 @@ pub(super) fn holes(
     holes
 }
 
-/// The stronger claim wins: an impossible position cannot support geometry even
-/// when a neighbouring record is merely of poor quality.
+/// Why this pair of existing observations cannot support reliable activity.
+///
+/// `quality` owns the class-to-reason decision, including the stronger-claim
+/// rule, so coverage metadata never re-derives the classification vocabulary.
 fn unreliable(pair: &[Observation]) -> Option<&'static str> {
-    if pair
-        .iter()
-        .any(|point| point.classification == QualityClass::Excluded)
-    {
-        Some("insufficient_geometry")
-    } else if pair.iter().any(|point| !point.usable()) {
-        Some("insufficient_quality")
-    } else {
-        None
-    }
+    quality::hole_reason(pair.iter().map(|point| point.classification))
 }
 
 fn extend(holes: &mut Vec<EvidenceHole>, pair: &[Observation], reason: &'static str) {
@@ -90,13 +84,6 @@ fn extend(holes: &mut Vec<EvidenceHole>, pair: &[Observation], reason: &'static 
 /// transition between them is activity rather than a hole.
 fn resolved(from: &Observation, until: &Observation, stops: &[Stop], trips: &[Trip]) -> bool {
     within(from, stops, trips) && within(until, stops, trips)
-}
-
-/// Temporal absence between two Raw observations, using the same millisecond
-/// precision and threshold as GPS Gap detection.
-fn absent(pair: &[Observation], target: &Target) -> bool {
-    (pair[1].recorded_at - pair[0].recorded_at).num_milliseconds()
-        > target.observation_gap_s * 1_000
 }
 
 fn within(point: &Observation, stops: &[Stop], trips: &[Trip]) -> bool {

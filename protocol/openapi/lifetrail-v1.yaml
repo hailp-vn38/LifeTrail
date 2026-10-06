@@ -226,7 +226,7 @@ components:
             required: [processing, evidence_state, provenance, route_parts, timeline, evidence_holes]
             properties:
               summary:
-                required: [usable_point_count, excluded_point_count, trip_duration_s, stop_duration_s, gap_duration_s, trip_count, stop_count, gap_count]
+                required: [usable_point_count, low_quality_point_count, excluded_point_count, trip_duration_s, stop_duration_s, gap_duration_s, trip_count, stop_count, gap_count]
       properties:
         device_id: { type: string, format: uuid }
         date: { type: string, format: date }
@@ -488,14 +488,13 @@ components:
         observed_until_at: { type: string, format: date-time }
         reason:
           type: string
-          enum: [insufficient_quality, insufficient_geometry, ambiguous_activity, unsupported_classification]
+          enum: [insufficient_quality, insufficient_geometry, ambiguous_activity]
           description: >-
             Why the existing observations cannot support activity.
             `insufficient_quality` is unreliable acquisition metadata,
-            `insufficient_geometry` includes an impossible jump,
-            `ambiguous_activity` is reliable evidence of no particular activity,
-            and `unsupported_classification` is activity this slice cannot
-            classify. A matcher failure alone is not a hole.
+            `insufficient_geometry` includes an impossible jump, and
+            `ambiguous_activity` is reliable evidence of no particular activity.
+            A matcher failure alone is not a hole.
         source_record_count:
           type: integer
           minimum: 0
@@ -528,8 +527,26 @@ components:
             - type: string
               format: date-time
             - type: 'null'
-        usable_point_count: { type: integer, minimum: 0 }
-        excluded_point_count: { type: integer, minimum: 0 }
+        usable_point_count:
+          type: integer
+          minimum: 0
+          description: >-
+            Raw GPS Records classified reliable enough to support a Stop, Trip or
+            Route Part.
+        low_quality_point_count:
+          type: integer
+          minimum: 0
+          description: >-
+            Raw GPS Records that exist but whose acquisition metadata cannot
+            support reliable activity. Disclosed coverage, not an impossible
+            position.
+        excluded_point_count:
+          type: integer
+          minimum: 0
+          description: >-
+            Raw GPS Records withheld from derived geometry as impossible. Still
+            present in Raw GPS. The three class counts always sum to
+            point_count.
         trip_duration_s:
           type: integer
           minimum: 0

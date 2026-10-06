@@ -68,7 +68,7 @@ export function tripView(): DailyView {
     ],
     evidence_holes: [],
     summary: {
-      point_count: 8, usable_point_count: 8, excluded_point_count: 0,
+      point_count: 8, usable_point_count: 8, low_quality_point_count: 0, excluded_point_count: 0,
       distance_m: 2204, duration_s: 2880, trip_duration_s: 1200,
       stop_duration_s: 1680, gap_duration_s: 0, trip_count: 1, stop_count: 1, gap_count: 0,
       first_fix_at: "2026-10-05T02:30:00Z", last_fix_at: "2026-10-05T03:20:00Z",

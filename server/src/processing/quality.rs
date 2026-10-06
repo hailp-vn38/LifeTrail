@@ -4,11 +4,13 @@
 //! configurable policy captured with the processing target. It never updates,
 //! deletes or rewrites Raw GPS: an `Excluded` observation is withheld from
 //! derived geometry only, so the Owner can still inspect what was recorded.
-use super::{
-    geo,
-    model::{Observation, Target},
-};
+use super::{geo, model::Observation};
 use chrono::{DateTime, Utc};
+
+/// An impossible position cannot support geometry.
+const INSUFFICIENT_GEOMETRY: &str = "insufficient_geometry";
+/// Unreliable acquisition metadata cannot support activity.
+const INSUFFICIENT_QUALITY: &str = "insufficient_quality";
 
 /// How well one Raw observation supports derived activity and geometry.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -25,6 +27,18 @@ impl QualityClass {
     pub(super) fn is_usable(self) -> bool {
         matches!(self, QualityClass::Usable)
     }
+
+    /// Why one classification cannot support reliable activity, if it cannot.
+    ///
+    /// This is the single owner of the class-to-reason vocabulary, so coverage
+    /// metadata never re-derives the distinction itself.
+    fn hole_reason(self) -> Option<&'static str> {
+        match self {
+            QualityClass::Usable => None,
+            QualityClass::LowQuality => Some(INSUFFICIENT_QUALITY),
+            QualityClass::Excluded => Some(INSUFFICIENT_GEOMETRY),
+        }
+    }
 }
 
 impl Default for QualityClass {
@@ -35,20 +49,29 @@ impl Default for QualityClass {
 }
 
 /// Centrally configurable quality and implied-speed policy.
+///
+/// The processing `Target` owns this policy through `#[sqlx(flatten)]`, so the
+/// configured thresholds and the criteria that read them cannot drift apart.
+#[derive(sqlx::FromRow)]
 pub(super) struct Policy {
     pub(super) max_hdop: f64,
     pub(super) max_implied_speed_mps: f64,
     pub(super) jump_distance_floor_m: f64,
 }
 
-impl Policy {
-    pub(super) fn from_target(target: &Target) -> Self {
-        Policy {
-            max_hdop: target.max_hdop,
-            max_implied_speed_mps: target.max_implied_speed_mps,
-            jump_distance_floor_m: target.jump_distance_floor_m,
+/// Why an interval containing these classes cannot support reliable activity.
+///
+/// The stronger claim wins: an impossible position cannot support geometry even
+/// when a neighbouring record is merely of poor quality.
+pub(super) fn hole_reason(classes: impl IntoIterator<Item = QualityClass>) -> Option<&'static str> {
+    let mut reason = None;
+    for class in classes {
+        if class == QualityClass::Excluded {
+            return class.hole_reason();
         }
+        reason = reason.or(class.hole_reason());
     }
+    reason
 }
 
 /// Classify every captured observation, in Raw order.

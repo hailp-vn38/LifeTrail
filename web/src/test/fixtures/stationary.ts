@@ -18,7 +18,7 @@ export function stationaryView(): DailyView {
     device_id: "device-1", date: "2026-10-05", timezone: "Asia/Ho_Chi_Minh",
     processing_state: "processed", evidence_state: "sufficient",
     route: null, start: null, end: null, route_parts: [], timeline: [openStop], evidence_holes: [],
-    summary: { point_count: 2, usable_point_count: 2, excluded_point_count: 0,
+    summary: { point_count: 2, usable_point_count: 2, low_quality_point_count: 0, excluded_point_count: 0,
       distance_m: 0, duration_s: 600, trip_duration_s: 0, stop_duration_s: 600,
       gap_duration_s: 0, trip_count: 0, stop_count: 1, gap_count: 0,
       first_fix_at: "2026-10-05T16:50:00Z", last_fix_at: "2026-10-05T16:59:00Z" },
