@@ -122,6 +122,17 @@ export function locateSegment(points: PlaybackPoint[], routeTimeMs: number): Seg
 
   const start = points[low];
   const end = points[low + 1];
+  if (start.breakToNext) {
+    // A published Part boundary, Gap or Evidence Hole is not geometry. Keep
+    // the last observation visible until the next observed timestamp instead
+    // of drawing a connector through unknown coverage.
+    return {
+      vertexIndex: low,
+      segmentRatio: 0,
+      position: [start.coordinate[0], start.coordinate[1]],
+      interruption: start.breakToNext,
+    };
+  }
   const spanMs = relativeMs(low + 1) - relativeMs(low);
   if (spanMs <= 0) {
     // Zero-duration segment: immediately advanced to the later point.
