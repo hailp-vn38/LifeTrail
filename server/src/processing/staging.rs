@@ -175,7 +175,7 @@ async fn previous_slices(
 /// Algorithm and configuration identity retained with each Activity Revision.
 fn config(input: &Input) -> Value {
     json!({
-        "algorithms":["anchored-spatial-dwell-v1","continuous-movement-multimode-v1","windowed-mode-evidence-hysteresis-v1","short-osrm-match-v1","raw-quality-classification-v1","observed-gap-detection-v1"],
+        "algorithms":["anchored-spatial-dwell-v1","continuous-movement-multimode-v1","windowed-mode-evidence-hysteresis-v1","chunked-hybrid-osrm-match-v1","raw-quality-classification-v1","observed-gap-detection-v1"],
         "radius_m":input.target.stop_radius_m,"minimum_duration_s":input.target.stop_min_duration_s,
         "observation_gap_s":input.target.observation_gap_s,
         "max_hdop":input.target.policy.max_hdop,
@@ -192,6 +192,8 @@ fn config(input: &Input) -> Value {
         "match_total_budget_ms":input.target.match_total_budget_ms,
         "matcher_engine_id":input.target.matcher_engine_id,
         "matcher_dataset_id":input.target.matcher_dataset_id,
+        "match_chunk_max_points":input.target.match_chunk_max_points,
+        "match_chunk_overlap_points":input.target.match_chunk_overlap_points,
         "reducer_version":REDUCER_VERSION
     })
 }

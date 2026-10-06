@@ -12,7 +12,7 @@ use uuid::Uuid;
 /// Version of the activity reducer that produced a revision and its Daily
 /// Snapshots. Bumped whenever derivation semantics change, and recorded with
 /// every Activity Revision and snapshot as provenance.
-pub(super) const REDUCER_VERSION: i64 = 3;
+pub(super) const REDUCER_VERSION: i64 = 4;
 
 pub(super) struct Derived {
     pub stops: Vec<Stop>,
@@ -47,6 +47,7 @@ pub(super) async fn derive(points: &[Observation], target: &Target, revision: Uu
                 .iter()
                 .filter(|part| part.movement_segment_id == segment.id)
                 .collect();
+            segment.route_part_ids = parts.iter().map(|part| part.id.clone()).collect();
             segment.distance_m = parts.iter().map(|part| part.distance_m).sum();
             if parts.iter().all(|part| part.source == "osrm_match") && !parts.is_empty() {
                 segment.source = "osrm_match";
