@@ -29,6 +29,14 @@ defineProps<{ dailyView: DailyView }>();
         <dt>Kết thúc</dt>
         <dd class="tabular">{{ formatTimestamp(dailyView.summary.last_fix_at, dailyView.timezone) }}</dd>
       </div>
+      <div v-if="dailyView.processing_state === 'processed'" class="daily-map-stats__item">
+        <dt>Stops trong ngày</dt>
+        <dd>{{ formatCount(dailyView.summary.stop_count ?? 0) }}</dd>
+      </div>
+      <div v-if="dailyView.processing_state === 'processed'" class="daily-map-stats__item">
+        <dt>Dừng quan sát trong ngày</dt>
+        <dd>{{ formatDuration(dailyView.summary.stop_duration_s ?? 0) }}</dd>
+      </div>
       <div class="daily-map-stats__item">
         <dt>Múi giờ</dt>
         <dd>{{ dailyView.timezone }}</dd>

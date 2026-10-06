@@ -16,14 +16,20 @@ pub(super) struct Target {
     pub timezone: String,
     pub timezone_generation: i64,
     pub fencing_token: i64,
+    pub stop_radius_m: f64,
+    pub stop_min_duration_s: i64,
+    pub observation_gap_s: i64,
 }
 pub(super) struct Input {
     pub claim: Claim,
     pub target: Target,
     pub days: Vec<Day>,
+    pub observations: Vec<Observation>,
 }
 pub(super) struct Day {
     pub date: NaiveDate,
+    pub from: DateTime<Utc>,
+    pub until: DateTime<Utc>,
     pub point_count: i64,
     pub usable_count: i64,
     pub first: Option<DateTime<Utc>>,
@@ -39,4 +45,13 @@ pub struct ProcessingStatus {
     pub timezone_generation: i64,
     pub deferred_reason: Option<&'static str>,
     pub failure_message: Option<String>,
+}
+
+#[derive(sqlx::FromRow)]
+pub(super) struct Observation {
+    pub id: i64,
+    pub recorded_at: DateTime<Utc>,
+    pub lat: f64,
+    pub lon: f64,
+    pub usable: bool,
 }

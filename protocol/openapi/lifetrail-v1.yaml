@@ -79,7 +79,7 @@ paths:
           $ref: '#/components/responses/Error'
   /api/v1/devices/{deviceId}/days/{date}:
     get:
-      summary: Read the raw Daily View for one Device Owner-local calendar day.
+      summary: Read the published or Raw Daily View for one Device Owner-local calendar day.
       parameters:
         - name: deviceId
           in: path
@@ -242,8 +242,55 @@ components:
         provenance:
           $ref: '#/components/schemas/SnapshotProvenance'
         route_parts: { type: array, maxItems: 0, items: { type: object }, description: Sparse snapshots have no drawable activity. }
-        timeline: { type: array, maxItems: 0, items: { type: object } }
-        evidence_holes: { type: array, maxItems: 0, items: { type: object } }
+        timeline: { type: array, items: { $ref: '#/components/schemas/DailyStop' } }
+        unresolved_intervals: { type: array, items: { $ref: '#/components/schemas/UnresolvedEvidence' }, description: Pending activity and actual observation absences; neither is fabricated activity. }
+        evidence_holes: { type: array, items: { $ref: '#/components/schemas/UnresolvedEvidence' } }
+    DailyStop:
+      type: object
+      additionalProperties: false
+      description: Revision-local UTC Stop with a daily projection. Only positive observed overlap is counted. Actual boundaries are null when open; no calendar or current-time extrapolation.
+      required: [id, kind, activity_revision, observed_from_at, observed_until_at, observed_duration_s, actual_start_at, actual_end_at, start_boundary, end_boundary, full_duration_s, center, radius_m, quality, source_record_count, usable_record_count, source_record_ids, visible_from_at, visible_until_at, daily_observed_duration_s, continues_before, continues_after]
+      properties:
+        id: { type: string }
+        kind: { type: string, enum: [stop] }
+        activity_revision: { type: string, format: uuid }
+        observed_from_at: { type: string, format: date-time }
+        observed_until_at: { type: string, format: date-time }
+        observed_duration_s: { type: integer, minimum: 1 }
+        actual_start_at: { type: [string, 'null'], format: date-time }
+        actual_end_at: { type: [string, 'null'], format: date-time }
+        start_boundary: { type: string, enum: [confirmed, open] }
+        end_boundary: { type: string, enum: [confirmed, open] }
+        full_duration_s: { type: [integer, 'null'], minimum: 1 }
+        center:
+          type: array
+          minItems: 2
+          maxItems: 2
+          items: { type: number }
+          description: Server-derived dwell anchor in longitude/latitude order.
+        radius_m: { type: number, minimum: 0, description: Maximum observed distance from the dwell anchor. }
+        quality: { type: string, enum: [sufficient] }
+        source_record_count: { type: integer, minimum: 2 }
+        usable_record_count: { type: integer, minimum: 2 }
+        source_record_ids:
+          type: array
+          minItems: 2
+          items: { type: integer }
+        visible_from_at: { type: string, format: date-time }
+        visible_until_at: { type: string, format: date-time }
+        daily_observed_duration_s: { type: integer, minimum: 0 }
+        continues_before: { type: boolean }
+        continues_after: { type: boolean }
+    UnresolvedEvidence:
+      type: object
+      additionalProperties: false
+      description: Observed bounds of unresolved evidence. Missing observations are distinct from unusable Raw records and unresolved activity; none asserts a Trip, Stop or fabricated duration.
+      required: [observed_from_at, observed_until_at, reason, source_record_count]
+      properties:
+        observed_from_at: { type: string, format: date-time }
+        observed_until_at: { type: string, format: date-time }
+        reason: { type: string, enum: [missing_observations, unusable_observations, unresolved_activity] }
+        source_record_count: { type: integer, minimum: 0 }
     DailySummary:
       type: object
       additionalProperties: false

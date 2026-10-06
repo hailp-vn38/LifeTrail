@@ -1,11 +1,14 @@
-//! Durable sparse-evidence publication. Rich activity remains on the Raw path.
+//! Durable activity derivation and fenced daily publication.
 mod activation;
 mod capture;
 mod claim;
+mod evidence;
 mod model;
 mod queue;
 mod read;
 mod snapshot;
+mod staging;
+mod stops;
 
 pub use queue::queue_day;
 pub(crate) use queue::{lock_device, schedule_batch};

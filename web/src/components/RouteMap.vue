@@ -15,6 +15,7 @@ import {
   overviewCamera,
   prefersReducedMotion,
 } from "../map/route-playback/camera";
+import { addStopLayers, bindStopSelection, focusStop, highlightStop } from "../map/stops";
 import { addBuildings } from "../map/buildings";
 import { mapStylePreset } from "../map/style-presets";
 import { PlaybackInteraction } from "../map/route-playback/interaction";
@@ -121,6 +122,7 @@ function selectionRadiusExpression(selectedId: string | null): ExpressionSpecifi
 function applySelectionHighlight(): void {
   if (!map) return;
   const selectedId = mapStore.selectedEventId;
+  highlightStop(map, selectedId);
   if (props.dailyView.start) {
     map.setPaintProperty(LAYER_START, "circle-radius", selectionRadiusExpression(selectedId));
   }
@@ -136,6 +138,9 @@ function fitRoute(map: MapLibreMap) {
   }
   if (!coordinates.length && props.dailyView.end) {
     coordinates.push(props.dailyView.end.geometry.coordinates as MapCoordinate);
+  }
+  if (!coordinates.length) {
+    for (const stop of props.dailyView.timeline ?? []) coordinates.push([stop.center[0], stop.center[1]]);
   }
   if (!coordinates.length) return;
   const bounds = coordinates.reduce(
@@ -273,6 +278,7 @@ function restoreMapStyle() {
   if (!map) return;
   addBuildings(map);
   addRouteLayers(map, props.dailyView, playbackPoints);
+  addStopLayers(map, props.dailyView);
   mapReady.value = true;
   if (lastFrame) applyFrame(lastFrame);
   applySelectionHighlight();
@@ -288,6 +294,7 @@ watch(
   (selectedId) => {
     if (!map || !mapReady.value) return;
     applySelectionHighlight();
+    if (focusStop(map, props.dailyView, selectedId)) return;
     const target =
       selectedId === "start"
         ? startCoordinate()
@@ -342,6 +349,8 @@ onMounted(() => {
     if (!activeMap) return;
     addBuildings(activeMap);
     addRouteLayers(activeMap, props.dailyView, playbackPoints);
+    addStopLayers(activeMap, props.dailyView);
+    bindStopSelection(activeMap, mapStore.selectEvent);
     fitRoute(activeMap);
     if (controller) {
       playbackInteraction = new PlaybackInteraction(activeMap);

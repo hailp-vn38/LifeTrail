@@ -383,3 +383,29 @@ describe("RouteMap", () => {
     wrapper.unmount();
   });
 });
+
+import { nextTick } from "vue";
+import { useMapStore } from "../stores/map.store";
+import { stationaryView, openStop } from "../test/fixtures/stationary";
+
+it("focuses and highlights a Stop disk and selects the same Timeline item from its map feature", async () => {
+  const wrapper = mountRouteMap(stationaryView());
+  const map = lastMap();
+  expect(map.sources.has("activity-stops")).toBe(true);
+  expect(map.addedLayers).toEqual(expect.arrayContaining([
+    expect.objectContaining({ id: "stop-radius", type: "fill" }),
+    expect.objectContaining({ id: "stop-markers", type: "circle" }),
+  ]));
+  const store = useMapStore();
+  store.selectEvent(openStop.id);
+  await nextTick();
+  expect(map.easeTo).toHaveBeenLastCalledWith(expect.objectContaining({ center: [106.7, 10.77] }));
+  expect(map.setPaintProperty).toHaveBeenCalledWith("stop-radius", "fill-opacity", expect.any(Array));
+  store.clearSelection();
+  const registration = map.on.mock.calls.find((args) => args[0] === "click" && args[1] === "stop-markers");
+  expect(registration).toBeDefined();
+  const callback = registration?.[2] as unknown as (event: unknown) => void;
+  callback({ features: [{ properties: { eventId: openStop.id } }] });
+  expect(store.selectedEventId).toBe(openStop.id);
+  wrapper.unmount();
+});

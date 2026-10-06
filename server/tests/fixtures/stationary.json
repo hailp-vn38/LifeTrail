@@ -1,0 +1,12 @@
+[
+  {"name":"short pause", "records":[[0,0,1],[60,0,1],[120,0,1]], "durations":[], "reason":"unresolved_activity"},
+  {"name":"zero speed with changing position", "records":[[0,0,1],[60,0.001,1],[120,0.002,1],[180,0.003,1],[240,0.004,1]], "durations":[], "reason":"unresolved_activity"},
+  {"name":"poor fixes are not a Stop", "records":[[0,0,0],[60,0,0],[120,0,0],[180,0,0],[240,0,0]], "durations":[], "reason":"unusable_observations"},
+  {"name":"high HDOP is not dwell evidence", "hdop":9, "records":[[0,0,1],[60,0,1],[120,0,1],[180,0,1]], "durations":[], "reason":"unusable_observations"},
+  {"name":"no dwell across absent observations", "records":[[0,0,1],[600,0,1]], "durations":[], "reason":"missing_observations"},
+  {"name":"quality hole leaves two open Stops", "records":[[0,0,1],[60,0,1],[120,0,1],[180,0,1],[240,0,0],[300,0,1],[360,0,1],[420,0,1],[480,0,1]], "durations":[180,180], "reason":"unusable_observations", "boundaries":[["open","open"],["open","open"]]},
+  {"name":"repeated visits separated by reliable positions", "records":[[0,0.001,1],[60,0,1],[120,0,1],[180,0,1],[240,0,1],[300,0.001,1],[360,0,1],[420,0,1],[480,0,1],[540,0,1],[600,0.001,1]], "durations":[180,180], "reason":"unresolved_activity", "boundaries":[["confirmed","confirmed"],["confirmed","confirmed"]]},
+  {"name":"configured shorter dwell", "minimum_duration_s":60, "records":[[0,0,1],[60,0,1]], "durations":[60], "boundaries":[["open","open"]]},
+  {"name":"configured disk rejects spatial drift", "radius_m":5, "records":[[0,0,1],[60,0.0001,1],[120,0,1],[180,0.0001,1]], "durations":[], "reason":"unresolved_activity"},
+  {"name":"configured disk accepts bounded jitter", "radius_m":40, "records":[[0,0,1],[60,0.0002,1],[120,0,1],[180,0.0002,1]], "durations":[180], "boundaries":[["open","open"]]}
+]

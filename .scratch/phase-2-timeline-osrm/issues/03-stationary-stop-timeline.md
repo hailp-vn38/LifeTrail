@@ -1,6 +1,6 @@
 # 03: Show observed Stops in the Timeline
 
-Status: ready-for-agent
+Status: claimed
 Type: task
 Labels: ready-for-agent
 Blocked by: 01

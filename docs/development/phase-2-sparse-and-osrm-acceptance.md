@@ -2,7 +2,7 @@
 
 The server now schedules background work in the same transaction as a new Batch commit. `serve` runs a durable worker with a 30-second reclaimable lease and fencing token. The worker captures Raw input, processing target, queued-work generation and Owner timezone in a repeatable-read transaction, stages immutable candidates, then checks those identities under a Device control lock before swapping publication pointers. No routing dependency runs in this slice.
 
-Only days containing zero or one Raw Record can publish `processed` / `insufficient` snapshots here. Their geometry and activity arrays are empty, while counts and observation timestamps include excluded fixes. Dense days remain Raw and report `activity_processing_not_available`; a previously published sparse snapshot remains available as stale after late input makes that day dense. A timezone change hides incompatible publications. Artifacts are retained, including rejected candidates.
+Historical behavior of tickets 01–02 (superseded for dense histories by [ticket 03](phase-2-stationary-stop-acceptance.md)): only days containing zero or one Raw Record could publish `processed` / `insufficient` snapshots here. Their geometry and activity arrays are empty, while counts and observation timestamps include excluded fixes. Dense days remain Raw and report `activity_processing_not_available`; a previously published sparse snapshot remains available as stale after late input makes that day dense. A timezone change hides incompatible publications. Artifacts are retained, including rejected candidates.
 
 Use the existing provisioning CLI and `LT_DATABASE_URL`. To explicitly queue an empty day or reprocess a sparse day:
 

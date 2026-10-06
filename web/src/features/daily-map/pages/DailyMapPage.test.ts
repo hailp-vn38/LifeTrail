@@ -1,4 +1,4 @@
-import { mount } from "@vue/test-utils";
+import { mount, flushPromises } from "@vue/test-utils";
 import { createPinia } from "pinia";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { ref } from "vue";
@@ -200,4 +200,30 @@ describe("DailyMapPage", () => {
 
     wrapper.unmount();
   });
+});
+
+import { stationaryView, openStop } from "../../../test/fixtures/stationary";
+import { useMapStore } from "../../../stores/map.store";
+
+it("shows a stationary Stop map, observed daily totals and synchronized Timeline selection", async () => {
+  mockedUseDailyView.mockReturnValue(queryState({ data: ref(stationaryView()) }) as never);
+  const wrapper = await mountPage();
+  expect(wrapper.find(".route-map-stub").exists()).toBe(true);
+  expect(wrapper.text()).toContain("Dừng quan sát trong ngày");
+  expect(wrapper.text()).toContain("10 phút");
+  expect(wrapper.text()).toContain("Đến: chưa xác định");
+  Object.defineProperty(HTMLElement.prototype, "scrollIntoView", { configurable: true, value: vi.fn() });
+  const stop = wrapper.find(".timeline-item--stop");
+  await stop.trigger("click");
+  expect(useMapStore().selectedEventId).toBe(openStop.id);
+  expect(stop.attributes("aria-pressed")).toBe("true");
+  useMapStore().clearSelection();
+  await wrapper.vm.$nextTick();
+  useMapStore().selectEvent(openStop.id);
+  await wrapper.vm.$nextTick();
+  expect(stop.attributes("aria-pressed")).toBe("true");
+  await flushPromises();
+  expect(HTMLElement.prototype.scrollIntoView).toHaveBeenCalled();
+  wrapper.unmount();
+  Reflect.deleteProperty(HTMLElement.prototype, "scrollIntoView");
 });

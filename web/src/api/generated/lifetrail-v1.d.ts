@@ -138,7 +138,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Read the raw Daily View for one Device Owner-local calendar day. */
+        /** Read the published or Raw Daily View for one Device Owner-local calendar day. */
         get: {
             parameters: {
                 query?: never;
@@ -309,9 +309,59 @@ export interface components {
             provenance?: components["schemas"]["SnapshotProvenance"];
             /** @description Sparse snapshots have no drawable activity. */
             route_parts?: Record<string, never>[];
-            timeline?: Record<string, never>[];
-            evidence_holes?: Record<string, never>[];
+            timeline?: components["schemas"]["DailyStop"][];
+            /** @description Pending activity and actual observation absences; neither is fabricated activity. */
+            unresolved_intervals?: components["schemas"]["UnresolvedEvidence"][];
+            evidence_holes?: components["schemas"]["UnresolvedEvidence"][];
         } & unknown;
+        /** @description Revision-local UTC Stop with a daily projection. Only positive observed overlap is counted. Actual boundaries are null when open; no calendar or current-time extrapolation. */
+        DailyStop: {
+            id: string;
+            /** @enum {string} */
+            kind: "stop";
+            /** Format: uuid */
+            activity_revision: string;
+            /** Format: date-time */
+            observed_from_at: string;
+            /** Format: date-time */
+            observed_until_at: string;
+            observed_duration_s: number;
+            /** Format: date-time */
+            actual_start_at: string | null;
+            /** Format: date-time */
+            actual_end_at: string | null;
+            /** @enum {string} */
+            start_boundary: "confirmed" | "open";
+            /** @enum {string} */
+            end_boundary: "confirmed" | "open";
+            full_duration_s: number | null;
+            /** @description Server-derived dwell anchor in longitude/latitude order. */
+            center: number[];
+            /** @description Maximum observed distance from the dwell anchor. */
+            radius_m: number;
+            /** @enum {string} */
+            quality: "sufficient";
+            source_record_count: number;
+            usable_record_count: number;
+            source_record_ids: number[];
+            /** Format: date-time */
+            visible_from_at: string;
+            /** Format: date-time */
+            visible_until_at: string;
+            daily_observed_duration_s: number;
+            continues_before: boolean;
+            continues_after: boolean;
+        };
+        /** @description Observed bounds of unresolved evidence. Missing observations are distinct from unusable Raw records and unresolved activity; none asserts a Trip, Stop or fabricated duration. */
+        UnresolvedEvidence: {
+            /** Format: date-time */
+            observed_from_at: string;
+            /** Format: date-time */
+            observed_until_at: string;
+            /** @enum {string} */
+            reason: "missing_observations" | "unusable_observations" | "unresolved_activity";
+            source_record_count: number;
+        };
         DailySummary: {
             point_count: number;
             /** Format: double */

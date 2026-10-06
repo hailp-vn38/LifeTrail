@@ -13,7 +13,7 @@ export function useDailyMap(deviceId: Ref<string>, date: Ref<string>) {
   );
 
   const isEmpty = computed(
-    () => query.data.value != null && query.data.value.summary.point_count === 0,
+    () => query.data.value != null && query.data.value.summary.point_count === 0 && !query.data.value.timeline?.length,
   );
 
   return { query, isNotFound, isEmpty };

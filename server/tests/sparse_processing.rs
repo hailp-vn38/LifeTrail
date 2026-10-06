@@ -1,21 +1,21 @@
+mod support;
 use axum::{
     body::Body,
     http::{Request, StatusCode},
 };
-use http_body_util::BodyExt;
 use lifetrail_server::{
     app::{self, AppState},
     auth::generate_device_token,
     db, processing,
 };
-use serde_json::{Value, json};
-use sha2::{Digest, Sha256};
+use serde_json::json;
+use support::{read, upload};
 use tower::ServiceExt;
 use uuid::Uuid;
 
 #[tokio::test]
 #[ignore = "requires PostgreSQL/PostGIS"]
-async fn sparse_upload_publishes_truthful_snapshot_and_retains_it_on_late_input() {
+async fn sparse_upload_publishes_truthful_snapshot_and_refreshes_unresolved_late_input() {
     let pool = db::connect(&std::env::var("LT_TEST_DATABASE_URL").unwrap())
         .await
         .unwrap();
@@ -104,12 +104,14 @@ async fn sparse_upload_publishes_truthful_snapshot_and_retains_it_on_late_input(
     );
     assert!(processing::process_next(&pool).await.unwrap());
     let stale = read(&router, &path).await;
-    assert_eq!(stale["processing"]["published_revision"], revision);
-    assert_eq!(stale["processing"]["data_freshness"], "stale");
-    assert_eq!(stale["summary"]["point_count"], 1);
+    assert_ne!(stale["processing"]["published_revision"], revision);
+    assert_eq!(stale["processing"]["data_freshness"], "current");
+    assert_eq!(stale["summary"]["point_count"], 2);
+    assert!(stale["processing"]["deferred_reason"].is_null());
+    assert_eq!(stale["timeline"], json!([]));
     assert_eq!(
-        stale["processing"]["deferred_reason"],
-        "activity_processing_not_available"
+        stale["evidence_holes"][0]["reason"],
+        "unusable_observations"
     );
     processing::queue_day(&pool, device.id, "2026-10-06".parse().unwrap())
         .await
@@ -201,47 +203,4 @@ async fn sparse_upload_publishes_truthful_snapshot_and_retains_it_on_late_input(
         .await
         .unwrap();
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
-}
-
-async fn read(router: &axum::Router, path: &str) -> Value {
-    let response = router
-        .clone()
-        .oneshot(Request::builder().uri(path).body(Body::empty()).unwrap())
-        .await
-        .unwrap();
-    assert_eq!(response.status(), StatusCode::OK);
-    serde_json::from_slice(&response.into_body().collect().await.unwrap().to_bytes()).unwrap()
-}
-async fn upload(
-    router: &axum::Router,
-    token: &str,
-    batch: Uuid,
-    body: &str,
-) -> (StatusCode, Value) {
-    let response = router
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/api/v1/device/batches")
-                .header("Authorization", format!("Bearer {token}"))
-                .header("Content-Type", "application/x-ndjson")
-                .header("X-LifeTrail-Batch-Id", batch.to_string())
-                .header("X-LifeTrail-Schema", "gps/1")
-                .header(
-                    "X-LifeTrail-Content-SHA256",
-                    format!("{:x}", Sha256::digest(body.as_bytes())),
-                )
-                .header("X-LifeTrail-Byte-Length", body.len().to_string())
-                .header("X-LifeTrail-Record-Count", body.lines().count().to_string())
-                .body(Body::from(body.to_owned()))
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-    let status = response.status();
-    (
-        status,
-        serde_json::from_slice(&response.into_body().collect().await.unwrap().to_bytes()).unwrap(),
-    )
 }

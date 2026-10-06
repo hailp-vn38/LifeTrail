@@ -1,5 +1,5 @@
 import type { DailyView } from "../../api/queries/daily-view.query";
-import { formatTimestamp } from "../../lib/format";
+import { formatDuration, formatTimestamp } from "../../lib/format";
 import type { TimelineEvent } from "./types";
 
 function pointCoordinate(feature: unknown): [number, number] | undefined {
@@ -25,12 +25,21 @@ function recordedAtMs(feature: unknown): number | undefined {
   return undefined;
 }
 
-/**
- * Build Phase 1 timeline events from a Daily View: Start and End only.
- * Phase 2 will append trip/stop/photo/audio events here; the panel, list
- * and map selection already speak the generic `TimelineEvent` shape.
- */
+/** Project published activity or the established Raw Start/End view. */
 export function buildTimelineEvents(dailyView: DailyView): TimelineEvent[] {
+  if (dailyView.processing_state === "processed") {
+    return (dailyView.timeline ?? []).map((stop) => ({
+      id: stop.id, kind: stop.kind, title: "Stop",
+      subtitle: [
+        `Quan sát: ${formatTimestamp(stop.observed_from_at, dailyView.timezone)} – ${formatTimestamp(stop.observed_until_at, dailyView.timezone)} (${formatDuration(stop.observed_duration_s)})`,
+        `Trong ngày: ${formatDuration(stop.daily_observed_duration_s)}`,
+        `Đến: ${stop.actual_start_at ? formatTimestamp(stop.actual_start_at, dailyView.timezone) : "chưa xác định"}`,
+        `Rời: ${stop.actual_end_at ? formatTimestamp(stop.actual_end_at, dailyView.timezone) : "chưa xác định"}`,
+      ].join(" · "),
+      coordinate: [stop.center[0], stop.center[1]],
+      recordedAtMs: Date.parse(stop.visible_from_at),
+    }));
+  }
   const events: TimelineEvent[] = [];
 
   if (dailyView.start) {

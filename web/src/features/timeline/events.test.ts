@@ -48,3 +48,16 @@ describe("buildTimelineEvents", () => {
     expect(events[0]?.recordedAtMs).toBe(Date.parse("2026-10-05T10:00:00.000Z"));
   });
 });
+
+import { stationaryView } from "../../test/fixtures/stationary";
+
+it("renders observed Stop time and daily overlap with unknown actual boundaries", () => {
+  const events = buildTimelineEvents(stationaryView());
+  expect(events).toHaveLength(1);
+  expect(events[0].kind).toBe("stop");
+  expect(events[0].coordinate).toEqual([106.7, 10.77]);
+  expect(events[0].subtitle).toContain("30 phút");
+  expect(events[0].subtitle).toContain("10 phút");
+  expect(events[0].subtitle).toContain("Đến: chưa xác định");
+  expect(events[0].subtitle).toContain("Rời: chưa xác định");
+});

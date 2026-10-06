@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import DailyEvidenceNotice from "./DailyEvidenceNotice.vue";
 import { computed } from "vue";
 import type { DailyView } from "../../../api/queries/daily-view.query";
 
@@ -19,6 +20,7 @@ const label = computed(() => {
     <span v-if="dailyView.processing_state === 'raw' && label !== 'Raw GPS'"> · Raw GPS</span>
     <p v-if="dailyView.processing?.data_freshness === 'stale'">Đang hiển thị kết quả đã xử lý gần nhất; dữ liệu mới chưa được cập nhật.</p>
     <p v-if="dailyView.evidence_state === 'insufficient'">Chưa đủ dữ liệu để xác định hoạt động</p>
+    <DailyEvidenceNotice :daily-view="dailyView" />
     <p v-if="dailyView.processing?.deferred_reason">Dữ liệu GPS vẫn có thể xem; phân tích hoạt động cho ngày này chưa khả dụng.</p>
   </section>
 </template>
