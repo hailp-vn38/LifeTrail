@@ -51,5 +51,12 @@ export function tripParts(dailyView: DailyView, tripId: string): RoutePart[] {
  * instead of recomputing distance from the coordinates.
  */
 export function tripDistanceM(dailyView: DailyView, tripId: string): number {
-  return tripParts(dailyView, tripId).reduce((total, part) => total + part.distance_m, 0);
+  // A Route Part may cross a local-day boundary. `distance_m` is its complete
+  // UTC-history length, while `visible_distance_m` is this Daily View's
+  // anchored-progress slice. The timeline must not attribute the other day's
+  // distance to the Owner's selected day.
+  return tripParts(dailyView, tripId).reduce(
+    (total, part) => total + part.visible_distance_m,
+    0,
+  );
 }

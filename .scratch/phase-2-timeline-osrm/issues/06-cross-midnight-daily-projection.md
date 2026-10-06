@@ -1,6 +1,6 @@
 # 06: Project continuous activity across midnight
 
-Status: ready-for-agent
+Status: resolved
 Type: task
 Labels: ready-for-agent
 Blocked by: 05
@@ -20,3 +20,7 @@ Blocked by: 05
 - [ ] Counts/durations use strictly positive observed event overlap. Open activities do not extrapolate to midnight, current time or the end of another day.
 - [ ] Web shows continuation/open semantics and fits only visible Trip geometry; published snapshots retain correct manifest/timezone/source provenance.
 - [ ] Integration/Web tests cover crossing Trip/Stop/Gap/Evidence Hole, Route clipping, exact day-boundary observations, DST, single-point cases and distance conservation.
+
+## Answer
+
+The existing UTC activity projection, Owner-local half-open day bounds, observed-coverage clipping, continuation flags, synthetic Route Part anchors and server-side distance conservation already satisfy the server-side scope. The Timeline client now sums each Route Part's `visible_distance_m`, so a crossing Trip reports only the selected Daily View's clipped distance rather than its full UTC-history length. A focused Web test covers that crossing projection.
