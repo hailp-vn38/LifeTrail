@@ -10,3 +10,5 @@ pub mod daily_view;
 pub mod db;
 pub mod error;
 pub mod ingestion;
+
+pub mod processing;

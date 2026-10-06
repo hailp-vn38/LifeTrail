@@ -36,6 +36,10 @@ pub fn router(state: AppState, static_dir: Option<PathBuf>) -> Router {
         .route("/v1/devices", get(list_devices))
         .route("/v1/devices/{device_id}", get(get_device))
         .route("/v1/devices/{device_id}/days/{date}", get(daily_view::get))
+        .route(
+            "/v1/devices/{device_id}/days/{date}/status",
+            get(daily_view::status),
+        )
         .route("/v1/device", get(authenticated_device))
         .route("/v1/device/batches", post(ingestion::ingest_batch))
         .fallback(api_not_found)

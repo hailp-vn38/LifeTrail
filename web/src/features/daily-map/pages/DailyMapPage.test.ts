@@ -101,6 +101,31 @@ async function mountPage() {
 }
 
 describe("DailyMapPage", () => {
+  it("shows insufficient processed evidence without invented timeline activity", async () => {
+    const view = { ...dailyViewFixture(1), processing_state: "processed",
+      evidence_state: "insufficient", route: null, start: null, end: null, timeline: [], route_parts: [],
+      processing: { state: "idle", data_freshness: "current", published_revision: "snapshot-1" },
+    };
+    mockedUseDailyView.mockReturnValue(queryState({ data: ref(view) }) as never);
+    const wrapper = await mountPage();
+    expect(wrapper.text()).toContain("Chưa đủ dữ liệu để xác định hoạt động");
+    expect(wrapper.text()).toContain("Đã xử lý");
+    expect(wrapper.text()).not.toContain("Không có dữ liệu GPS cho ngày này");
+    expect(wrapper.findAll(".timeline-item")).toHaveLength(0);
+    wrapper.unmount();
+  });
+
+  it("shows queued processing separately from Raw GPS", async () => {
+    const view = { ...dailyViewFixture(1),
+      processing: { state: "queued", data_freshness: "unavailable", published_revision: null },
+    };
+    mockedUseDailyView.mockReturnValue(queryState({ data: ref(view) }) as never);
+    const wrapper = await mountPage();
+    expect(wrapper.text()).toContain("Đang chờ xử lý");
+    expect(wrapper.text()).toContain("Raw GPS");
+    wrapper.unmount();
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
   });

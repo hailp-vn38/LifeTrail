@@ -1,6 +1,6 @@
 # 02: Generate routed Batch fixtures through internal OSRM
 
-Status: ready-for-agent
+Status: claimed
 Type: task
 Labels: ready-for-agent
 Blocked by: None (can start immediately)

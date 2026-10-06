@@ -210,6 +210,48 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/devices/{deviceId}/days/{date}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read lightweight publication status without route geometry. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    deviceId: string;
+                    date: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Current day publication and processing status. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProcessingStatus"];
+                    };
+                };
+                400: components["responses"]["Error"];
+                404: components["responses"]["Error"];
+                500: components["responses"]["Error"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -256,12 +298,20 @@ export interface components {
             /** @description Device Owner IANA timezone. */
             timezone: string;
             /** @enum {string} */
-            processing_state: "raw";
+            processing_state: "raw" | "processed";
             summary: components["schemas"]["DailySummary"];
             route: components["schemas"]["LineStringFeature"] | null;
             start: components["schemas"]["PointFeature"] | null;
             end: components["schemas"]["PointFeature"] | null;
-        };
+            processing?: components["schemas"]["ProcessingStatus"];
+            /** @enum {string} */
+            evidence_state?: "sufficient" | "partial" | "insufficient";
+            provenance?: components["schemas"]["SnapshotProvenance"];
+            /** @description Sparse snapshots have no drawable activity. */
+            route_parts?: Record<string, never>[];
+            timeline?: Record<string, never>[];
+            evidence_holes?: Record<string, never>[];
+        } & unknown;
         DailySummary: {
             point_count: number;
             /** Format: double */
@@ -269,6 +319,39 @@ export interface components {
             duration_s: number;
             first_fix_at: string | null;
             last_fix_at: string | null;
+            usable_point_count?: number;
+            excluded_point_count?: number;
+            trip_duration_s?: number;
+            stop_duration_s?: number;
+            gap_duration_s?: number;
+            trip_count?: number;
+            stop_count?: number;
+            gap_count?: number;
+        };
+        ProcessingStatus: {
+            /** @enum {string} */
+            state: "idle" | "queued" | "running" | "failed";
+            /** @enum {string} */
+            data_freshness: "current" | "stale" | "unavailable";
+            /** Format: uuid */
+            published_revision: string | null;
+            input_generation: number;
+            timezone: string;
+            timezone_generation: number;
+            /** @enum {string|null} */
+            deferred_reason: "activity_processing_not_available" | null;
+            failure_message: string | null;
+        };
+        SnapshotProvenance: {
+            /** Format: uuid */
+            manifest_version: string;
+            source_raw_generation: number;
+            processed_through_generation: number;
+            processing_target: string;
+            processing_target_generation: number;
+            timezone_generation: number;
+            reducer_version: number;
+            projection_schema_version: number;
         };
         PointGeometry: {
             /** @enum {string} */

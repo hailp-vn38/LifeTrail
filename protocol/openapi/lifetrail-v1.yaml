@@ -119,6 +119,27 @@ paths:
                 $ref: '#/components/schemas/Device'
         '401':
           $ref: '#/components/responses/Error'
+  /api/v1/devices/{deviceId}/days/{date}/status:
+    get:
+      summary: Read lightweight publication status without route geometry.
+      parameters:
+        - name: deviceId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: date
+          in: path
+          required: true
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: Current day publication and processing status.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProcessingStatus' }
+        '400': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '500': { $ref: '#/components/responses/Error' }
 components:
   securitySchemes:
     deviceBearer:
@@ -186,11 +207,21 @@ components:
       type: object
       additionalProperties: false
       required: [device_id, date, timezone, processing_state, summary, route, start, end]
+      allOf:
+        - if:
+            properties:
+              processing_state: { const: processed }
+            required: [processing_state]
+          then:
+            required: [processing, evidence_state, provenance, route_parts, timeline, evidence_holes]
+            properties:
+              summary:
+                required: [usable_point_count, excluded_point_count, trip_duration_s, stop_duration_s, gap_duration_s, trip_count, stop_count, gap_count]
       properties:
         device_id: { type: string, format: uuid }
         date: { type: string, format: date }
         timezone: { type: string, description: Device Owner IANA timezone. }
-        processing_state: { type: string, enum: [raw] }
+        processing_state: { type: string, enum: [raw, processed] }
         summary:
           $ref: '#/components/schemas/DailySummary'
         route:
@@ -205,6 +236,14 @@ components:
           oneOf:
             - $ref: '#/components/schemas/PointFeature'
             - type: 'null'
+        processing:
+          $ref: '#/components/schemas/ProcessingStatus'
+        evidence_state: { type: string, enum: [sufficient, partial, insufficient] }
+        provenance:
+          $ref: '#/components/schemas/SnapshotProvenance'
+        route_parts: { type: array, maxItems: 0, items: { type: object }, description: Sparse snapshots have no drawable activity. }
+        timeline: { type: array, maxItems: 0, items: { type: object } }
+        evidence_holes: { type: array, maxItems: 0, items: { type: object } }
     DailySummary:
       type: object
       additionalProperties: false
@@ -223,6 +262,40 @@ components:
             - type: string
               format: date-time
             - type: 'null'
+        usable_point_count: { type: integer, minimum: 0 }
+        excluded_point_count: { type: integer, minimum: 0 }
+        trip_duration_s: { type: integer, minimum: 0 }
+        stop_duration_s: { type: integer, minimum: 0 }
+        gap_duration_s: { type: integer, minimum: 0 }
+        trip_count: { type: integer, minimum: 0 }
+        stop_count: { type: integer, minimum: 0 }
+        gap_count: { type: integer, minimum: 0 }
+    ProcessingStatus:
+      type: object
+      additionalProperties: false
+      required: [state, data_freshness, published_revision, input_generation, timezone, timezone_generation, deferred_reason, failure_message]
+      properties:
+        state: { type: string, enum: [idle, queued, running, failed] }
+        data_freshness: { type: string, enum: [current, stale, unavailable] }
+        published_revision: { type: [string, 'null'], format: uuid }
+        input_generation: { type: integer, minimum: 0 }
+        timezone: { type: string }
+        timezone_generation: { type: integer, minimum: 0 }
+        deferred_reason: { type: [string, 'null'], enum: [activity_processing_not_available, null] }
+        failure_message: { type: [string, 'null'] }
+    SnapshotProvenance:
+      type: object
+      additionalProperties: false
+      required: [manifest_version, source_raw_generation, processed_through_generation, processing_target, processing_target_generation, timezone_generation, reducer_version, projection_schema_version]
+      properties:
+        manifest_version: { type: string, format: uuid }
+        source_raw_generation: { type: integer, minimum: 0 }
+        processed_through_generation: { type: integer, minimum: 0 }
+        processing_target: { type: string }
+        processing_target_generation: { type: integer, minimum: 0 }
+        timezone_generation: { type: integer, minimum: 0 }
+        reducer_version: { type: integer, minimum: 1 }
+        projection_schema_version: { type: integer, minimum: 1 }
     PointGeometry:
       type: object
       additionalProperties: false

@@ -18,10 +18,16 @@ pub(crate) async fn get(
     State(state): State<AppState>,
     Extension(request_id): Extension<RequestId>,
     path: Result<Path<(Uuid, String)>, PathRejection>,
-) -> Result<Json<projection::DailyView>, ApiError> {
+) -> Result<Json<serde_json::Value>, ApiError> {
     let Path((device_id, date)) =
         path.map_err(|_| ApiError::invalid_request(request_id.0.clone()))?;
     let date = parse_date(&date, &request_id.0)?;
+    if let Some(snapshot) = crate::processing::daily_snapshot(&state.db, device_id, date)
+        .await
+        .map_err(|_| ApiError::internal(request_id.0.clone()))?
+    {
+        return Ok(Json(snapshot));
+    }
     let timezone = persistence::owner_timezone(&state.db, device_id)
         .await
         .map_err(|_| ApiError::internal(request_id.0.clone()))?
@@ -32,14 +38,22 @@ pub(crate) async fn get(
     let bounds = local_day_bounds(date, timezone, &request_id.0)?;
     let points = persistence::route_points(&state.db, device_id, bounds.start, bounds.end)
         .await
-        .map_err(|_| ApiError::internal(request_id.0))?;
+        .map_err(|_| ApiError::internal(request_id.0.clone()))?;
 
-    Ok(Json(projection::DailyView::from_points(
+    let mut raw = serde_json::to_value(projection::DailyView::from_points(
         device_id,
         date,
         timezone.name(),
         points,
-    )))
+    ))
+    .map_err(|_| ApiError::internal(request_id.0.clone()))?;
+    raw["processing"] = serde_json::to_value(
+        crate::processing::status(&state.db, device_id, date)
+            .await
+            .map_err(|_| ApiError::internal(request_id.0.clone()))?,
+    )
+    .map_err(|_| ApiError::internal(request_id.0.clone()))?;
+    Ok(Json(raw))
 }
 
 struct LocalDayBounds {
@@ -76,4 +90,20 @@ fn local_midnight_utc(
         .single()
         .ok_or_else(|| ApiError::invalid_request(request_id.to_owned()))?;
     Ok(midnight.to_utc())
+}
+
+pub(crate) async fn status(
+    State(state): State<AppState>,
+    Extension(request_id): Extension<RequestId>,
+    path: Result<Path<(Uuid, String)>, PathRejection>,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    let Path((device, date)) = path.map_err(|_| ApiError::invalid_request(request_id.0.clone()))?;
+    let date = parse_date(&date, &request_id.0)?;
+    let value = crate::processing::status(&state.db, device, date)
+        .await
+        .map_err(|_| ApiError::internal(request_id.0.clone()))?
+        .ok_or_else(|| ApiError::not_found(request_id.0.clone()))?;
+    Ok(Json(
+        serde_json::to_value(value).map_err(|_| ApiError::internal(request_id.0))?,
+    ))
 }

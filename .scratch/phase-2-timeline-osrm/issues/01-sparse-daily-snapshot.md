@@ -1,6 +1,6 @@
 # 01: Publish Daily Snapshots for sparse evidence
 
-Status: ready-for-agent
+Status: claimed
 Type: task
 Labels: ready-for-agent
 Blocked by: None (can start immediately)

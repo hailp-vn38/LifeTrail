@@ -21,7 +21,10 @@ async fn daily_view_uses_owner_day_boundaries_orders_same_timestamps_and_project
     let pool = test_pool().await;
     let (device_id, _) = create_device(&pool, "America/New_York").await;
     seed_route_points(&pool, device_id).await;
-    let app = app::router(AppState { db: pool.clone() }, "missing-static-dir".into());
+    let app = app::router(
+        AppState { db: pool.clone() },
+        Some("missing-static-dir".into()),
+    );
     assert_dst_raw_projection(app.clone(), device_id).await;
     assert_single_point_distance(app.clone(), device_id).await;
     assert_empty_daily_view(app.clone(), device_id).await;

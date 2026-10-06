@@ -24,6 +24,12 @@ struct Cli {
 #[derive(Subcommand)]
 enum Command {
     Serve,
+    ProcessDay {
+        #[arg(long)]
+        device_id: Uuid,
+        #[arg(long)]
+        date: chrono::NaiveDate,
+    },
     Owner {
         #[command(subcommand)]
         command: OwnerCommand,
@@ -88,6 +94,11 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
 
     match cli.command {
         Command::Serve => serve(pool).await?,
+        Command::ProcessDay { device_id, date } => {
+            lifetrail_server::processing::queue_day(&pool, device_id, date).await?;
+            while lifetrail_server::processing::process_next(&pool).await? {}
+            print_json(&lifetrail_server::processing::status(&pool, device_id, date).await?)?;
+        }
         Command::Owner {
             command: OwnerCommand::Create(args),
         } => print_json(&db::create_owner(&pool, &args.display_name, &args.timezone).await?)?,
@@ -110,12 +121,15 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
 async fn serve(pool: sqlx::PgPool) -> Result<(), Box<dyn std::error::Error>> {
     let config = Config::from_env()?;
     let listener = tokio::net::TcpListener::bind(config.bind_addr).await?;
+    let worker = tokio::spawn(lifetrail_server::processing::run(pool.clone()));
     tracing::info!(address = %config.bind_addr, "LifeTrail server listening");
-    axum::serve(
+    let result = axum::serve(
         listener,
         app::router(AppState { db: pool }, config.static_dir),
     )
-    .await?;
+    .await;
+    worker.abort();
+    result?;
     Ok(())
 }
 

@@ -15,6 +15,7 @@ pub(super) async fn persist(
     batch: &ValidatedBatch,
 ) -> Result<Persisted, sqlx::Error> {
     let mut transaction = pool.begin().await?;
+    crate::processing::lock_device(&mut transaction, device_id).await?;
     let inserted = sqlx::query_scalar::<_, i32>(
         "INSERT INTO ingest_batches \
          (device_id, batch_id, schema_name, content_sha256, byte_length, record_count, first_ts_ms, last_ts_ms) \
@@ -69,6 +70,7 @@ pub(super) async fn persist(
         .execute(&mut *transaction)
         .await?;
     }
+    crate::processing::schedule_batch(&mut transaction, device_id, batch.batch_id).await?;
     transaction.commit().await?;
     Ok(Persisted::New)
 }

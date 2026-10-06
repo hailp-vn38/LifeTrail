@@ -36,7 +36,10 @@ async fn device_ingestion_commits_atomically_and_replays_verified_batches() {
     let device = db::create_device(&pool, owner.id, "GPS Recorder", &token)
         .await
         .expect("create device");
-    let app = app::router(AppState { db: pool.clone() }, "missing-static-dir".into());
+    let app = app::router(
+        AppState { db: pool.clone() },
+        Some("missing-static-dir".into()),
+    );
     let batch_id = Uuid::new_v4();
     let body = valid_body();
 

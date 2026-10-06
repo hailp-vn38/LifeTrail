@@ -1,0 +1,9 @@
+{
+  "timezone": "Europe/Monaco",
+  "started_at": "2026-10-05T08:00:00+02:00",
+  "duration_s": 120,
+  "interval_s": 5,
+  "profile": "car",
+  "seed": "lifetrail-monaco-car-v1",
+  "waypoints": [[7.4206, 43.7328], [7.4261, 43.7379]]
+}

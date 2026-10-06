@@ -74,7 +74,10 @@ async fn provisioning_migrates_postgis_lists_devices_and_authenticates_bearer_to
     assert_eq!(stored_digest, digest_token(token));
     assert_ne!(stored_digest, token.as_bytes());
 
-    let app = app::router(AppState { db: pool.clone() }, "missing-static-dir".into());
+    let app = app::router(
+        AppState { db: pool.clone() },
+        Some("missing-static-dir".into()),
+    );
     let devices_response = app
         .clone()
         .oneshot(Request::get("/api/v1/devices").body(Body::empty()).unwrap())

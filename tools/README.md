@@ -32,3 +32,7 @@ See [`../docs/development/simulated-gps-data.md`](../docs/development/simulated-
 ## Realistic GPS dataset
 
 `generate_realistic_day.py` creates the road-aligned, walking-day fixture used to test raw ingestion, Daily View and route playback. Its checked-in baseline is in `fixtures/realistic-human-day/`; see [`../docs/development/realistic-gps-data.md`](../docs/development/realistic-gps-data.md) for the scenario and upload procedure.
+
+## OSRM-routed scenarios
+
+`prepare_osrm.py` builds three separate, versioned MLD datasets with a pinned OSRM image. `generate_routed_scenario.py` samples Route geometry in seeded historical time and optionally uploads/replays valid Batches. See [Phase 2 acceptance](../docs/development/phase-2-sparse-and-osrm-acceptance.md) for internal Compose commands, scenario fields and retained three-profile fixtures.

@@ -7,6 +7,7 @@ import { todayForOwner } from "../../../lib/date";
 import TimelinePanel from "../../timeline/components/TimelinePanel.vue";
 import TimelineStats from "../../timeline/components/TimelineStats.vue";
 import DailyMapCanvas from "../components/DailyMapCanvas.vue";
+import DailyProcessingNotice from "../components/DailyProcessingNotice.vue";
 import DailyMapEmpty from "../components/DailyMapEmpty.vue";
 import DailyMapHeader from "../components/DailyMapHeader.vue";
 import DailyMapLoading from "../components/DailyMapLoading.vue";
@@ -69,7 +70,9 @@ watch(
       @retry="query.refetch()"
     />
 
-    <div v-else-if="query.data.value" class="daily-map-workspace">
+    <template v-else-if="query.data.value">
+      <DailyProcessingNotice :daily-view="query.data.value" />
+      <div class="daily-map-workspace">
       <div class="map-column">
         <DailyMapToolbar
           :date="date"
@@ -80,12 +83,13 @@ watch(
           v-if="isEmpty"
           @go-today="navigate(deviceId, todayForOwner(timezone ?? 'UTC'))"
         />
-        <DailyMapCanvas v-else :daily-view="query.data.value" />
+        <DailyMapCanvas v-else-if="query.data.value.evidence_state !== 'insufficient'" :daily-view="query.data.value" />
       </div>
       <div class="timeline-column">
         <TimelinePanel :daily-view="query.data.value" />
         <TimelineStats :daily-view="query.data.value" />
       </div>
-    </div>
+      </div>
+    </template>
   </div>
 </template>

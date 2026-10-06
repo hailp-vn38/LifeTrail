@@ -23,7 +23,7 @@ const events = computed(() => buildTimelineEvents(props.dailyView));
     <AppEmptyState
       v-if="events.length === 0"
       title="Chưa có sự kiện"
-      description="Ngày này chưa có điểm bắt đầu/kết thúc nào được ghi nhận."
+      :description="dailyView.evidence_state === 'insufficient' ? 'Chưa đủ dữ liệu để xác định hoạt động.' : 'Ngày này chưa có điểm bắt đầu/kết thúc nào được ghi nhận.'"
     />
     <TimelineList
       v-else
