@@ -11,7 +11,7 @@ pub(super) fn body(
     day: &Day,
     manifest: Uuid,
     stops: &[Stop],
-    holes: &[UnresolvedInterval],
+    intervals: &[UnresolvedInterval],
 ) -> Value {
     let timeline: Vec<_> = stops
         .iter()
@@ -34,7 +34,7 @@ pub(super) fn body(
         .iter()
         .map(|s| s["daily_observed_duration_s"].as_i64().unwrap())
         .sum();
-    let visible_intervals: Vec<_> = holes.iter().filter_map(|hole| {
+    let visible_intervals: Vec<_> = intervals.iter().filter_map(|hole| {
         let from = hole.observed_from_at.max(day.from);
         let until = hole.observed_until_at.min(day.until);
         (from < until).then(|| json!({"observed_from_at":from,"observed_until_at":until,"reason":hole.reason,"source_record_count":hole.source_record_count}))

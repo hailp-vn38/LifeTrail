@@ -19,7 +19,7 @@ pub(super) fn unresolved(
     stops: &[Stop],
     target: &Target,
 ) -> Vec<UnresolvedInterval> {
-    let mut holes: Vec<UnresolvedInterval> = Vec::new();
+    let mut unresolved_intervals: Vec<UnresolvedInterval> = Vec::new();
     for pair in points.windows(2) {
         if stops.iter().any(|s| {
             pair[0].recorded_at >= s.observed_from_at && pair[1].recorded_at <= s.observed_until_at
@@ -35,14 +35,14 @@ pub(super) fn unresolved(
         } else {
             "unresolved_activity"
         };
-        if let Some(last) = holes.last_mut()
+        if let Some(last) = unresolved_intervals.last_mut()
             && last.reason == reason
             && last.observed_until_at == pair[0].recorded_at
         {
             last.observed_until_at = pair[1].recorded_at;
             last.source_record_count += 1;
         } else {
-            holes.push(UnresolvedInterval {
+            unresolved_intervals.push(UnresolvedInterval {
                 observed_from_at: pair[0].recorded_at,
                 observed_until_at: pair[1].recorded_at,
                 reason,
@@ -50,5 +50,5 @@ pub(super) fn unresolved(
             });
         }
     }
-    holes
+    unresolved_intervals
 }

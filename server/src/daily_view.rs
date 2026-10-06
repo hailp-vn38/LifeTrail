@@ -3,7 +3,10 @@ mod projection;
 
 use axum::{
     Json,
-    extract::{Extension, Path, State, rejection::PathRejection},
+    extract::{
+        Extension, Path, Query, State,
+        rejection::{PathRejection, QueryRejection},
+    },
 };
 use chrono::{NaiveDate, TimeZone as _};
 use chrono_tz::Tz;
@@ -14,17 +17,30 @@ use crate::{
     error::ApiError,
 };
 
+#[derive(serde::Deserialize, Default)]
+pub(crate) struct ViewOptions {
+    view: Option<ViewMode>,
+}
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum ViewMode {
+    Raw,
+}
+
 pub(crate) async fn get(
     State(state): State<AppState>,
     Extension(request_id): Extension<RequestId>,
     path: Result<Path<(Uuid, String)>, PathRejection>,
+    options: Result<Query<ViewOptions>, QueryRejection>,
 ) -> Result<Json<serde_json::Value>, ApiError> {
     let Path((device_id, date)) =
         path.map_err(|_| ApiError::invalid_request(request_id.0.clone()))?;
     let date = parse_date(&date, &request_id.0)?;
-    if let Some(snapshot) = crate::processing::daily_snapshot(&state.db, device_id, date)
-        .await
-        .map_err(|_| ApiError::internal(request_id.0.clone()))?
+    let Query(options) = options.map_err(|_| ApiError::invalid_request(request_id.0.clone()))?;
+    if options.view.is_none()
+        && let Some(snapshot) = crate::processing::daily_snapshot(&state.db, device_id, date)
+            .await
+            .map_err(|_| ApiError::internal(request_id.0.clone()))?
     {
         return Ok(Json(snapshot));
     }

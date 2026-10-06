@@ -1,10 +1,11 @@
-import { computed, type Ref } from "vue";
+import { computed, ref, type Ref } from "vue";
 import { ApiRequestError } from "../../../api/errors/api-error";
 import { useDailyView } from "../../../api/queries/daily-view.query";
 
 /** Daily Map data boundary: query + the states the page must render. */
 export function useDailyMap(deviceId: Ref<string>, date: Ref<string>) {
-  const query = useDailyView(deviceId, date);
+  const rawMode = ref(false);
+  const query = useDailyView(deviceId, date, rawMode);
 
   const isNotFound = computed(
     () =>
@@ -16,5 +17,5 @@ export function useDailyMap(deviceId: Ref<string>, date: Ref<string>) {
     () => query.data.value != null && query.data.value.summary.point_count === 0 && !query.data.value.timeline?.length,
   );
 
-  return { query, isNotFound, isEmpty };
+  return { query, isNotFound, isEmpty, rawMode };
 }

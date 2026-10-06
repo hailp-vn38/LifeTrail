@@ -11,7 +11,7 @@ pub(super) async fn stage(
     let manifest = Uuid::now_v7();
     let revision = Uuid::now_v7();
     let stops = stops::detect(&input.observations, &input.target, revision);
-    let holes = evidence::unresolved(&input.observations, &stops, &input.target);
+    let unresolved_intervals = evidence::unresolved(&input.observations, &stops, &input.target);
     let mut entries = json!([]);
     if let (Some(first), Some(last)) = (input.observations.first(), input.observations.last())
         && first.recorded_at < last.recorded_at
@@ -23,7 +23,7 @@ pub(super) async fn stage(
             .bind(revision).bind(input.claim.device_id).bind(first.recorded_at).bind(until)
             .bind(input.target.input_generation).bind(input.target.target_generation)
             .bind(json!({"algorithm":"anchored-spatial-dwell-v1","radius_m":input.target.stop_radius_m,"minimum_duration_s":input.target.stop_min_duration_s,"observation_gap_s":input.target.observation_gap_s,"max_hdop":5}).to_string())
-            .bind(json!({"stops":stops,"unresolved_intervals":holes}).to_string()).execute(pool).await?;
+            .bind(json!({"stops":stops,"unresolved_intervals":unresolved_intervals}).to_string()).execute(pool).await?;
         entries = json!([{"activity_revision":revision,"from_at":first.recorded_at,"until_at":until,"from_boundary":"observation_edge","until_boundary":"observation_edge"}]);
     }
     sqlx::query("INSERT INTO activity_manifests(id,device_id,input_generation,target_id,entries) VALUES($1,$2,$3,$4,$5::jsonb)")
@@ -34,7 +34,7 @@ pub(super) async fn stage(
         sqlx::query("INSERT INTO daily_snapshots(id,device_id,manifest_id,local_date,timezone,timezone_generation,source_generation,target_generation,body) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb)")
             .bind(id).bind(input.claim.device_id).bind(manifest).bind(day.date).bind(&input.target.timezone)
             .bind(input.target.timezone_generation).bind(input.target.input_generation).bind(input.target.target_generation)
-            .bind(snapshot::body(input,day,manifest,&stops,&holes).to_string()).execute(pool).await?;
+            .bind(snapshot::body(input,day,manifest,&stops,&unresolved_intervals).to_string()).execute(pool).await?;
         candidates.push((day.date, id));
     }
     Ok(candidates)

@@ -39,3 +39,12 @@ describe("getDailyView", () => {
     await expect(getDailyView(deviceId, "2026-10-04")).rejects.toMatchObject({ status: 404 });
   });
 });
+
+it("can explicitly read Raw GPS after a processed publication", async () => {
+  get.mockResolvedValue({ data: { processing_state: "raw", route: { geometry: { type: "LineString" } } }, response: new Response() });
+  const raw = await getDailyView(deviceId, "2026-10-05", true);
+  expect(raw.processing_state).toBe("raw");
+  expect(get).toHaveBeenCalledWith("/api/v1/devices/{deviceId}/days/{date}", {
+    params: { path: { deviceId, date: "2026-10-05" }, query: { view: "raw" } },
+  });
+});

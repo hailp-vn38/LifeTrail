@@ -227,3 +227,27 @@ it("shows a stationary Stop map, observed daily totals and synchronized Timeline
   wrapper.unmount();
   Reflect.deleteProperty(HTMLElement.prototype, "scrollIntoView");
 });
+
+it("distinguishes unusable observations and absent GPS beside a published Stop", async () => {
+  const view = stationaryView();
+  view.evidence_state = "partial";
+  view.evidence_holes = [{ observed_from_at: "2026-10-05T16:40:00Z", observed_until_at: "2026-10-05T16:45:00Z", reason: "unusable_observations", source_record_count: 3 }];
+  view.unresolved_intervals = [{ observed_from_at: "2026-10-05T16:45:00Z", observed_until_at: "2026-10-05T16:50:00Z", reason: "missing_observations", source_record_count: 2 }];
+  mockedUseDailyView.mockReturnValue(queryState({ data: ref(view) }) as never);
+  const wrapper = await mountPage();
+  expect(wrapper.text()).toContain("Có GPS nhưng chất lượng chưa đủ");
+  expect(wrapper.text()).toContain("Thiếu quan sát GPS");
+  expect(wrapper.findAll(".timeline-item--stop")).toHaveLength(1);
+  wrapper.unmount();
+});
+
+it("lets the Owner request Raw GPS after viewing a processed Stop", async () => {
+  mockedUseDailyView.mockReturnValue(queryState({ data: ref(stationaryView()) }) as never);
+  const wrapper = await mountPage();
+  await wrapper.get('button[aria-label="Xem Raw GPS"]').trigger("click");
+  const raw = mockedUseDailyView.mock.calls.at(-1)?.[2];
+  expect(typeof raw === "object" && raw?.value).toBe(true);
+  await wrapper.get('button[aria-label="Xem hoạt động"]').trigger("click");
+  expect(typeof raw === "object" && raw?.value).toBe(false);
+  wrapper.unmount();
+});

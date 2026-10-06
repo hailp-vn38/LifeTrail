@@ -61,6 +61,24 @@ async fn stationary_fixtures_distinguish_dwell_pauses_missing_and_unusable_obser
         )
         .await;
         assert_eq!(view["processing_state"], "processed", "{name}");
+        let raw = read(
+            &router,
+            &format!("/api/v1/devices/{}/days/2026-10-05?view=raw", device.id),
+        )
+        .await;
+        assert_eq!(
+            raw["processing_state"], "raw",
+            "{name}: Raw remains selectable after publication"
+        );
+        if records
+            .iter()
+            .filter(|r| r[2].as_i64().unwrap() > 0)
+            .count()
+            >= 2
+        {
+            assert_eq!(raw["route"]["geometry"]["type"], "LineString", "{name}");
+            assert!(raw["start"].is_object(), "{name}");
+        }
         let stops = view["timeline"].as_array().unwrap();
         let durations: Vec<Value> = stops
             .iter()

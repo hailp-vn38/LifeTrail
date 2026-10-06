@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import AppButton from "../../../components/ui/AppButton.vue";
 import AppErrorState from "../../../components/ui/AppErrorState.vue";
 import { useUiStore } from "../../../stores/ui.store";
 import { todayForOwner } from "../../../lib/date";
@@ -29,7 +30,7 @@ watch(
   },
 );
 
-const { query, isNotFound, isEmpty } = useDailyMap(deviceId, date);
+const { query, isNotFound, isEmpty, rawMode } = useDailyMap(deviceId, date);
 const timezone = computed(() => query.data.value?.timezone);
 
 function navigate(device: string, day: string) {
@@ -71,6 +72,15 @@ watch(
     />
 
     <template v-else-if="query.data.value">
+      <div>
+        <AppButton
+          :aria-label="rawMode ? 'Xem hoạt động' : 'Xem Raw GPS'"
+          :aria-pressed="rawMode"
+          variant="ghost"
+          size="sm"
+          @click="rawMode = !rawMode"
+        >{{ rawMode ? 'Hoạt động' : 'Raw GPS' }}</AppButton>
+      </div>
       <DailyProcessingNotice :daily-view="query.data.value" />
       <div class="daily-map-workspace">
       <div class="map-column">

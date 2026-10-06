@@ -8,7 +8,7 @@ defineProps<{ dailyView: DailyView }>();
 <template>
   <div class="daily-map-canvas">
     <RouteMap
-      :key="`${dailyView.device_id}:${dailyView.date}:${dailyView.timezone}:${dailyView.processing?.published_revision ?? 'raw'}`"
+      :key="`${dailyView.device_id}:${dailyView.date}:${dailyView.timezone}:${dailyView.processing_state}:${dailyView.processing?.published_revision ?? 'raw'}`"
       :daily-view="dailyView"
     />
   </div>

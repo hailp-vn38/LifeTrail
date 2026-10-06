@@ -94,6 +94,11 @@ paths:
           schema:
             type: string
             format: date
+        - name: view
+          in: query
+          required: false
+          description: Request the established Raw GPS projection even when a processed snapshot is published. Omit to read the published view with Raw fallback.
+          schema: { type: string, enum: [raw] }
       responses:
         '200':
           description: Raw GPS projection for the requested Owner-local day, including an empty response when no route points exist.

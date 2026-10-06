@@ -141,7 +141,10 @@ export interface paths {
         /** Read the published or Raw Daily View for one Device Owner-local calendar day. */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Request the established Raw GPS projection even when a processed snapshot is published. Omit to read the published view with Raw fallback. */
+                    view?: "raw";
+                };
                 header?: never;
                 path: {
                     deviceId: string;

@@ -7,9 +7,9 @@ import { queryKeys } from "../query-keys";
 
 export type DailyView = components["schemas"]["DailyView"];
 
-export async function getDailyView(deviceId: string, date: string): Promise<DailyView> {
+export async function getDailyView(deviceId: string, date: string, raw = false): Promise<DailyView> {
   const { data, error, response } = await api.GET("/api/v1/devices/{deviceId}/days/{date}", {
-    params: { path: { deviceId, date } },
+    params: { path: { deviceId, date }, ...(raw ? { query: { view: "raw" as const } } : {}) },
   });
   if (!data) {
     throw new ApiRequestError(
@@ -23,9 +23,10 @@ export async function getDailyView(deviceId: string, date: string): Promise<Dail
 export function useDailyView(
   deviceId: MaybeRefOrGetter<string>,
   date: MaybeRefOrGetter<string>,
+  raw: MaybeRefOrGetter<boolean> = false,
 ) {
   return useQuery({
-    queryKey: computed(() => queryKeys.dailyView(toValue(deviceId), toValue(date))),
-    queryFn: () => getDailyView(toValue(deviceId), toValue(date)),
+    queryKey: computed(() => queryKeys.dailyView(toValue(deviceId), toValue(date), toValue(raw))),
+    queryFn: () => getDailyView(toValue(deviceId), toValue(date), toValue(raw)),
   });
 }
