@@ -22,6 +22,7 @@ export interface TimelineEvent {
   timeLabel?: string;
   durationLabel?: string;
   travelLabel?: string;
+  transportMode?: "walk" | "bike" | "car" | "unknown";
   /** [longitude, latitude] for map flyTo on selection. */
   coordinate?: [number, number];
   /** GPS epoch ms, when known. */

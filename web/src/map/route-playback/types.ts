@@ -31,9 +31,9 @@ export interface SegmentLocation {
 /** One rendered tick of playback. Emitted by the controller, consumed by the map. */
 export interface PlaybackFrame extends SegmentLocation {
   state: PlaybackState;
-  /** Logical GPS time, milliseconds since the first point's timestamp. */
+  /** Logical cursor time, milliseconds since the configured clock start. */
   routeTimeMs: number;
-  /** Total logical duration, milliseconds from first to last timestamp. */
+  /** Total logical duration of the configured playback clock. */
   durationMs: number;
   /** routeTimeMs / durationMs clamped to [0, 1]. */
   progress: number;

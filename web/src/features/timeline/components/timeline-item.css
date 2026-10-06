@@ -1,0 +1,115 @@
+.timeline-item__wrapper {
+  position: relative;
+  flex: none;
+  list-style: none;
+}
+/* The continuous rail also connects adjacent Stops when no Trip is published. */
+.timeline-item__wrapper::before {
+  content: "";
+  position: absolute;
+  top: -.2rem;
+  bottom: -.2rem;
+  left: -.4rem;
+  border-left: 1px dashed #a8b3c2;
+}
+.timeline-item {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  grid-template-columns: 1.625rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: .15rem .5rem;
+  width: 100%;
+  min-height: 3.25rem;
+  padding: .4rem .5rem .4rem 0;
+  border: 0;
+  border-radius: .45rem;
+  background: transparent;
+  text-align: left;
+  line-height: 1.25;
+}
+/* Keep the marker outside the pale blue card, as in the reference. */
+.timeline-item::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0 0 0 2.125rem;
+  border: 1px solid transparent;
+  border-radius: .45rem;
+  background: #eaf1fb;
+  transition: background .15s ease, border-color .15s ease;
+}
+.timeline-item::after {
+  content: "";
+  position: absolute;
+  z-index: -2;
+  top: 50%;
+  left: -.4rem;
+  width: 1rem;
+  border-top: 1px dashed #a8b3c2;
+}
+.timeline-item:hover::before { background: #dce9fa; }
+.timeline-item.is-selected::before { background: #dbeafe; border-color: #2563eb; }
+.timeline-item.is-future { opacity: .4; }
+.timeline-item__marker {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.625rem;
+  height: 1.625rem;
+  border-radius: 50%;
+  background: #b5cff0;
+  color: #2563eb;
+}
+.timeline-item__text { display: contents; }
+.timeline-item__title {
+  grid-column: 2 / -1;
+  grid-row: 1;
+  min-width: 0;
+  padding-left: .5rem;
+  padding-right: .75rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 650;
+  font-size: .75rem;
+}
+.timeline-item__time, .timeline-item__subtitle {
+  grid-column: 2;
+  grid-row: 2;
+  padding-left: .5rem;
+  font-size: .6875rem;
+  color: #475569;
+}
+.timeline-item__subtitle { grid-column: 2 / -1; overflow-wrap: anywhere; }
+.timeline-item__duration {
+  grid-column: 3;
+  grid-row: 2;
+  padding: .15rem .35rem;
+  border-radius: .25rem;
+  background: #0664d9;
+  color: white;
+  white-space: nowrap;
+  font-size: .625rem;
+  font-variant-numeric: tabular-nums;
+}
+.timeline-item--start .timeline-item__marker { background: #dcfce7; color: #16a34a; }
+.timeline-item--end .timeline-item__marker { background: #fee2e2; color: #dc2626; }
+.timeline-item--gap .timeline-item__marker { background: #f1f5f9; color: #64748b; }
+.timeline-item.is-selected .timeline-item__marker { background: #2563eb; color: white; }
+/* Trips read as short connectors; timing remains available in the disclosure. */
+.timeline-item--trip { min-height: 1.65rem; padding-top: .2rem; padding-bottom: .2rem; }
+.timeline-item--trip::before { inset: 50% 0 auto -.4rem; border: 0; border-top: 1px dashed #a8b3c2; border-radius: 0; background: transparent; }
+.timeline-item--trip::after { display: none; }
+.timeline-item--trip .timeline-item__marker { grid-row: 1; width: 1.25rem; height: 1.25rem; justify-self: end; background: white; color: #8292a8; }
+.timeline-item--trip .timeline-item__title { grid-row: 1; justify-self: start; max-width: 100%; padding: .1rem .35rem; background: white; font-size: .6875rem; font-weight: 500; color: #475569; }
+.timeline-item--trip .timeline-item__time { display: none; }
+.timeline-item--trip.is-selected .timeline-item__title { background: #dbeafe; color: #1d4ed8; border-radius: .25rem; }
+.timeline-item__details { position: absolute; top: .35rem; right: .3rem; color: #64748b; font-size: .625rem; }
+.timeline-item__details summary { display: flex; justify-content: end; cursor: pointer; list-style: none; opacity: .45; }
+.timeline-item__details summary::-webkit-details-marker { display: none; }
+.timeline-item__details summary:hover, .timeline-item__details summary:focus-visible { opacity: 1; }
+.timeline-item__details[open] { position: relative; top: auto; right: auto; margin: .25rem 0 .4rem 2.125rem; padding: .4rem .5rem; border: 1px solid #dbeafe; border-radius: .35rem; background: #f8fafc; }
+.timeline-item__details[open] span { display: block; margin-top: .2rem; line-height: 1.5; }

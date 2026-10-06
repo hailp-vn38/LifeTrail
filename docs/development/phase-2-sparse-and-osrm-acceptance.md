@@ -23,7 +23,7 @@ curl -fL https://download.geofabrik.de/europe/monaco-latest.osm.pbf \
 python3 tools/prepare_osrm.py --pbf /tmp/lifetrail-monaco.osm.pbf \
   --dataset-version monaco-test
 mkdir -p runtime/osrm-demo
-LT_OSRM_DATASET_VERSION=monaco-test docker compose -f deploy/docker-compose.yml \
+LT_OSRM_DATASET_NAME=test-region LT_OSRM_DATASET_VERSION=monaco-test docker compose -f deploy/docker-compose.yml \
   --profile osrm up -d osrm-car osrm-bike osrm-foot
 
 docker compose -f deploy/docker-compose.yml --profile osrm-tools run --rm simulator \

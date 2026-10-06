@@ -29,6 +29,7 @@ defineEmits<{ clear: [] }>();
   gap: 0.5rem;
 }
 .timeline-header { flex: none; }
-.section-title { font-size: .85rem; }
+.section-title { font-size: .6875rem; }
 .section-title span { text-transform: none; font-weight: 500; }
+.timeline-header :deep(.app-icon-button) { width: 1.75rem; height: 1.75rem; min-width: 1.75rem; }
 </style>

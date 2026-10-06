@@ -99,9 +99,9 @@ watch(
 
 <style scoped>
 .daily-map-page { height: calc(100dvh - 7rem); min-height: 34rem; gap: .75rem; }
-.daily-map-workspace { flex: 1; min-height: 0; grid-template-columns: minmax(0, 65fr) minmax(19rem, 35fr); }
+.daily-map-workspace { flex: 1; min-height: 0; grid-template-columns: minmax(0, 1fr) clamp(17.5rem, 25vw, 20.5rem); }
 .map-column, .timeline-column { min-height: 0; }
-@media (max-width: 1279px) and (min-width: 768px) { .daily-map-workspace { grid-template-columns: minmax(0, 1fr) 300px; } }
+@media (max-width: 1279px) and (min-width: 768px) { .daily-map-workspace { grid-template-columns: minmax(0, 1fr) 280px; } }
 @media (max-width: 767px) {
   .daily-map-page { height: auto; min-height: 0; }
   .daily-map-workspace { grid-template-columns: 1fr; }

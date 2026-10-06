@@ -76,6 +76,7 @@ export function buildTimelineEvents(dailyView: DailyView): TimelineEvent[] {
         id: activity.id,
         kind: activity.kind,
         title: "Trip",
+        transportMode: activity.movement_segments[0]?.mode,
         travelLabel: `${formatDistance(tripDistanceM(dailyView, activity.id))} · ${formatDuration(activity.daily_observed_duration_s)}`,
         timeLabel: `${formatTimestamp(activity.visible_from_at, dailyView.timezone)} – ${formatTimestamp(activity.visible_until_at, dailyView.timezone)}`,
         subtitle: [

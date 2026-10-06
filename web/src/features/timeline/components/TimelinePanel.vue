@@ -50,7 +50,7 @@ const events = computed(() => buildTimelineEvents(props.dailyView));
 .timeline-panel {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.5rem;
   min-height: 0;
   height: 100%;
   overflow: hidden;
@@ -58,6 +58,7 @@ const events = computed(() => buildTimelineEvents(props.dailyView));
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-card);
-  padding: 1rem;
+  padding: 0.65rem;
 }
+.timeline-panel > details > summary, .timeline-panel :deep(li > details > summary) { font-size: .6875rem; }
 </style>

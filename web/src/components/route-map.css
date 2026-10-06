@@ -1,0 +1,22 @@
+.route-playback {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.route-playback--day { position: relative; height: 100%; min-height: 0; }
+.route-playback--day .route-map { flex: 1; height: 100%; min-height: 0; }
+.route-playback--day :deep(.playback-bar) { position: absolute; bottom: 2rem; left: 1rem; right: 1rem; z-index: 2; background: rgba(255,255,255,.96); border-radius: 1rem; }
+.route-playback--day .playback-interruption { position: absolute; top: 1rem; left: 4.5rem; right: 1rem; z-index: 2; background: white; padding: .5rem; border-radius: .5rem; }
+.playback-interruption {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+}
+.route-map {
+  width: 100%;
+  height: clamp(26rem, 62dvh, 46rem);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  overflow: hidden;
+  background: #eef2f7;
+}

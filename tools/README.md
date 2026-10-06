@@ -60,9 +60,15 @@ Existing profile directories are refused; preserve previous artifacts before
 preparing a replacement. `data/` is ignored by Git; retain dataset provenance
 under `tools/datasets/`, without committing PBF or OSRM artifacts.
 
-The Vietnam env file selects these paths explicitly. Commands without it keep
-the versioned Monaco default. All three routing services expose port 5000 only
-on the Compose network.
+The 2026-10-06 full-Vietnam build used roughly 12 GB peak RAM during extraction.
+On a 16 GB workstation running other applications, additional swap was needed;
+preprocess profiles sequentially and allow several GB of disk per profile.
+
+Compose defaults to these Vietnam paths; the Vietnam env file selects them
+explicitly. To use the retained Monaco graphs, set
+`LT_OSRM_DATASET_VERSION=monaco-test` and `LT_OSRM_DATASET_NAME=test-region`
+when starting OSRM. All three routing services expose port 5000 only on the
+Compose network.
 # Realistic routed days
 
 `generate_realistic_osrm_day.py` produces a complete, seeded road-network day from

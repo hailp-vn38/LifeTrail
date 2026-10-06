@@ -1,0 +1,50 @@
+{
+  "algorithm": "mld",
+  "compose_env_file": "deploy/osrm-vietnam.env",
+  "dataset_version": "vietnam-20261006-921bf40179c8",
+  "downloaded_on": "2026-10-06",
+  "engine": "osrm",
+  "engine_version": "v6.0.0",
+  "image": "ghcr.io/project-osrm/osrm-backend:v6.0.0@sha256:729461bcc9ae9e6aafa92c0f93db9b060a32e85d5e72092c01ae4a4a9f1eb564",
+  "osm_pbf_md5": "fdc3b19c1e22d341a93749623672dcbb",
+  "osm_pbf_sha256": "921bf40179c8281bbdbe88b760050745b6d63fc907e329c306471de3a1ebed13",
+  "osm_timestamp": "2026-10-05T20:21:35Z",
+  "profiles": {
+    "bike": {
+      "dataset_name": "vietnam",
+      "directory": "data/osrm/bike",
+      "profile_script": "bicycle.lua"
+    },
+    "car": {
+      "dataset_name": "vietnam",
+      "directory": "data/osrm/car",
+      "profile_script": "car.lua"
+    },
+    "foot": {
+      "dataset_name": "vietnam",
+      "directory": "data/osrm/foot",
+      "profile_script": "foot.lua"
+    }
+  },
+  "source_bytes": 329841414,
+  "source_snapshot_url": "https://download.geofabrik.de/asia/vietnam-261005.osm.pbf",
+  "source_url": "https://download.geofabrik.de/asia/vietnam-latest.osm.pbf",
+  "validation": {
+    "cities": [
+      "Hanoi",
+      "Ho Chi Minh City"
+    ],
+    "date": "2026-10-06",
+    "endpoints": [
+      "nearest",
+      "route",
+      "match"
+    ],
+    "profiles": [
+      "car",
+      "bike",
+      "foot"
+    ],
+    "result": "All 18 requests returned Ok; all services running without published host ports."
+  }
+}

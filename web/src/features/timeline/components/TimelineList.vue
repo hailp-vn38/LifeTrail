@@ -51,11 +51,11 @@ watch(
 .timeline-list {
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
+  gap: 0.2rem;
   flex: 1;
   min-height: 0;
   margin: 0;
-  padding: .25rem .4rem .75rem 0;
+  padding: .2rem .25rem .5rem .5rem;
   scrollbar-gutter: stable;
   scrollbar-width: auto;
   scrollbar-color: #94a3b8 #f1f5f9;

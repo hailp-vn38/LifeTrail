@@ -8,6 +8,8 @@ import {
   type GeoJSONSource,
 } from "maplibre-gl";
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { ISSUE_TEXT, PART_ISSUE_TEXT, INTERRUPTION_TEXT } from "../map/route-playback/messages";
+import { prepareDailyLayers } from "../map/daily-layers";
 import { dayClockBounds } from "../map/route-playback/day-clock";
 import { progressFeatures } from "../map/route-playback/progress";
 import { buildTimelineEvents } from "../features/timeline/events";
@@ -65,26 +67,6 @@ import { usePlaybackStore } from "../stores/playback.store";
 import { initialMapCamera, routeFitOptions } from "./map-camera";
 import { initializeWhenMapLoaded } from "./map-lifecycle";
 import { resolveMapStyle } from "./map-style";
-
-const ISSUE_TEXT: Record<PlaybackValidationError, string> = {
-  "not-linestring": "Dữ liệu route không hợp lệ nên không thể phát lại.",
-  "too-few-coordinates": "Route chỉ có một điểm nên không thể phát lại.",
-  "missing-timestamps": "Thiếu timestamps nên không thể phát lại theo thời gian GPS.",
-  "timestamp-count-mismatch": "Timestamps không khớp số điểm GPS nên không thể phát lại.",
-  "invalid-timestamp": "Timestamp không hợp lệ nên không thể phát lại.",
-  "non-monotonic-timestamps": "Timestamps không theo thứ tự thời gian nên không thể phát lại.",
-};
-
-const PART_ISSUE_TEXT = {
-  "invalid-route-parts": "Route Parts đã xuất bản không hợp lệ nên không thể phát lại.",
-  "too-few-observations": "Chưa đủ quan sát GPS để phát lại Route Parts.",
-};
-
-const INTERRUPTION_TEXT: Record<PlaybackBreak, string> = {
-  "gps-gap": "Thiếu GPS: đang giữ vị trí quan sát cuối cùng cho tới lần quan sát tiếp theo.",
-  "evidence-hole": "Không đủ bằng chứng hoạt động: không suy diễn chuyển động qua khoảng này.",
-  disconnected: "Các Route Part không liên tục: không nội suy giữa hai phần route.",
-};
 
 const props = defineProps<{ dailyView: DailyView; dayClock?: boolean }>();
 const mapElement = ref<HTMLDivElement>();
@@ -272,7 +254,16 @@ watch(() => playbackStore.restartRequest, () => {
   handlePlay();
 });
 watch(() => playbackStore.seekRequest, (request) => {
-  if (request) { playbackStore.setCameraFollow(false); controller?.seek(request.epochMs - startTimeMs.value); }
+  if (!request) return;
+  playbackStore.setCameraFollow(false);
+  controller?.seek(request.epochMs - startTimeMs.value);
+  // Re-selecting the same card still re-centers a manually panned map.
+  const selected = timelineEvents.value.find(event => event.id === mapStore.selectedEventId && event.recordedAtMs === request.epochMs);
+  if (map && mapReady.value && selected) {
+    if (!focusTripPart(map, props.dailyView, selected.id) && selected.coordinate) {
+      map.easeTo({ center: selected.coordinate, duration: 600 });
+    }
+  }
 });
 
 function handleSeek(timeMs: number) {
@@ -335,18 +326,7 @@ watch(() => mapPreferences.styleId, () => {
 /** A style replacement removes custom sources and layers; restore the playback frame. */
 function initializeEventDots() {
   if (!map || !props.dayClock) return;
-  for (const layer of [LAYER_START, LAYER_END, "stop-markers", "stop-radius", "stop-radius-outline"]) {
-    if (map.getLayer(layer)) map.setLayoutProperty(layer, "visibility", "none");
-  }
-  if (controller) {
-    for (const layer of ["daily-route-full-line", "trip-route-parts"]) {
-      if (map.getLayer(layer)) {
-        map.setPaintProperty(layer, "line-color", "#94a3b8");
-        map.setPaintProperty(layer, "line-opacity", 0.6);
-        map.setPaintProperty(layer, "line-dasharray", [2, 2]);
-      }
-    }
-  }
+  prepareDailyLayers(map, Boolean(controller));
   addEventDots(map, timelineEvents.value, controller ? startTimeMs.value + routeTimeMs.value : null);
   if (!eventDots) eventDots = bindEventDots(map, timelineEvents.value, mapStore.selectEvent);
 }
@@ -513,50 +493,6 @@ onBeforeUnmount(() => {
   </div>
 </template>
 
-<style scoped>
-.route-playback {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-.route-playback--day { position: relative; height: 100%; min-height: 0; }
-.route-playback--day .route-map { flex: 1; height: 100%; min-height: 0; }
-.route-playback--day :deep(.playback-bar) { position: absolute; bottom: 2rem; left: 1rem; right: 1rem; z-index: 2; background: rgba(255,255,255,.96); border-radius: 1rem; }
-.route-playback--day .playback-interruption { position: absolute; top: 1rem; left: 4.5rem; right: 1rem; z-index: 2; background: white; padding: .5rem; border-radius: .5rem; }
-.playback-interruption {
-  margin: 0;
-  color: var(--color-text-muted);
-  font-size: 0.875rem;
-}
-.route-map {
-  width: 100%;
-  height: clamp(26rem, 62dvh, 46rem);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--color-border);
-  overflow: hidden;
-  background: #eef2f7;
-}
-</style>
+<style scoped src="./route-map.css"></style>
 
-<style>
-/* Dark circular heading-up compass matching the course-up design. */
-.route-playback .maplibregl-ctrl-top-left {
-  margin: 12px 0 0 12px;
-}
-.route-playback .maplibregl-ctrl-group {
-  background: rgba(15, 23, 42, 0.92);
-  border-radius: 9999px;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
-}
-.route-playback .maplibregl-ctrl-group button {
-  width: 44px;
-  height: 44px;
-  border-radius: 9999px;
-}
-.route-playback .maplibregl-ctrl-group button + button {
-  border-top: 1px solid rgba(255, 255, 255, 0.12);
-}
-.route-playback .maplibregl-ctrl-compass .maplibregl-ctrl-icon {
-  filter: invert(1) brightness(1.15);
-}
-</style>
+<style src="./route-map-controls.css"></style>

@@ -28,3 +28,14 @@ VITE_MAPTILER_KEY=... scripts/lifetrail build web
 
 The `server-tests` profile runs the migration/provisioning integration test
 against the real Compose PostGIS service.
+
+For the prepared Vietnam routing graphs, start the three internal OSRM services:
+
+```sh
+docker compose --env-file deploy/osrm-vietnam.env -f deploy/docker-compose.yml \
+  --profile osrm up -d osrm-car osrm-bike osrm-foot
+```
+
+Use the same env file when recreating these services. Source download,
+three-profile preprocessing and dataset provenance are documented in
+[`tools/README.md`](../tools/README.md#vietnam-dataset).

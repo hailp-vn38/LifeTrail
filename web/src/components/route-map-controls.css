@@ -1,0 +1,20 @@
+/* Dark circular heading-up compass matching the course-up design. */
+.route-playback .maplibregl-ctrl-top-left {
+  margin: 12px 0 0 12px;
+}
+.route-playback .maplibregl-ctrl-group {
+  background: rgba(15, 23, 42, 0.92);
+  border-radius: 9999px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+}
+.route-playback .maplibregl-ctrl-group button {
+  width: 44px;
+  height: 44px;
+  border-radius: 9999px;
+}
+.route-playback .maplibregl-ctrl-group button + button {
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+.route-playback .maplibregl-ctrl-compass .maplibregl-ctrl-icon {
+  filter: invert(1) brightness(1.15);
+}

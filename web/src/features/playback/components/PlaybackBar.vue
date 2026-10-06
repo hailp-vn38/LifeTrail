@@ -121,7 +121,6 @@ function onSpeedChange(event: Event) {
         <strong>{{ currentClockTime }}</strong>
       </p>
       <label class="playback-bar__speed">
-        <span class="text-muted text-sm">Tốc độ</span>
         <select
           :value="speed"
           :disabled="!canInteract"
@@ -168,12 +167,15 @@ function onSpeedChange(event: Event) {
 }
 .playback-bar__scrubber input[type="range"] {
   width: 100%;
+  appearance: none;
   accent-color: var(--color-primary);
   border-radius: 99px;
   height: 6px;
 }
 .playback-bar__bounds { display: flex; justify-content: space-between; font-size: .65rem; color: var(--color-text-muted); margin-top: .4rem; }
 .playback-bar__buttons :deep(button:first-child) { border-radius: 50%; }
+.playback-bar__scrubber input::-webkit-slider-thumb { appearance: none; width: 14px; height: 14px; border-radius: 50%; background: #2563eb; border: 2px solid white; box-shadow: 0 1px 4px #94a3b8; }
+.playback-bar__scrubber input::-moz-range-thumb { width: 12px; height: 12px; border-radius: 50%; background: #2563eb; border: 2px solid white; }
 .playback-bar__time strong { font-size: 1.6rem; font-variant-numeric: tabular-nums; color: #1e3a8a; }
 .playback-bar__time {
   margin: 0;
