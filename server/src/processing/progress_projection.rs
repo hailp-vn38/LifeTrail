@@ -10,7 +10,7 @@ fn bounds(value: &Value) -> Option<(DateTime<Utc>, DateTime<Utc>)> {
     ))
 }
 
-pub(super) fn project_part(mut value: Value, day: &Day) -> Option<Value> {
+pub(super) fn project_part_for_playback(mut value: Value, day: &Day) -> Option<Value> {
     let (from, until) = bounds(&value)?;
     let visible_from = from.max(day.from);
     let visible_until = until.min(day.until);

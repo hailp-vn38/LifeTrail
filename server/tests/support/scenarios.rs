@@ -81,6 +81,15 @@ impl Published {
         )
         .await
     }
+
+    /// Read the canonical Playback resource for the same day.
+    pub async fn playback(&self, date: &str) -> Value {
+        read(
+            &self.router,
+            &format!("/api/v1/devices/{}/days/{date}/playback", self.device_id),
+        )
+        .await
+    }
 }
 
 /// Provision one Owner and Device, upload `records` and run the worker once.
@@ -204,6 +213,6 @@ pub fn published_distance_m(view: &Value) -> f64 {
         .as_array()
         .unwrap()
         .iter()
-        .map(|part| part["distance_m"].as_f64().unwrap())
+        .map(|part| part["visible_distance_m"].as_f64().unwrap())
         .sum()
 }

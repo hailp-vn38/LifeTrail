@@ -53,15 +53,22 @@ async fn publish(
     assert_eq!(thresholds, (300, 10, 180, 30.0));
     assert!(processing::process_next(pool).await.unwrap());
     let path = format!("/api/v1/devices/{}/days/2026-10-05", device.id);
-    let view = read(router, &path).await;
+    let mut view = read(router, &path).await;
     assert_eq!(view["processing_state"], "processed");
     assert_eq!(view["summary"]["point_count"], records.len());
     let raw = read(router, &format!("{path}?view=raw")).await;
     assert_eq!(raw["processing_state"], "raw");
     for part in view["route_parts"].as_array().unwrap() {
         assert_eq!(part["source"], "processed_gps");
+        support::assert_display_route_part(part, name);
+    }
+    // Canonical fidelity is checked on the Playback resource, which is the
+    // source of truth for geometry and progress.
+    let playback = read(router, &format!("{path}/playback")).await;
+    for part in playback["route_parts"].as_array().unwrap() {
         support::assert_route_part(part, name, 0.01);
     }
+    view["playback_route_parts"] = playback["route_parts"].clone();
     view
 }
 

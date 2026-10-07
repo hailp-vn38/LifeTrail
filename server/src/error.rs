@@ -69,6 +69,16 @@ impl ApiError {
         }
     }
 
+    pub fn gone(request_id: String) -> Self {
+        Self {
+            status: StatusCode::GONE,
+            code: "manifest_expired",
+            message: "Pinned playback manifest is no longer available.",
+            request_id,
+            details: None,
+        }
+    }
+
     pub fn internal(request_id: String) -> Self {
         Self {
             status: StatusCode::INTERNAL_SERVER_ERROR,

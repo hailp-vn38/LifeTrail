@@ -30,6 +30,9 @@ enum Command {
         #[arg(long)]
         date: chrono::NaiveDate,
     },
+    /// Reproject every published day onto the current display schema, reusing
+    /// the active manifests, then drain the worker.
+    ReprojectSchema,
     Owner {
         #[command(subcommand)]
         command: OwnerCommand,
@@ -98,6 +101,11 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
             lifetrail_server::processing::queue_day(&pool, device_id, date).await?;
             while lifetrail_server::processing::process_next(&pool).await? {}
             print_json(&lifetrail_server::processing::status(&pool, device_id, date).await?)?;
+        }
+        Command::ReprojectSchema => {
+            let accepted = lifetrail_server::processing::backfill_projection_schema(&pool).await?;
+            while lifetrail_server::processing::process_next(&pool).await? {}
+            print_json(&serde_json::json!({"accepted": accepted}))?;
         }
         Command::Owner {
             command: OwnerCommand::Create(args),

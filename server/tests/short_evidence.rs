@@ -13,7 +13,8 @@ async fn alternating_hdop_keeps_one_trip_without_micro_holes() {
             point
         })
         .collect();
-    let view = scenarios::publish(&records).await.view;
+    let published = scenarios::publish(&records).await;
+    let view = &published.view;
     assert_eq!(
         view["summary"]["trip_count"], 1,
         "short quality failures must not fragment a Trip"
@@ -28,7 +29,9 @@ async fn alternating_hdop_keeps_one_trip_without_micro_holes() {
     let trip = &view["timeline"][0];
     assert_eq!(trip["source_record_count"], 178);
     assert_eq!(trip["usable_record_count"], 90);
-    let coordinates = view["route_parts"]
+    // Canonical geometry keeps one vertex per usable record; assert on Playback.
+    let playback = published.playback("2026-10-05").await;
+    let coordinates = playback["route_parts"]
         .as_array()
         .unwrap()
         .iter()
@@ -53,11 +56,13 @@ async fn isolated_one_second_jump_is_excluded_without_breaking_activity() {
         .map(|i| record(at(8, 0) + i * 1000, 10.77 + i as f64 * 0.00002, 106.7))
         .collect();
     records[10]["lat"] = json!(11.0);
-    let view = scenarios::publish(&records).await.view;
+    let published = scenarios::publish(&records).await;
+    let view = &published.view;
     assert_eq!(view["summary"]["trip_count"], 1);
     assert_eq!(view["summary"]["excluded_point_count"], 1);
     assert_eq!(view["evidence_holes"], json!([]));
-    for part in view["route_parts"].as_array().unwrap() {
+    let playback = published.playback("2026-10-05").await;
+    for part in playback["route_parts"].as_array().unwrap() {
         assert!(
             !part["geometry"]["coordinates"]
                 .as_array()

@@ -5,12 +5,19 @@ use lifetrail_server::processing;
 use serde_json::Value;
 use std::time::Instant;
 use suite::Suite;
-use support::assert_route_part;
+use support::{assert_display_route_part, assert_route_part};
 
 fn contract(view: &Value) {
     for part in view["route_parts"].as_array().unwrap() {
         assert_eq!(part["source"], "processed_gps");
         assert!(part.get("matcher_evidence").is_none());
+        assert_display_route_part(part, "Phase 2 fixture");
+    }
+}
+
+fn playback_contract(playback: &Value) {
+    for part in playback["route_parts"].as_array().unwrap() {
+        assert_eq!(part["source"], "processed_gps");
         assert_route_part(part, "Phase 2 fixture", 0.01);
     }
 }
@@ -45,6 +52,8 @@ async fn master_late_overlap_replay_and_range_reuse() {
     let second = suite.day("2026-10-06").await;
     contract(&first);
     contract(&second);
+    playback_contract(&suite.playback("2026-10-05").await);
+    playback_contract(&suite.playback("2026-10-06").await);
     assert_eq!(first["summary"]["gap_count"], 1);
     assert_eq!(
         first["provenance"]["manifest_version"],
@@ -117,6 +126,27 @@ async fn scale_30000_processed_gps() {
     assert_eq!(view["summary"]["point_count"], 30000);
     assert_eq!(view["processing"]["data_freshness"], "current");
     contract(&view);
+    let playback = suite.playback(body["date"].as_str().unwrap()).await;
+    playback_contract(&playback);
+    let display_vertices: usize = view["route_parts"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|part| {
+            part["display_geometry"]["coordinates"]
+                .as_array()
+                .map_or(0, Vec::len)
+        })
+        .sum();
+    let display_bytes = serde_json::to_vec(&view["route_parts"]).unwrap().len();
+    let playback_bytes = serde_json::to_vec(&playback["route_parts"]).unwrap().len();
+    println!(
+        "SCALE display_vertices={display_vertices} display_parts_bytes={display_bytes} playback_parts_bytes={playback_bytes}"
+    );
+    assert!(
+        display_bytes < playback_bytes,
+        "the Daily Map payload must be lighter than canonical playback"
+    );
     let memory = std::fs::read_to_string("/proc/self/status").unwrap();
     let peak = memory
         .lines()

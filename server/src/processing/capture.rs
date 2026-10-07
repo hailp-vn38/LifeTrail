@@ -23,10 +23,31 @@ pub(super) async fn capture(pool: &PgPool, claim: Claim) -> Result<Input, sqlx::
     // activity refresh.  Its absence after a timezone change means projection
     // work may reuse the active immutable manifest, including while Raw is
     // dirty for a newer generation.
+    //
+    // Display-schema drift is a separate trigger: when the current publication
+    // was shaped by an older schema and Raw is clean, reproject the active
+    // manifest without re-deriving.  While Raw is dirty a full derivation runs
+    // instead and publishes the new schema anyway.
+    let published_schema: Option<i32> = sqlx::query_scalar(
+        "SELECT (s.body->'provenance'->>'projection_schema_version')::int FROM daily_publications p \
+         JOIN daily_snapshots s ON s.id=p.snapshot_id \
+         WHERE p.device_id=$1 AND p.timezone=$2 AND s.timezone_generation=$3 \
+         ORDER BY s.created_at DESC LIMIT 1",
+    )
+    .bind(claim.device_id)
+    .bind(&target.timezone)
+    .bind(target.timezone_generation)
+    .fetch_optional(&mut *tx)
+    .await?;
     let projection_only = target.active_manifest_id.is_some()
-        && !sqlx::query_scalar::<_, bool>("SELECT EXISTS(SELECT 1 FROM daily_publications p JOIN daily_snapshots s ON s.id=p.snapshot_id WHERE p.device_id=$1 AND p.timezone=$2 AND s.timezone_generation=$3)")
-            .bind(claim.device_id).bind(&target.timezone).bind(target.timezone_generation)
-            .fetch_one(&mut *tx).await?;
+        && match published_schema {
+            // No publication in this timezone/generation: the timezone seam.
+            None => true,
+            Some(schema) => {
+                schema != super::reprojection::DAILY_PROJECTION_SCHEMA_VERSION
+                    && target.dirty_from_at.is_none()
+            }
+        };
     let dates: Vec<NaiveDate>=sqlx::query_scalar("SELECT local_date FROM processing_days WHERE device_id=$1 AND timezone=$2 UNION SELECT (recorded_at AT TIME ZONE $2)::date FROM gps_points WHERE device_id=$1 ORDER BY local_date")
         .bind(claim.device_id).bind(&target.timezone).fetch_all(&mut *tx).await?;
     let mut observations: Vec<Observation>=sqlx::query_as("SELECT id,recorded_at,lat,lon,fix_quality,hdop,satellites,speed_mps FROM gps_points WHERE device_id=$1 ORDER BY recorded_at,id")

@@ -7,7 +7,7 @@ use lifetrail_server::{
     db, processing,
 };
 use serde_json::{Value, json};
-use support::{assert_route_part, at, ndjson, read, record, upload};
+use support::{assert_display_route_part, assert_route_part, at, ndjson, read, record, upload};
 use uuid::Uuid;
 
 /// Meters per degree of latitude on the sphere used by the server's geodesic
@@ -154,21 +154,24 @@ async fn movement_between_stops_publishes_unknown_trips_with_server_owned_progre
     assert_eq!(parts[0]["trip_id"], first_trip["id"]);
     assert_eq!(parts[0]["movement_segment_id"], segment["id"]);
     assert_eq!(parts[0]["source"], "processed_gps");
-    assert_eq!(parts[0]["quality"], "sufficient");
     assert_eq!(parts[0]["observed_from_at"], "2026-10-05T08:07:00Z");
     assert_eq!(parts[0]["observed_until_at"], "2026-10-05T08:13:00Z");
     assert_eq!(parts[0]["source_record_count"], 7);
     for (index, part) in parts.iter().enumerate() {
-        assert_route_part(part, &format!("part {index}"), TOLERANCE_M);
+        assert_display_route_part(part, &format!("part {index}"));
     }
-    // No coordinate is invented to satisfy the LineString contract.
+    // The canonical geometry keeps one vertex per record; display geometry is
+    // simplified, so assert the vertex-per-record invariant on Playback.
+    let playback = read(&router, &format!("{path}/playback")).await;
     assert_eq!(
-        parts[0]["geometry"]["coordinates"]
+        playback["route_parts"][0]["geometry"]["coordinates"]
             .as_array()
             .unwrap()
             .len(),
-        parts[0]["source_record_count"].as_u64().unwrap() as usize
+        parts[0]["source_record_count"].as_u64().unwrap() as usize,
+        "no canonical coordinate is invented to satisfy the LineString contract"
     );
+    assert_route_part(&playback["route_parts"][0], "part 0", TOLERANCE_M);
     // Four moving legs of one Step; the 120 second pause adds no distance.
     let walking = 4.0 * STEP * METER_PER_DEGREE;
     assert!(
@@ -298,9 +301,12 @@ async fn repeated_location_visits_publish_separate_trips_and_stops() {
     let parts = view["route_parts"].as_array().unwrap();
     assert_eq!(parts.len(), 2);
     for part in parts {
-        assert_route_part(part, "sparse part", TOLERANCE_M);
+        assert_display_route_part(part, "sparse part");
         assert_eq!(
-            part["geometry"]["coordinates"].as_array().unwrap().len(),
+            part["display_geometry"]["coordinates"]
+                .as_array()
+                .unwrap()
+                .len(),
             part["source_record_count"].as_u64().unwrap() as usize
         );
     }
@@ -387,16 +393,25 @@ async fn daily_distance_conserves_part_length_across_days_without_connectors() {
             .sum();
         assert!((summed - day["summary"]["distance_m"].as_f64().unwrap()).abs() < 1e-9);
         for part in day["route_parts"].as_array().unwrap() {
-            assert_route_part(part, "clipped part", TOLERANCE_M);
+            assert_display_route_part(part, "clipped part");
         }
     }
     // Adjacent days conserve the crossing Part's length within tolerance.
+    // The Daily View no longer carries canonical continue flags, so identify the
+    // crossing Part as the one published in both days, then read canonical
+    // semantics from the Playback resource.
     let crossing = first["route_parts"]
         .as_array()
         .unwrap()
         .iter()
-        .find(|part| part["continues_after"] == json!(true))
-        .expect("a part continues into the next day");
+        .find(|part| {
+            second["route_parts"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|other| other["id"] == part["id"])
+        })
+        .expect("a part is published in both days");
     let total = crossing["distance_m"].as_f64().unwrap();
     let tail = second["route_parts"]
         .as_array()
@@ -410,9 +425,18 @@ async fn daily_distance_conserves_part_length_across_days_without_connectors() {
         (conserved - total).abs() < TOLERANCE_M,
         "adjacent day distances sum to the part distance: {conserved} vs {total}"
     );
-    assert_eq!(crossing["continues_before"], json!(false));
-    assert_eq!(crossing["observed_from_at"], "2026-10-05T23:50:00Z");
-    assert_eq!(crossing["observed_until_at"], "2026-10-06T00:02:00Z");
+    let playback = read(&router, &format!("{path}2026-10-05/playback")).await;
+    let canonical = playback["route_parts"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|part| part["id"] == crossing["id"])
+        .expect("the crossing part is on the Playback resource");
+    assert_eq!(canonical["continues_before"], json!(false));
+    assert_eq!(canonical["continues_after"], json!(true));
+    assert_eq!(canonical["observed_from_at"], "2026-10-05T23:50:00Z");
+    assert_eq!(canonical["observed_until_at"], "2026-10-06T00:02:00Z");
+    assert_route_part(canonical, "crossing part", TOLERANCE_M);
     // The crossing Trip keeps one source identity in both daily projections.
     let trip = crossing["trip_id"].as_str().unwrap();
     assert!(
@@ -551,17 +575,21 @@ async fn sub_second_spacing_stays_one_trip_while_a_real_absence_splits() {
     assert_eq!(second["observed_until_at"], "2026-10-05T08:18:00Z");
 
     // The whole run, including both same-second records, is one drawable Part.
-    assert_route_part(&parts[0], "sub-second part", TOLERANCE_M);
+    assert_display_route_part(&parts[0], "sub-second part");
     assert_eq!(parts[0]["trip_id"], first["id"]);
     assert_eq!(parts[0]["source_record_count"], 5);
+    // Both same-second observations keep their coordinate on the canonical
+    // Playback resource; display geometry may simplify.
+    let playback = read(&router, &format!("{path}/playback")).await;
     assert_eq!(
-        parts[0]["geometry"]["coordinates"]
+        playback["route_parts"][0]["geometry"]["coordinates"]
             .as_array()
             .unwrap()
             .len(),
         5,
-        "both same-second observations keep their coordinate"
+        "both same-second observations keep their canonical coordinate"
     );
+    assert_route_part(&playback["route_parts"][0], "sub-second part", TOLERANCE_M);
     let leg_m = STEP * METER_PER_DEGREE;
     assert!((parts[0]["distance_m"].as_f64().unwrap() - 4.0 * leg_m).abs() < TOLERANCE_M);
     assert!((parts[1]["distance_m"].as_f64().unwrap() - leg_m).abs() < TOLERANCE_M);
@@ -643,19 +671,42 @@ async fn clipping_rebases_progress_and_keeps_observed_coverage_distinct() {
     assert!((after_distance - leg * 2.0 / 3.0).abs() < TOLERANCE_M);
     assert!((before_distance + after_distance - 2.0 * leg).abs() < TOLERANCE_M);
     // Day one keeps its two observed vertices plus the synthetic midnight anchor;
-    // day two keeps the synthetic anchor and its own final vertex.
-    assert_eq!(before["vertex_distance_m"].as_array().unwrap().len(), 3);
-    assert_eq!(after["vertex_distance_m"].as_array().unwrap().len(), 2);
-    // The synthetic anchor is shared by both daily projections.
+    // day two keeps the synthetic anchor and its own final vertex. Display
+    // geometry is not contract-bound to one vertex per record, so assert through
+    // the canonical Playback resource instead.
+    let playback = read(&router, &format!("{path}2026-10-05/playback")).await;
+    let playback_part = &playback["route_parts"][0];
+    assert_route_part(playback_part, "rebased part", TOLERANCE_M);
     assert_eq!(
-        before["progress_anchors"][2]["at"],
-        after["progress_anchors"][0]["at"]
+        playback_part["vertex_distance_m"].as_array().unwrap().len(),
+        3
     );
-    // Both clipped parts rebase visible progress to zero.
-    for part in [before, after] {
-        assert_route_part(part, "rebased part", TOLERANCE_M);
-        assert_eq!(part["vertex_distance_m"][0], json!(0.0));
-    }
+    assert_eq!(
+        playback_part["vertex_distance_m"][0],
+        json!(0.0),
+        "clipped playback progress is rebased to zero"
+    );
+    assert_eq!(
+        playback_part["geometry"]["coordinates"]
+            .as_array()
+            .unwrap()
+            .len(),
+        3,
+        "canonical day keeps both observed vertices plus the synthetic anchor"
+    );
+    let playback_second = read(&router, &format!("{path}2026-10-06/playback")).await;
+    assert_eq!(
+        playback_second["route_parts"][0]["vertex_distance_m"]
+            .as_array()
+            .unwrap()
+            .len(),
+        2
+    );
+    // The synthetic anchor is shared by both canonical projections.
+    assert_eq!(
+        playback_part["progress_anchors"][2]["at"],
+        playback_second["route_parts"][0]["progress_anchors"][0]["at"]
+    );
     // Each Trip counts in both days and its time never extrapolates to day end.
     let trip = &first["timeline"][0];
     assert_eq!(trip["kind"], "trip");

@@ -37,6 +37,10 @@ pub fn router(state: AppState, static_dir: Option<PathBuf>) -> Router {
         .route("/v1/devices/{device_id}", get(get_device))
         .route("/v1/devices/{device_id}/days/{date}", get(daily_view::get))
         .route(
+            "/v1/devices/{device_id}/days/{date}/playback",
+            get(daily_view::playback),
+        )
+        .route(
             "/v1/devices/{device_id}/days/{date}/status",
             get(daily_view::status),
         )

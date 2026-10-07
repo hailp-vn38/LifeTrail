@@ -76,9 +76,13 @@ pub fn ndjson(records: &[Value]) -> String {
     records.iter().map(|record| format!("{record}\n")).collect()
 }
 
-/// Invariants every published Route Part must satisfy: aligned progress with a
+/// Invariants every canonical Route Part must satisfy: aligned progress with a
 /// zero origin, non-decreasing bounded progress, strictly increasing anchors and
 /// a final progress equal to the part length within tolerance.
+///
+/// Canonical `geometry`, `vertex_distance_m` and `progress_anchors` live on the
+/// Playback resource, not the Daily Snapshot (display geometry is a separate,
+/// visualization-only shape).
 #[allow(dead_code)]
 pub fn assert_route_part(part: &Value, context: &str, tolerance: f64) {
     let coordinates = part["geometry"]["coordinates"]
@@ -165,5 +169,41 @@ pub fn assert_route_part(part: &Value, context: &str, tolerance: f64) {
         anchors[0]["distance_m"].as_f64().unwrap(),
         0.0,
         "{context}: visible progress is rebased to zero"
+    );
+}
+
+/// Invariants every Daily Snapshot display Route Part must satisfy. Display
+/// geometry is visualization-only: no canonical progress or anchors, but the
+/// shape still has to be drawable and carry the server-owned distances.
+#[allow(dead_code)]
+pub fn assert_display_route_part(part: &Value, context: &str) {
+    let coordinates = part["display_geometry"]["coordinates"]
+        .as_array()
+        .expect("display coordinates");
+    assert_eq!(
+        part["display_geometry"]["type"], "LineString",
+        "{context}: valid display LineString"
+    );
+    assert!(
+        coordinates.len() >= 2,
+        "{context}: at least two display coordinates"
+    );
+    assert!(
+        part.get("geometry").is_none(),
+        "{context}: daily part has no canonical geometry"
+    );
+    assert!(
+        part.get("vertex_distance_m").is_none(),
+        "{context}: daily part has no vertex_distance_m"
+    );
+    assert!(
+        part.get("progress_anchors").is_none(),
+        "{context}: daily part has no progress_anchors"
+    );
+    let visible = part["visible_distance_m"].as_f64().unwrap();
+    assert!(visible > 0.0, "{context}: visible distance is positive");
+    assert!(
+        part.get("visible_from_at").is_some() && part.get("visible_until_at").is_some(),
+        "{context}: daily part carries its own visible window"
     );
 }

@@ -9,7 +9,7 @@ pub(super) struct RoutePoint {
     pub(super) lon: f64,
 }
 
-pub(super) async fn owner_timezone(
+pub(crate) async fn owner_timezone(
     pool: &PgPool,
     device_id: Uuid,
 ) -> Result<Option<String>, sqlx::Error> {

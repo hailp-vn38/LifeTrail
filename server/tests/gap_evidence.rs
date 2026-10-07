@@ -8,7 +8,7 @@ mod support;
 
 use serde_json::{Value, json};
 use support::{
-    assert_route_part,
+    assert_display_route_part,
     scenarios::{self, METER_PER_DEGREE, STEP, TOLERANCE_M},
 };
 
@@ -51,7 +51,7 @@ async fn genuine_absence_publishes_a_gap_event_and_ends_trip_continuity() {
     let parts = view["route_parts"].as_array().unwrap();
     assert_eq!(parts.len(), 2);
     for part in parts {
-        assert_route_part(part, "gap-adjacent part", TOLERANCE_M);
+        assert_display_route_part(part, "gap-adjacent part");
     }
     assert_eq!(parts[0]["observed_until_at"], "2026-10-05T08:02:00Z");
     assert_eq!(parts[1]["observed_from_at"], "2026-10-05T08:13:00Z");
@@ -95,7 +95,7 @@ async fn impossible_jump_leaves_raw_intact_but_publishes_no_excursion() {
     let parts = view["route_parts"].as_array().unwrap();
     assert_eq!(parts.len(), 2, "movement either side stays separate Trips");
     for part in parts {
-        for coordinate in part["geometry"]["coordinates"].as_array().unwrap() {
+        for coordinate in part["display_geometry"]["coordinates"].as_array().unwrap() {
             assert_ne!(*coordinate, json!([106.7, 10.82]), "{coordinate}");
         }
     }

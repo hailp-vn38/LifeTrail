@@ -51,6 +51,63 @@ pub async fn queue_day(pool: &PgPool, device: Uuid, date: NaiveDate) -> Result<(
     enqueue(&mut tx, device).await?;
     tx.commit().await
 }
+
+/// Re-queue one day for projection-only reprojection at the current display
+/// schema, reusing the active manifest instead of re-running the matcher.
+///
+/// Idempotent: a repeated request for the same (device, day, target schema) is a
+/// no-op that returns `false`, so it never produces a second snapshot.  Returns
+/// `true` when this call newly accepted the request and enqueued a job.
+pub async fn queue_projection(
+    pool: &PgPool,
+    device: Uuid,
+    date: NaiveDate,
+) -> Result<bool, sqlx::Error> {
+    let mut tx = pool.begin().await?;
+    lock_device(&mut tx, device).await?;
+    let accepted = sqlx::query(
+        "INSERT INTO projection_requeues(device_id,local_date,target_schema_version) VALUES($1,$2,$3) \
+         ON CONFLICT DO NOTHING",
+    )
+    .bind(device)
+    .bind(date)
+    .bind(super::reprojection::DAILY_PROJECTION_SCHEMA_VERSION)
+    .execute(&mut *tx)
+    .await?
+    .rows_affected()
+        == 1;
+    if accepted {
+        sqlx::query("INSERT INTO processing_days(device_id,local_date,timezone,state) \
+            SELECT d.id,$2,u.timezone,'queued' FROM devices d JOIN users u ON u.id=d.owner_user_id WHERE d.id=$1 \
+            ON CONFLICT(device_id,local_date,timezone) DO UPDATE SET state='queued'")
+            .bind(device).bind(date).execute(&mut *tx).await?;
+        enqueue(&mut tx, device).await?;
+    }
+    tx.commit().await?;
+    Ok(accepted)
+}
+
+/// Enqueue projection-only reprojection for every day whose active publication
+/// is below the current display schema. Returns how many (device, day) requests
+/// were newly accepted. Idempotent: re-running only accepts what is still stale
+/// and unseen, so a half-finished cutover resumes without duplicating work.
+pub async fn backfill_projection_schema(pool: &PgPool) -> Result<u64, sqlx::Error> {
+    let stale: Vec<(Uuid, NaiveDate)> = sqlx::query_as(
+        "SELECT p.device_id,p.local_date FROM daily_publications p \
+         JOIN daily_snapshots s ON s.id=p.snapshot_id \
+         WHERE (s.body->'provenance'->>'projection_schema_version')::int <> $1",
+    )
+    .bind(super::reprojection::DAILY_PROJECTION_SCHEMA_VERSION)
+    .fetch_all(pool)
+    .await?;
+    let mut accepted = 0;
+    for (device, date) in stale {
+        if queue_projection(pool, device, date).await? {
+            accepted += 1;
+        }
+    }
+    Ok(accepted)
+}
 async fn enqueue(tx: &mut Transaction<'_, Postgres>, device: Uuid) -> Result<(), sqlx::Error> {
     sqlx::query(
         "UPDATE device_processing_control SET work_generation=work_generation+1 WHERE device_id=$1",

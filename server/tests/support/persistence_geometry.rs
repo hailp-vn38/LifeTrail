@@ -22,9 +22,12 @@ fn distance_to_segment(point: [f64; 2], first: [f64; 2], last: [f64; 2]) -> f64 
     (point[0] - first[0] - fraction * delta[0]).hypot(point[1] - first[1] - fraction * delta[1])
 }
 
+/// Maximum cross-track error of the canonical Playback geometry between two
+/// published views. The firmware acceptance checks processed-geometry fidelity,
+/// so it reads the unsimplified canonical Route Parts, not display geometry.
 pub fn maximum_error(baseline: &Value, filtered: &Value) -> f64 {
-    let before = baseline["route_parts"].as_array().unwrap();
-    let after = filtered["route_parts"].as_array().unwrap();
+    let before = baseline["playback_route_parts"].as_array().unwrap();
+    let after = filtered["playback_route_parts"].as_array().unwrap();
     assert_eq!(before.len(), after.len(), "processed Route Part continuity");
     let mut maximum: f64 = 0.0;
     for (before_part, after_part) in before.iter().zip(after) {

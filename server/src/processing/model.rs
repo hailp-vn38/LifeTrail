@@ -68,6 +68,23 @@ pub(super) struct Day {
     pub first: Option<DateTime<Utc>>,
     pub last: Option<DateTime<Utc>>,
 }
+
+impl Day {
+    /// A projection-only day: only the local bounds matter for clipping.
+    pub(super) fn for_bounds(date: NaiveDate, from: DateTime<Utc>, until: DateTime<Utc>) -> Self {
+        Self {
+            date,
+            from,
+            until,
+            point_count: 0,
+            usable_count: 0,
+            low_quality_count: 0,
+            excluded_count: 0,
+            first: None,
+            last: None,
+        }
+    }
+}
 #[derive(Serialize)]
 pub struct ProcessingStatus {
     pub state: String,
@@ -78,6 +95,9 @@ pub struct ProcessingStatus {
     pub timezone_generation: i64,
     pub deferred_reason: Option<&'static str>,
     pub failure_message: Option<String>,
+    /// The published snapshot predates the current display projection schema.
+    #[serde(default)]
+    pub display_projection_stale: bool,
 }
 
 /// One captured GPS Record with the Raw acquisition metadata that classifies it.

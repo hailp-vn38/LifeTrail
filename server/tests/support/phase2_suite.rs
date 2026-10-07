@@ -71,6 +71,13 @@ impl Suite {
         )
         .await
     }
+    pub async fn playback(&self, date: &str) -> Value {
+        read(
+            &self.router,
+            &format!("/api/v1/devices/{}/days/{date}/playback", self.device),
+        )
+        .await
+    }
     pub async fn generation(&self) -> i64 {
         sqlx::query_scalar(
             "SELECT input_generation FROM device_processing_control WHERE device_id=$1",
