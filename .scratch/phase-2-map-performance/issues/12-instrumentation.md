@@ -1,6 +1,6 @@
 # 12: Server + Web instrumentation
 
-Status: open
+Status: resolved
 Type: task
 Labels: phase-2, perf, observability
 Blocked by: 03, 04, 09, 10
@@ -27,3 +27,11 @@ Spec §26/§27/§30/§36. Không có số đo thì không chứng minh được 
 ## Out of scope
 
 - Benchmark execution (Ticket 13).
+
+## Answer
+
+Server: `reprojection::log_display_metrics` (display vertices, over-budget,
+effective tolerance, snapshot bytes) plus latency/size debug logs in the Daily
+view and Playback handlers. Web: `map/map-metrics.ts` logs `daily_map_loaded`
+(display vertices, Daily payload bytes) from RouteMap and `playback_loaded`
+(parts, bytes, latency) from DailyMapCanvas. Log-only; nothing on the wire.

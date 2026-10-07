@@ -92,7 +92,13 @@ Q18 Ràng buộc bắt buộc: update web KHÔNG được phá layout UI Daily p
   Playback Payload, Effective Tolerance; amend Daily View, Route Part).
 - 2026-10-07: thêm ràng buộc Q18 (không phá layout Daily page) vào spec §19.0 +
   acceptance ticket 09/10/11/13.
-
+- Chưa code. Ticket 01 (OpenAPI contract v2) là first code slice.
+- 2026-10-07: toàn bộ 13 ticket resolved. Server: display_geometry + projection v2,
+  `/playback` (404/410), `projection_requeues` seam + `reproject-schema` backfill,
+  instrumentation. Web: `display_geometry` refactor, lazy `usePlaybackQuery` +
+  RouteMap lifecycle, canonical export/video, metrics. Client types regenerated.
+  Benchmark scale 30k điểm: display parts 36.5 KB vs playback 3.14 MB (~86×);
+  server suite (unit + PostGIS) và web suite (typecheck + 210 test) xanh.
 ## Ghi chú ponytail-review
 
 - Bỏ `spec.md` (nguồn thứ ba trùng); `map.md` là nguồn duy nhất cho decision +

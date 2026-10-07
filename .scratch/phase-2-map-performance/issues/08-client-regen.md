@@ -1,6 +1,6 @@
 # 08: Client regen — API generated types + query hooks
 
-Status: open
+Status: resolved
 Type: task
 Labels: phase-2, web, codegen
 Blocked by: 01
@@ -29,3 +29,9 @@ Daily View và thêm playback path → phải regen trước khi web consume.
 ## Out of scope
 
 - UI consume (Ticket 09/10).
+
+## Answer
+
+`npm run api:generate` regenerated `web/src/api/generated/lifetrail-v1.d.ts` from
+the updated contract (`DailyRoutePart`, `PlaybackView`, `playback` path,
+`display_projection_stale`, `display_geometry` provenance).

@@ -1,6 +1,6 @@
 # 03: Projection schema v2 — lightweight Daily Snapshot shape
 
-Status: open
+Status: resolved
 Type: task
 Labels: phase-2, server, projection
 Blocked by: 01, 02
@@ -44,3 +44,13 @@ File liên quan: `server/src/processing/reprojection.rs`,
 
 - Backfill historical (Ticket 06).
 - Playback endpoint (Ticket 04) — độc lập, đi trước.
+
+## Answer
+
+`server/src/processing/reprojection.rs` now projects the day's canonical parts and
+emits v2 Daily parts via `display_part`: `display_geometry` only, with the
+server-owned `distance_m`/`visible_distance_m`, no canonical `geometry`,
+`vertex_distance_m`, `progress_anchors` or per-part `quality`/`continues_*`.
+`provenance.projection_schema_version = 2` plus the `display_geometry` diagnostic
+block (`algorithm`, `tolerance_m`, `coordinate_decimals`, `max_vertices`,
+`vertices_over_budget`). Canonical parts stay on the Playback resource.

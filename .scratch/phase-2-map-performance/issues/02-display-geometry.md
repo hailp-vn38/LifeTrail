@@ -1,6 +1,6 @@
 # 02: display_geometry — metric simplification + rounding + budget escalation
 
-Status: open
+Status: resolved
 Type: task
 Labels: phase-2, server, geometry
 Blocked by: None
@@ -36,3 +36,14 @@ canonical Activity Revision geometry. File đề xuất:
 
 - Wire vào snapshot shape (Ticket 03).
 - Web render (Ticket 08).
+
+## Answer
+
+New module `server/src/processing/display_geometry.rs`: deterministic
+Ramer–Douglas–Peucker on a local equirectangular metric plane, 6-decimal rounding,
+endpoints preserved, duplicate-vertex dedupe. `simplify_parts` applies one shared
+per-day tolerance that escalates (`×1.5`, cap `MAX_TOLERANCE_M = 1000 m`) until every
+Part fits `LT_DAILY_DISPLAY_MAX_VERTICES` (default 3000 per Route Part), reporting
+`tolerance_m` and `over_budget`. Base tolerance `LT_DAILY_DISPLAY_SIMPLIFY_TOLERANCE_M`
+(default 10 m). Unit tests cover collinear collapse, endpoint preservation,
+rounding, escalation and the over-budget ceiling.

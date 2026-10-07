@@ -1,3 +1,55 @@
+# MEMORY — implement-spec: phase-2-map-performance (all 13 tickets resolved)
+
+Last updated: 2026-10-07 (phase-2 map performance; docs committed `c0b5e35`)
+
+## What was asked
+
+`@implement-spec thực hiện spec và ticket của "phase-2-map-performance"` — the
+13-ticket Phase 2 map-performance slice (`.scratch/phase-2-map-performance/`).
+
+## Status: all 13 tickets resolved
+
+Branch: `integration/phase-2-timeline-osrm` (the Phase 2 integration branch named
+by the spec; docs commit `c0b5e35`).
+
+- **Ticket 01** OpenAPI v2: `DailyRoutePart`, `PlaybackView`, `/playback` path,
+  `manifest_version` pin, `display_projection_stale`, `display_geometry` provenance.
+- **Ticket 02** `server/src/processing/display_geometry.rs`: deterministic RDP,
+  6-decimal rounding, per-day vertex budget with `×1.5` tolerance escalation
+  (`LT_DAILY_DISPLAY_SIMPLIFY_TOLERANCE_M`=10 m, `LT_DAILY_DISPLAY_MAX_VERTICES`=3000).
+- **Ticket 03** projection v2: Daily parts carry `display_geometry` only.
+- **Ticket 04** `GET …/days/{date}/playback`: canonical parts, 404 missing, 410 stale pin.
+- **Ticket 05** `projection_requeues` (migration 0016) idempotent drift seam;
+  `capture.rs` projection-only detection; lazy requeue on stale read.
+- **Ticket 06** `backfill_projection_schema` + `lifetrail-server reproject-schema`.
+- **Ticket 07** ADR 0008 + ADR 0006 amendment + CONTEXT glossary (docs-first).
+- **Ticket 08** client types regenerated.
+- **Ticket 09** Web renders `display_geometry`; `tripDisplayParts` replaces `tripParts`.
+- **Ticket 10** lazy `usePlaybackQuery` + `DailyMapCanvas` + RouteMap controller lifecycle.
+- **Ticket 11** canonical export/video (no display fallback; ADR 0008).
+- **Ticket 12** server + web display/playback metrics (log-only).
+- **Ticket 13** benchmark + acceptance.
+
+### Verification (re-run by me)
+
+- Server: `cargo fmt --check` clean; `clippy --all-targets` only 3 pre-existing
+  `capture.rs` warnings; `LT_TEST_DATABASE_URL=… cargo test` (unit) **13 passed**;
+  `cargo test -- --ignored --test-threads=1` (PostGIS) all pass across binaries.
+- Web: `npm run typecheck` clean; `npx vitest run` **210 passed / 37 files**.
+- Benchmark (scale fixture, 30,000 GPS Records):
+  `display_vertices=658`, `display_parts_bytes=36538`, `playback_parts_bytes=3143342`
+  — Daily Map payload ≈86× smaller than canonical Playback.
+
+### Environment notes
+
+- Disposable PostGIS `lt-pgtest` on `127.0.0.1:55432`,
+  `postgres://lifetrail:lifetrail_dev_only@127.0.0.1:55432/lifetrail_test`
+  (`docker run -d --name lt-pgtest -e POSTGRES_DB=lifetrail_test -e POSTGRES_USER=lifetrail -e POSTGRES_PASSWORD=lifetrail_dev_only -p 55432:5432 postgis/postgis:17-3.5`).
+- Server tests share one DB: run with `--test-threads=1`.
+- `PATH="$HOME/.cargo/bin:$PATH"`, `CARGO_TARGET_DIR=/home/hailp/LifeTrail/server/target`.
+
+---
+
 # MEMORY — implement-spec: Phase 2 ticket 05 CLOSED
 
 Last updated: 2026-10-06 (ticket 05 closed; integration branch tip `505666b`)

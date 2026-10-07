@@ -1,6 +1,6 @@
 # 09: Web Daily View — display_geometry refactor
 
-Status: open
+Status: resolved
 Type: task
 Labels: phase-2, web, map
 Blocked by: 08
@@ -34,3 +34,12 @@ Spec §15/§19/§22. `web/src/map/route-parts.ts`, `web/src/components/RouteMap.
 ## Out of scope
 
 - Playback (Ticket 10), export (Ticket 11).
+
+## Answer
+
+`DailyRoutePart` added to the activity model; `tripDisplayParts` replaces
+`tripParts`. `route-parts.ts`, `RouteMap.fitRoute`, `daily-layers` and
+`visibleTripCoordinates` render `display_geometry`; `tripDistanceM` still sums
+`visible_distance_m`. No client-side simplification and no distance from display
+coordinates. RouteMap tests updated; the Daily Map renders display geometry with
+no controller until playback loads.

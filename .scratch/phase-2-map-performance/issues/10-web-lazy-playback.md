@@ -1,6 +1,6 @@
 # 10: Web lazy playback + controller lifecycle/race guards
 
-Status: open
+Status: resolved
 Type: task
 Labels: phase-2, web, playback
 Blocked by: 08, 09
@@ -32,3 +32,13 @@ giữa chừng.
 ## Out of scope
 
 - Export/video (Ticket 11).
+
+## Answer
+
+New `playback.query.ts` (`usePlaybackQuery`, enabled gate, manifest pin) and
+`queryKeys.playback`. `DailyMapCanvas` owns the query, fetches only after
+`request-playback`, and passes canonical `playbackParts` to `RouteMap`. RouteMap
+builds the controller only when canonical parts exist, auto-plays a pending
+request, disposes/rebuilds on parts change, and is keyed by device/date/revision
+so date changes reset lifecycle. Tests: `DailyMapCanvas.test.ts`,
+`playback.query.test.ts`, RouteMap lazy-controller test.

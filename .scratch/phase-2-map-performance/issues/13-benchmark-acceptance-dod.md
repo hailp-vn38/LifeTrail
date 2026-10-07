@@ -1,6 +1,6 @@
 # 13: Dense-day benchmark + cross-stack acceptance + final DoD
 
-Status: open
+Status: resolved
 Type: task
 Labels: phase-2, perf, acceptance
 Blocked by: 06, 11, 12
@@ -38,3 +38,13 @@ acceptance cross-stack, chốt DoD.
 
 - Client-side simplification (bị cấm §35).
 - Thay firmware (§37).
+
+## Answer
+
+`phase2_acceptance` (master + 30,000-point scale) now verifies both the Daily
+display contract and the canonical Playback contract, and asserts the Daily parts
+payload is lighter than Playback. Measured on the scale fixture:
+`display_vertices=658`, `display_parts_bytes=36538`, `playback_parts_bytes=3143342`
+(≈86× smaller). Full server suite (unit + `--ignored` PostGIS) and Web suite
+(typecheck + 210 tests) pass; `cargo fmt`/`clippy` clean apart from three
+pre-existing capture warnings.

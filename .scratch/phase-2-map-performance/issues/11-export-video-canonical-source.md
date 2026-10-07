@@ -1,6 +1,6 @@
 # 11: Export/video — lazy canonical source (no display fallback)
 
-Status: open
+Status: resolved
 Type: task
 Labels: phase-2, web, export
 Blocked by: 08, 10
@@ -31,3 +31,12 @@ geometry. Hiện `web/src/features/daily-map/lib/export-day.ts` đọc
 ## Out of scope
 
 - Server export endpoint (không thêm).
+
+## Answer
+
+`downloadDay` is async and fetches canonical Playback before export;
+`exportDayContent` throws for a processed day without canonical parts (no silent
+downgrade to display geometry, per ADR 0008). `DailyMapActions` surfaces the error.
+`videoInput(view, parts)` requires canonical parts; `VideoExportDialog` fetches
+Playback on mount and passes them through `recordVideo`. Tests in
+`export-day.test.ts` and `export-plan.test.ts`.

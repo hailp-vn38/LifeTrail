@@ -45,3 +45,11 @@ representation → cần ADR mới + amend ADR cũ.
 ## Out of scope
 
 - Renumber ADR 0001 (flag only).
+
+## Answer
+
+Delivered docs-first in commit `docs(phase-2-map-performance)`: ADR 0008
+(`docs/adr/0008-daily-display-projection-vs-canonical-playback.md`), the Phase 2
+alignment note appended to ADR 0006, CONTEXT glossary terms (Display Geometry,
+Effective Tolerance, Playback, Display Projection Schema). The duplicate ADR 0001
+pair is flagged, not renamed.

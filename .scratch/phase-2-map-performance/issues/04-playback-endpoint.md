@@ -1,6 +1,6 @@
 # 04: Playback endpoint — canonical on-demand projection
 
-Status: open
+Status: resolved
 Type: task
 Labels: phase-2, server, api
 Blocked by: 01
@@ -38,3 +38,13 @@ File đề xuất: `server/src/processing/playback.rs`.
 
 - Web fetch/lifecycle (Ticket 09).
 - Export consumers (Ticket 10).
+
+## Answer
+
+`daily_view::playback` handler plus `processing::playback_source` /
+`playback_view`. Returns canonical `RoutePart`s clipped to the Owner-local day,
+with `manifest_version` and `projection_schema_version`. 404 when the day has no
+publication (matching the Daily view), 410 Gone when a pinned manifest no longer
+exists. `route_parts_for_day` reuses the immutable Activity Revision bodies so
+Playback and the Daily Snapshot share one source. Integration tests in
+`server/tests/playback.rs`.

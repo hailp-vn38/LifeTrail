@@ -1,6 +1,6 @@
 # 06: Historical backfill + atomic publication cutover
 
-Status: open
+Status: resolved
 Type: task
 Labels: phase-2, server, migration
 Blocked by: 05
@@ -28,3 +28,11 @@ nhưng **không** xoá/rewrite snapshot v1 (immutable). Acceptance đổi từ
 ## Out of scope
 
 - Web compatibility (web fail-fast v1 — Ticket 08/09).
+
+## Answer
+
+`processing::backfill_projection_schema` enqueues projection-only reprojection for
+every published day below the current schema, idempotently (re-running accepts
+only still-stale, unseen requests). Operator entry point:
+`lifetrail-server reproject-schema` in `main.rs`. Verified by
+`backfill_enqueues_only_stale_publications`.

@@ -1,6 +1,6 @@
 # 05: Schema-drift projection-only requeue seam
 
-Status: open
+Status: resolved
 Type: task
 Labels: phase-2, server, processing
 Blocked by: 03
@@ -35,3 +35,13 @@ migration `0015_processed_gps.sql`.
 ## Out of scope
 
 - Mass backfill + cutover (Ticket 06).
+
+## Answer
+
+`projection_requeues` (migration `0016`) is the durable, idempotent
+(device, day, target schema) guard. `capture.rs` marks a day projection-only when
+the active publication predates `DAILY_PROJECTION_SCHEMA_VERSION` (2) and Raw is
+clean; the Daily view flags `display_projection_stale` and lazily calls
+`queue_projection`. Reprojection reuses the active immutable manifest and never
+re-derives Raw or bumps generations. Verified by `playback.rs`
+(`schema_drift_is_flagged_and_requeued_once`).

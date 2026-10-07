@@ -1,6 +1,6 @@
 # 01: OpenAPI contract v2 — Daily display + Playback
 
-Status: open
+Status: resolved
 Type: task
 Labels: phase-2, api, contract
 Blocked by: None
@@ -45,3 +45,13 @@ contract mới. Đây là first code slice vì nó khóa shape cho mọi consume
 
 - Server implementation của display simplification (Ticket 02).
 - Playback handler (Ticket 04).
+
+## Answer
+
+Implemented in `protocol/openapi/lifetrail-v1.yaml`: the Daily view now exposes
+`DailyRoutePart` (display geometry only) plus a `PlaybackReference`; a new
+`GET /api/v1/devices/{deviceId}/days/{date}/playback` operation returns
+`PlaybackView` with canonical `RoutePart`s and an optional `manifest_version`
+pin (410 on a stale pin). `ProcessingStatus.display_projection_stale` and the
+`SnapshotProvenance.display_geometry` diagnostic block were added. Generated Web
+types regenerated (Ticket 08).
