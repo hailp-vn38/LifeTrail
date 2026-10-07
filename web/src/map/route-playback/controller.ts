@@ -1,6 +1,7 @@
 import { routeBearing } from "./heading";
 import { clampRouteTime, locateSegment, progressRatio, routeDurationMs } from "./timeline";
 import type { PlaybackFrame, PlaybackPoint, PlaybackState } from "./types";
+import { advanceWithoutStops, playbackStops, type PlaybackStop } from "./stop-time";
 
 /**
  * Playback runtime: requestAnimationFrame loop, play/pause/restart, speed,
@@ -38,6 +39,8 @@ export interface PlaybackControllerOptions {
   /** Validated playback points (at least 2, monotonic timestamps). */
   points: PlaybackPoint[];
   speed?: number;
+  stops?: PlaybackStop[];
+  skipStops?: boolean;
   /** Optional calendar-day clock; observations outside coverage are never invented. */
   startTimeMs?: number;
   endTimeMs?: number;
@@ -56,6 +59,8 @@ export class PlaybackController {
 
   private state: PlaybackState = "idle";
   private speed: number;
+  private readonly stops: PlaybackStop[];
+  private skipStops: boolean;
   private routeTimeMs = 0;
   private frameHandle: number | null = null;
   private lastTickMs: number | null = null;
@@ -71,6 +76,8 @@ export class PlaybackController {
     this.startTimeMs = options.startTimeMs ?? options.points[0].recordedAtMs;
     this.durationMs = options.endTimeMs === undefined ? routeDurationMs(options.points) : options.endTimeMs - this.startTimeMs;
     this.speed = options.speed && options.speed > 0 ? options.speed : 1;
+    this.stops = playbackStops(options.stops ?? [], this.startTimeMs, this.startTimeMs + this.durationMs);
+    this.skipStops = options.skipStops ?? false;
     this.finishHoldMs = options.finishHoldMs ?? DEFAULT_FINISH_HOLD_MS;
     this.scheduler = options.scheduler ?? defaultPlaybackScheduler;
     this.events = options.events;
@@ -101,7 +108,8 @@ export class PlaybackController {
     this.clearHold();
     this.state = "playing";
     this.lastTickMs = this.scheduler.now();
-    if (this.durationMs <= 0) {
+    if (this.skipStops) this.routeTimeMs = Math.min(this.durationMs, advanceWithoutStops(this.routeTimeMs, 0, this.stops));
+    if (this.routeTimeMs >= this.durationMs) {
       this.finishPlayback();
       return;
     }
@@ -149,6 +157,11 @@ export class PlaybackController {
     }
   }
 
+  setSkipStops(enabled: boolean): void {
+    if (this.disposed) return;
+    this.skipStops = enabled;
+  }
+
   /** Cancel the rAF loop and the finish hold; no callbacks fire afterwards. */
   dispose(): void {
     if (this.disposed) return;
@@ -184,7 +197,10 @@ export class PlaybackController {
     const last = this.lastTickMs ?? nowMs;
     const wallDeltaMs = Math.max(0, nowMs - last);
     this.lastTickMs = nowMs;
-    this.routeTimeMs = Math.min(this.durationMs, this.routeTimeMs + wallDeltaMs * this.speed);
+    const delta = wallDeltaMs * this.speed;
+    this.routeTimeMs = Math.min(this.durationMs, this.skipStops
+      ? advanceWithoutStops(this.routeTimeMs, delta, this.stops)
+      : this.routeTimeMs + delta);
     if (this.routeTimeMs >= this.durationMs) {
       this.finishPlayback();
       return;

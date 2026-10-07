@@ -27,6 +27,7 @@ export const usePlaybackStore = defineStore("playback", () => {
   const status = computed(() => model.value.status);
   const currentTimeMs = computed(() => model.value.currentTimeMs);
   const startTimeMs = computed(() => model.value.startTimeMs);
+  const currentEpochMs = computed(() => model.value.startTimeMs + model.value.currentTimeMs);
   const endTimeMs = computed(() => model.value.endTimeMs);
   const speed = computed(() => model.value.speed);
   const cameraFollow = computed(() => model.value.cameraFollow);
@@ -72,6 +73,7 @@ export const usePlaybackStore = defineStore("playback", () => {
     status,
     currentTimeMs,
     startTimeMs,
+    currentEpochMs,
     endTimeMs,
     durationMs,
     speed,

@@ -51,6 +51,8 @@
 .timeline-item:hover::before { background: #dce9fa; }
 .timeline-item.is-selected::before { background: #dbeafe; border-color: #2563eb; }
 .timeline-item.is-future { opacity: .4; }
+.timeline-item.is-current { box-shadow: inset 3px 0 #2563eb; }
+.timeline-item.is-current .timeline-item__marker { background: #2563eb; color: white; }
 .timeline-item__marker {
   grid-column: 1;
   grid-row: 1 / span 2;

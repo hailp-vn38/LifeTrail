@@ -54,6 +54,7 @@ export function buildTimelineEvents(dailyView: DailyView): TimelineEvent[] {
           kind: activity.kind,
           ...describeGap(activity, dailyView.timezone),
           recordedAtMs: Date.parse(activity.visible_from_at),
+          recordedUntilMs: Date.parse(activity.visible_until_at),
         };
       }
       if (activity.kind === "stop") {
@@ -70,6 +71,7 @@ export function buildTimelineEvents(dailyView: DailyView): TimelineEvent[] {
           ].join(" · "),
           coordinate: [activity.center[0], activity.center[1]],
           recordedAtMs: Date.parse(activity.visible_from_at),
+          recordedUntilMs: Date.parse(activity.visible_until_at),
         };
       }
       return {
@@ -88,6 +90,7 @@ export function buildTimelineEvents(dailyView: DailyView): TimelineEvent[] {
           describeSegments(activity.movement_segments),
         ].join(" · "),
         recordedAtMs: Date.parse(activity.visible_from_at),
+        recordedUntilMs: Date.parse(activity.visible_until_at),
       };
     });
   }

@@ -18,6 +18,8 @@ const props = defineProps<{
   disabledReason: string | null;
   /** Course-up follow camera is currently tracking the position. */
   cameraFollow: boolean;
+  skipStops: boolean;
+  hasStops: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -27,6 +29,7 @@ const emit = defineEmits<{
   seek: [routeTimeMs: number];
   "speed-change": [speed: number];
   "toggle-follow": [];
+  "skip-stops-change": [enabled: boolean];
 }>();
 
 const canInteract = computed(() => props.mapReady && !props.disabledReason);
@@ -133,6 +136,15 @@ function onSpeedChange(event: Event) {
         </select>
       </label>
     </div>
+    <label v-if="hasStops" class="playback-bar__skip-stops">
+      <input
+        type="checkbox"
+        :checked="skipStops"
+        :disabled="!canInteract"
+        @change="emit('skip-stops-change', ($event.target as HTMLInputElement).checked)"
+      />
+      Bỏ qua thời gian dừng
+    </label>
     <p v-if="disabledReason" class="playback-note" role="note">{{ disabledReason }}</p>
   </div>
 </template>
@@ -154,6 +166,7 @@ function onSpeedChange(event: Event) {
   gap: 0.9rem;
   flex-wrap: wrap;
 }
+.playback-bar__skip-stops { display: flex; align-items: center; gap: .4rem; font-size: var(--font-size-sm); }
 .playback-bar__buttons {
   display: flex;
   align-items: center;

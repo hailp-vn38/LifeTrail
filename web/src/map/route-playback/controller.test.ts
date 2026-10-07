@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { PlaybackController, type PlaybackScheduler } from "./controller";
+import { PlaybackController, type PlaybackScheduler, type PlaybackControllerOptions } from "./controller";
 import type { PlaybackFrame, PlaybackPoint } from "./types";
 
 /** Manual clock + timer queue: fully deterministic, no wall-clock sleeps. */
@@ -82,13 +82,16 @@ interface Harness {
   onOverviewReady: () => void;
 }
 
-function harness(points: PlaybackPoint[] = fixturePoints(), speed = 1): Harness {
+function harness(points: PlaybackPoint[] = fixturePoints(), speed = 1,
+  options: Pick<PlaybackControllerOptions, "stops" | "skipStops" | "startTimeMs" | "endTimeMs"> = {},
+): Harness {
   const scheduler = new FakeScheduler();
   const frames: PlaybackFrame[] = [];
   const onOverviewReady = vi.fn();
   const controller = new PlaybackController({
     points,
     speed,
+    ...options,
     scheduler,
     events: { onFrame: (frame) => frames.push(frame), onOverviewReady },
   });
@@ -96,6 +99,59 @@ function harness(points: PlaybackPoint[] = fixturePoints(), speed = 1): Harness 
 }
 
 describe("PlaybackController", () => {
+  it("keeps Stop durations by default and allows toggling during playback", () => {
+    const { controller, scheduler } = harness(fixturePoints(), 1, {
+      stops: [{ startTimeMs: 3_000, endTimeMs: 25_000 }],
+    });
+    controller.play();
+    scheduler.advance(5_000);
+    scheduler.runFrames();
+    expect(controller.currentRouteTimeMs).toBe(5_000);
+    controller.setSkipStops(true);
+    scheduler.advance(1_000);
+    scheduler.runFrames();
+    expect(controller.currentRouteTimeMs).toBe(26_000);
+    controller.setSkipStops(false);
+    controller.seek(5_000);
+    controller.play();
+    scheduler.advance(1_000);
+    scheduler.runFrames();
+    expect(controller.currentRouteTimeMs).toBe(6_000);
+  });
+
+  it("skips Stops on the real day clock while preserving manual seeks and speed", () => {
+    const { controller, scheduler, frames } = harness(fixturePoints(), 2, {
+      startTimeMs: -10_000, endTimeMs: 40_000, skipStops: true,
+      stops: [{ startTimeMs: 3_000, endTimeMs: 25_000 }],
+    });
+    controller.seek(15_000);
+    expect(controller.currentRouteTimeMs).toBe(15_000);
+    controller.play();
+    expect(controller.currentRouteTimeMs).toBe(35_000);
+    scheduler.advance(1_000);
+    scheduler.runFrames();
+    expect(controller.currentRouteTimeMs).toBe(37_000);
+    expect(frames.at(-1)?.vertexIndex).toBe(2);
+  });
+
+  it("finishes normally when skipped Stops reach the end and skips again on restart", () => {
+    const { controller, scheduler, onOverviewReady } = harness(fixturePoints(), 1, {
+      skipStops: true, stops: [{ startTimeMs: 3_000, endTimeMs: 30_000 }],
+    });
+    controller.play();
+    scheduler.advance(3_000);
+    scheduler.runFrames();
+    expect(controller.currentState).toBe("finished");
+    expect(controller.currentRouteTimeMs).toBe(30_000);
+    scheduler.advance(700);
+    expect(onOverviewReady).toHaveBeenCalledOnce();
+    controller.restart();
+    controller.play();
+    scheduler.advance(3_000);
+    scheduler.runFrames();
+    expect(controller.currentState).toBe("finished");
+  });
+
   it("follows east then south even when GPS records are less than 5m apart", () => {
     const points: PlaybackPoint[] = [
       ...Array.from({ length: 11 }, (_, i) => ({

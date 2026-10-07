@@ -146,6 +146,52 @@ afterEach(() => {
 });
 
 describe("RouteMap", () => {
+  it("lets playback skip published Stops while keeping the option off by default", async () => {
+    vi.useFakeTimers();
+    const view = dailyViewFixture(TIMESTAMPS);
+    view.timeline = [{ ...openStop,
+      visible_from_at: TIMESTAMPS[1], visible_until_at: TIMESTAMPS[2],
+    }];
+    const wrapper = mountRouteMap(view);
+    try {
+      await wrapper.vm.$nextTick();
+      const checkbox = wrapper.get('input[type="checkbox"]');
+      expect((checkbox.element as HTMLInputElement).checked).toBe(false);
+      await checkbox.setValue(true);
+      await wrapper.get('button[aria-label="Phát"]').trigger("click");
+      vi.advanceTimersByTime(4_000);
+      expect(usePlaybackStore().currentTimeMs).toBeGreaterThanOrEqual(25_000);
+      expect(usePlaybackStore().status).toBe("playing");
+      await checkbox.setValue(false);
+      expect((checkbox.element as HTMLInputElement).checked).toBe(false);
+    } finally {
+      wrapper.unmount();
+    }
+  });
+
+  it("keeps the skip-Stops choice when canonical playback loads lazily", async () => {
+    vi.useFakeTimers();
+    const view = tripView();
+    view.timeline = [{ ...openStop,
+      visible_from_at: rawPart.progress_anchors[1].at,
+      visible_until_at: rawPart.progress_anchors[3].at,
+    }, openTrip];
+    const wrapper = mountRouteMap(view);
+    try {
+      await wrapper.vm.$nextTick();
+      await wrapper.get('input[type="checkbox"]').setValue(true);
+      await wrapper.get('select[aria-label="Tốc độ phát lại"]').setValue("100");
+      await wrapper.get('button[aria-label="Phát"]').trigger("click");
+      expect(wrapper.emitted("request-playback")).toHaveLength(1);
+      await wrapper.setProps({ playbackParts: tripPlayback() });
+      vi.advanceTimersByTime(4_000);
+      expect(usePlaybackStore().currentTimeMs).toBeGreaterThanOrEqual(900_000);
+      expect(usePlaybackStore().status).toBe("playing");
+    } finally {
+      wrapper.unmount();
+    }
+  });
+
   it("opens the saved 3D style with a tilted camera", () => {
     vi.stubEnv("VITE_MAPTILER_KEY", "test-key");
     localStorage.setItem(MAP_STYLE_STORAGE_KEY, "streets-3d");
@@ -212,7 +258,9 @@ describe("RouteMap", () => {
       await wrapper.find('button[aria-label="Phát"]').trigger("click");
       const map = lastMap();
       const dragHandler = map.on.mock.calls.find(([event]) => event === "dragstart")?.[1];
+      map.stop.mockClear();
       dragHandler({ originalEvent: new Event("mousedown") });
+      expect(map.stop).not.toHaveBeenCalled();
       expect(map.dragRotate.enable).toHaveBeenCalled();
       expect(map.touchPitch.enable).toHaveBeenCalled();
       expect(map.setMinPitch).toHaveBeenLastCalledWith(0);
@@ -587,6 +635,45 @@ it("renders processed Route Parts without deriving length from their coordinates
 });
 
 import { usePlaybackStore } from "../stores/playback.store";
+
+it("syncs the Daily clock with a Stop-only Timeline without requesting route playback", async () => {
+  const wrapper = mount(RouteMap, {
+    props: { dailyView: stationaryView(), dayClock: true }, global: { plugins: [createPinia()] },
+  });
+  try {
+    const playback = usePlaybackStore();
+    const epoch = Date.parse(openStop.visible_from_at);
+    playback.requestSeek(epoch);
+    await nextTick();
+    expect(playback.currentEpochMs).toBe(epoch);
+    expect(wrapper.get('.playback-bar__time').text()).toBe('23:50');
+    expect(wrapper.emitted('request-playback')).toBeUndefined();
+  } finally {
+    wrapper.unmount();
+  }
+});
+
+it("keeps the Daily clock seek from Timeline while canonical playback loads", async () => {
+  const view = tripView();
+  const wrapper = mount(RouteMap, {
+    props: { dailyView: view, dayClock: true }, global: { plugins: [createPinia()] },
+  });
+  try {
+    await nextTick();
+    const playback = usePlaybackStore();
+    const epoch = Date.parse(rawPart.progress_anchors[2].at);
+    playback.requestSeek(epoch);
+    await nextTick();
+    expect(playback.startTimeMs + playback.currentTimeMs).toBe(epoch);
+    expect(wrapper.get('.playback-bar__time').text()).toBe('10:10');
+    await wrapper.setProps({ playbackParts: tripPlayback() });
+    expect(playback.startTimeMs + playback.currentTimeMs).toBe(epoch);
+    expect(playback.status).toBe('paused');
+    expect(wrapper.get('.playback-bar__time').text()).toBe('10:10');
+  } finally {
+    wrapper.unmount();
+  }
+});
 
 it.each(["raw", "processed"])("plays the %s Daily Route without selecting a Timeline item", async (source) => {
   vi.useFakeTimers();

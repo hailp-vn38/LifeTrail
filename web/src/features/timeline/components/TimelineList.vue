@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick, ref, watch } from "vue";
+import { computed, nextTick, ref, watch } from "vue";
 import { usePlaybackStore } from "../../../stores/playback.store";
 import TimelineItem from "./TimelineItem.vue";
 import type { TimelineEvent } from "../types";
@@ -8,6 +8,12 @@ const props = defineProps<{ events: TimelineEvent[]; selectedId: string | null }
 defineEmits<{ select: [id: string] }>();
 
 const playback = usePlaybackStore();
+const currentId = computed(() => {
+  if (!playback.durationMs || playback.status === "idle") return null;
+  return props.events.find((event, index) => event.recordedAtMs !== undefined
+    && event.recordedAtMs <= playback.currentEpochMs
+    && playback.currentEpochMs < (event.recordedUntilMs ?? props.events[index + 1]?.recordedAtMs ?? Infinity))?.id ?? null;
+});
 const itemInstances = ref(new Map<string, { $el?: unknown }>());
 
 function setItemRef(id: string, instance: unknown) {
@@ -18,18 +24,17 @@ function setItemRef(id: string, instance: unknown) {
   }
 }
 
-// When the map (or playback) selects an event, bring it into view.
-watch(
-  () => props.selectedId,
-  async (id) => {
-    if (!id) return;
-    await nextTick();
-    const element = itemInstances.value.get(id)?.$el;
-    if (element instanceof HTMLElement) {
-      element.scrollIntoView({ block: "nearest", behavior: "smooth" });
-    }
-  },
-);
+// Scroll only when the selection or the current activity changes.
+async function scrollToEvent(id: string | null) {
+  if (!id) return;
+  await nextTick();
+  const element = itemInstances.value.get(id)?.$el;
+  if (element instanceof HTMLElement) {
+    element.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }
+}
+watch(() => props.selectedId, scrollToEvent);
+watch(currentId, scrollToEvent);
 </script>
 
 <template>
@@ -40,7 +45,8 @@ watch(
       :ref="(instance) => setItemRef(event.id, instance)"
       :event="event"
       :selected="selectedId === event.id"
-      :future="playback.durationMs > 0 && event.recordedAtMs !== undefined && event.recordedAtMs > playback.startTimeMs + playback.currentTimeMs"
+      :current="currentId === event.id"
+      :future="playback.durationMs > 0 && event.recordedAtMs !== undefined && event.recordedAtMs > playback.currentEpochMs"
       @select="$emit('select', $event)"
     />
     <slot />

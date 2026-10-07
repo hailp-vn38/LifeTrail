@@ -92,6 +92,7 @@ let playbackInteraction: PlaybackInteraction | undefined;
 let playbackPoints: PlaybackPoint[] = [];
 // Set when the user presses play before the lazy playback load resolves.
 let pendingPlay = false;
+let pendingSeekEpochMs: number | undefined;
 let lastFrameState: PlaybackState = "idle";
 let lastFrame: PlaybackFrame | undefined;
 let lastFrameTimeMs = 0;
@@ -102,6 +103,9 @@ const timelineEvents = computed(() => buildTimelineEvents(props.dailyView));
 const mapReady = ref(false);
 const playbackState = ref<PlaybackState>("idle");
 const playbackSpeed = ref(1);
+const skipStops = ref(false);
+const stops = computed(() => stopActivities(props.dailyView));
+watch(skipStops, enabled => controller?.setSkipStops(enabled));
 const routeTimeMs = ref(0);
 const durationMs = ref(0);
 const startTimeMs = ref(0);
@@ -272,8 +276,15 @@ function handlePause() {
 }
 
 function handleRestart() {
+  pendingSeekEpochMs = undefined;
+  pendingPlay = false;
   mapStore.clearSelection();
-  controller?.restart();
+  if (controller) controller.restart();
+  else {
+    routeTimeMs.value = 0;
+    playbackState.value = "idle";
+    playbackStore.setFrame("idle", 0);
+  }
 }
 watch(() => playbackStore.restartRequest, () => {
   handleRestart();
@@ -282,8 +293,15 @@ watch(() => playbackStore.restartRequest, () => {
 watch(() => playbackStore.seekRequest, (request) => {
   if (!request) return;
   // Seeking before the lazy playback load engages it too.
-  if (!controller && !playbackInput.value?.ok && props.dailyView.route_parts?.length) {
-    emit("request-playback");
+  if (!controller) {
+    pendingPlay = false;
+    routeTimeMs.value = Math.min(durationMs.value, Math.max(0, request.epochMs - startTimeMs.value));
+    playbackState.value = "paused";
+    playbackStore.setFrame("paused", routeTimeMs.value);
+    if (props.dailyView.route_parts?.length) {
+      pendingSeekEpochMs = request.epochMs;
+      emit("request-playback");
+    }
   }
   playbackStore.setCameraFollow(false);
   controller?.seek(request.epochMs - startTimeMs.value);
@@ -297,7 +315,8 @@ watch(() => playbackStore.seekRequest, (request) => {
 });
 
 function handleSeek(timeMs: number) {
-  controller?.seek(timeMs);
+  if (controller) controller.seek(timeMs);
+  else playbackStore.requestSeek(startTimeMs.value + timeMs);
 }
 
 function handleSpeedChange(speed: number) {
@@ -328,7 +347,7 @@ function handleToggleFollow() {
 function handleManualInteraction(event: { originalEvent?: unknown }) {
   if (!event.originalEvent) return;
   playbackStore.setCameraFollow(false);
-  followCamera?.stop();
+  // MapLibre already stops camera animation for gestures; stop() also cancels the gesture.
 }
 
 watch(
@@ -416,9 +435,15 @@ function createController(input: { points: PlaybackPoint[] }) {
     startTimeMs: bounds.startTimeMs,
     endTimeMs: bounds.endTimeMs,
     speed: playbackSpeed.value,
+    skipStops: skipStops.value,
+    stops: stops.value.map(stop => ({
+      startTimeMs: Date.parse(stop.visible_from_at),
+      endTimeMs: Date.parse(stop.visible_until_at),
+    })),
     events: { onFrame: applyFrame, onOverviewReady: handleOverviewReady },
   });
   playbackStore.initialize({ ...bounds });
+  playbackStore.setSpeed(playbackSpeed.value as PlaybackSpeed);
   if (map && mapReady.value) attachPlaybackRuntime(map);
 }
 
@@ -440,6 +465,10 @@ watch(
     const input = buildRoutePartPlaybackInput(parts, gapActivities(props.dailyView), evidenceHoles(props.dailyView));
     if (!input.ok) return;
     createController(input);
+    if (pendingSeekEpochMs !== undefined) {
+      controller?.seek(pendingSeekEpochMs - startTimeMs.value);
+      pendingSeekEpochMs = undefined;
+    }
     if (pendingPlay) {
       pendingPlay = false;
       handlePlay();
@@ -453,6 +482,7 @@ onMounted(() => {
     const bounds = dayClockBounds(props.dailyView.date, props.dailyView.timezone);
     startTimeMs.value = bounds.startTimeMs;
     durationMs.value = bounds.endTimeMs - bounds.startTimeMs;
+    playbackStore.initialize(bounds);
   }
   const camera = initialMapCamera({
     routeCoordinates: routeCoordinates(),
@@ -546,12 +576,15 @@ onBeforeUnmount(() => {
       :map-ready="mapReady"
       :disabled-reason="disabledReason ?? (!hasPlaybackSource ? 'Không có route để phát lại.' : null)"
       :camera-follow="playbackStore.cameraFollow"
+      :skip-stops="skipStops"
+      :has-stops="stops.length > 0"
       @play="handlePlay"
       @pause="handlePause"
       @restart="handleRestart"
       @seek="handleSeek"
       @speed-change="handleSpeedChange"
       @toggle-follow="handleToggleFollow"
+      @skip-stops-change="skipStops = $event"
     />
     <p v-if="interruption" class="playback-interruption" role="status">{{ INTERRUPTION_TEXT[interruption] }}</p>
   </div>

@@ -3,7 +3,7 @@ import { Bike, Car, Footprints, CircleDot, Flag, Info, Image, Mic, Pause, Route,
 import { computed } from "vue";
 import type { TimelineEvent, TimelineEventKind } from "../types";
 
-const props = defineProps<{ event: TimelineEvent; selected: boolean; future?: boolean }>();
+const props = defineProps<{ event: TimelineEvent; selected: boolean; future?: boolean; current?: boolean }>();
 defineEmits<{ select: [id: string] }>();
 
 const KIND_ICON: Record<TimelineEventKind, typeof Flag> = {
@@ -30,7 +30,8 @@ const selectedLabel = computed(() =>
     <button
       type="button"
       class="timeline-item"
-      :class="[`timeline-item--${event.kind}`, { 'is-selected': selected, 'is-future': future }]"
+      :class="[`timeline-item--${event.kind}`, { 'is-selected': selected, 'is-future': future, 'is-current': current }]"
+      :aria-current="current ? 'step' : undefined"
       :aria-pressed="selected"
       :aria-label="`${event.title}${selectedLabel}`"
       @click="$emit('select', event.id)"

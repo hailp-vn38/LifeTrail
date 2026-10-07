@@ -27,4 +27,6 @@ export interface TimelineEvent {
   coordinate?: [number, number];
   /** GPS epoch ms, when known. */
   recordedAtMs?: number;
+  /** Exclusive end of a published activity interval, in GPS epoch milliseconds. */
+  recordedUntilMs?: number;
 }
