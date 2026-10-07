@@ -1,17 +1,18 @@
 usage() {
   cat <<'HELP'
-Usage: scripts/lifetrail <command> [app]
+Usage: scripts/lifetrail <command> [app ...]
 
 Apps:
   all       web, server, postgres (default).
   web | server | postgres
+  Lifecycle commands accept multiple apps; use all on its own.
 
 Commands:
-  start [app]          Build if needed and start the selected services.
-  stop [app]           Stop the selected services without removing data.
-  restart [app]        Restart the selected services.
-  status [app]         Show running and stopped selected services.
-  logs [app]           Follow the selected services' logs.
+  start [app ...]      Build if needed and start the selected services.
+  stop [app ...]       Stop the selected services without removing data.
+  restart [app ...]    Restart the selected services.
+  status [app ...]     Show running and stopped selected services.
+  logs [app ...]       Follow the selected services' logs.
   build [all|web|server]
                       Build application images.
   test                Check Web and API through Nginx at :8080.
@@ -20,6 +21,7 @@ Commands:
 
 Examples:
   scripts/lifetrail start all
+  scripts/lifetrail start server postgres
   scripts/lifetrail status all
   scripts/lifetrail logs server
   scripts/lifetrail test server-tests

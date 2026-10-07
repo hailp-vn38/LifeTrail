@@ -11,6 +11,12 @@
   hosting is opt-in via `LT_STATIC_DIR` only.
 - `postgres` — PostgreSQL/PostGIS, internal only, with a persistent volume.
 
+Runtime services use `restart: unless-stopped` to recover after a crash or
+host reboot. Docker must be enabled at boot (`sudo systemctl enable --now docker`
+on systemd hosts). Start the services with `scripts/lifetrail start`; containers
+explicitly stopped remain stopped after reboot until started again. Test services
+do not restart automatically.
+
 Browser and ESP32 devices both use the same origin:
 
 ```text

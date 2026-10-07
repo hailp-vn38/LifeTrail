@@ -14,8 +14,8 @@ source "$SCRIPT_DIR/lib/lifetrail/usage.sh"
 command="${1:-}"
 case "$command" in
   start|stop|restart|status|logs)
-    [[ $# -le 2 ]] || { usage >&2; exit 2; }
-    select_apps "${2:-all}" || { usage >&2; exit 2; }
+    shift
+    select_apps "$@" || { usage >&2; exit 2; }
     case "$command" in
       start) compose "${COMPOSE_PROFILE_ARGS[@]}" up -d --build "${SERVICES[@]}" ;;
       stop|restart) compose "${COMPOSE_PROFILE_ARGS[@]}" "$command" "${SERVICES[@]}" ;;
