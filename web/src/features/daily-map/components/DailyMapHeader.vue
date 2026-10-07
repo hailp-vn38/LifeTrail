@@ -10,20 +10,15 @@ import DailyMapActions from "./DailyMapActions.vue";
 const props = defineProps<{ deviceId: string; date: string; dailyView?: DailyView | null }>();
 const devices = useDevices();
 const timezone = computed(() => props.dailyView?.timezone ?? devices.data.value?.find(device => device.id === props.deviceId)?.timezone);
-const { daysWithData, refresh: refreshWeek } = useWeekData(toRef(props, "deviceId"), toRef(props, "date"), timezone);
-const emit = defineEmits<{ "date-change": [date: string]; refresh: [] }>();
-
-function refresh() {
-  void refreshWeek();
-  emit("refresh");
-}
+const { daysWithData } = useWeekData(toRef(props, "deviceId"), toRef(props, "date"), timezone);
+const emit = defineEmits<{ "date-change": [date: string] }>();
 </script>
 
 <template>
   <header class="daily-map-header">
     <DailyDateContext :date="date" @date-change="emit('date-change', $event)" />
     <DailyMapToolbar :days-with-data="daysWithData" :date="date" :timezone="timezone" @date-change="emit('date-change', $event)" />
-    <DailyMapActions :device-id="deviceId" :daily-view="dailyView" @refresh="refresh" />
+    <DailyMapActions :device-id="deviceId" :daily-view="dailyView" />
   </header>
 </template>
 

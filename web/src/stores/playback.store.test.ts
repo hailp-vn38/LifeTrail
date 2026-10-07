@@ -26,8 +26,8 @@ describe("usePlaybackStore", () => {
     expect(store.status).toBe("playing");
     expect(store.currentTimeMs).toBe(15_000);
 
-    store.setSpeed(2);
-    expect(store.speed).toBe(2);
+    store.setSpeed(100);
+    expect(store.speed).toBe(100);
 
     store.setCameraFollow(true);
     expect(store.cameraFollow).toBe(true);

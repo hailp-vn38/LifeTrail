@@ -50,7 +50,6 @@ watch(
       :date="date"
       :daily-view="query.data.value"
       @date-change="(next) => navigate(deviceId, next)"
-      @refresh="query.refetch()"
     />
 
     <DailyMapLoading v-if="query.isPending.value" />

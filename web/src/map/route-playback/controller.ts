@@ -8,7 +8,7 @@ import type { PlaybackFrame, PlaybackPoint, PlaybackState } from "./types";
  * creates the MapLibre map instance; it only emits frames to callbacks.
  */
 
-export const PLAYBACK_SPEEDS = [1, 2, 5, 10] as const;
+export const PLAYBACK_SPEEDS = [1, 10, 50, 100] as const;
 export const DEFAULT_FINISH_HOLD_MS = 700;
 
 /** Clock + timer surface. The default uses rAF/setTimeout; tests inject a fake. */
