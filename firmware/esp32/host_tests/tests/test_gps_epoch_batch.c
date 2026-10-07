@@ -304,6 +304,30 @@ static void test_batch_rejects_non_increasing_timestamp(void) {
   ASSERT_EQ_UINT(1U, capture.appended);
 }
 
+static void test_stationary_batch_rotates_after_five_minutes(void) {
+  batch_capture_t capture;
+  uint8_t uuid_counter;
+  lt_gps_batch_settings_t settings = {
+      .max_age_moving_ms = UINT64_C(60000),
+      .max_age_stationary_ms = UINT64_C(300000),
+      .max_bytes = LT_GPS_BATCH_DEFAULT_MAX_BYTES,
+  };
+  lt_gps_batch_writer_t writer =
+      initialize_writer(&capture, &uuid_counter, &settings);
+  lt_gps_record_t first = sample_record(INT64_C(1791203719250));
+  lt_gps_record_t before_deadline = sample_record(INT64_C(1791204019249));
+  lt_gps_record_t at_deadline = sample_record(INT64_C(1791204019250));
+
+  ASSERT_TRUE(lt_gps_batch_writer_append_with_motion(
+      &writer, &first, LT_GPS_MOTION_STATIONARY));
+  ASSERT_TRUE(lt_gps_batch_writer_append_with_motion(
+      &writer, &before_deadline, LT_GPS_MOTION_STATIONARY));
+  ASSERT_EQ_UINT(1U, capture.opened);
+  ASSERT_TRUE(lt_gps_batch_writer_append_with_motion(
+      &writer, &at_deadline, LT_GPS_MOTION_STATIONARY));
+  ASSERT_EQ_UINT(2U, capture.opened);
+}
+
 int main(void) {
   test_rmc_first_emits_fractional_navigation_epoch();
   test_gga_first_emits_navigation_epoch();
@@ -314,5 +338,6 @@ int main(void) {
   test_rotation_happens_before_time_threshold_record();
   test_rotation_happens_before_next_line_exceeds_byte_limit();
   test_batch_rejects_non_increasing_timestamp();
+  test_stationary_batch_rotates_after_five_minutes();
   return EXIT_SUCCESS;
 }

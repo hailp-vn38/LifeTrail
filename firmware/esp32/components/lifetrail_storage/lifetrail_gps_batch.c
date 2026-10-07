@@ -122,7 +122,8 @@ void lt_gps_batch_writer_init(lt_gps_batch_writer_t *writer,
   memset(impl, 0, sizeof(*impl));
   impl->settings = settings == NULL
         ? (lt_gps_batch_settings_t){
-            .max_age_ms = LT_GPS_BATCH_DEFAULT_MAX_AGE_MS,
+            .max_age_moving_ms = UINT64_C(60000),
+            .max_age_stationary_ms = LT_GPS_BATCH_DEFAULT_MAX_AGE_MS,
             .max_bytes = LT_GPS_BATCH_DEFAULT_MAX_BYTES,
         }
         : *settings;
@@ -133,12 +134,30 @@ void lt_gps_batch_writer_init(lt_gps_batch_writer_t *writer,
 
 bool lt_gps_batch_writer_append(lt_gps_batch_writer_t *writer,
                                 const lt_gps_record_t *record) {
+  return lt_gps_batch_writer_append_with_motion(
+      writer, record, LT_GPS_MOTION_MOVING);
+}
+
+static uint64_t max_age_for_motion(const lt_gps_batch_settings_t *settings,
+                                   lt_gps_motion_state_t motion_state) {
+  if (motion_state == LT_GPS_MOTION_STATIONARY &&
+      settings->max_age_stationary_ms != 0U) {
+    return settings->max_age_stationary_ms;
+  }
+  if (settings->max_age_moving_ms != 0U) return settings->max_age_moving_ms;
+  return settings->max_age_ms;
+}
+
+bool lt_gps_batch_writer_append_with_motion(
+    lt_gps_batch_writer_t *writer, const lt_gps_record_t *record,
+    lt_gps_motion_state_t motion_state) {
   writer_impl_t *impl = writer_impl(writer);
   char line[512];
   size_t line_length;
   bool must_rotate;
+  uint64_t max_age_ms = max_age_for_motion(&impl->settings, motion_state);
 
-  if (!valid_record(record) || impl->settings.max_age_ms == 0U ||
+  if (!valid_record(record) || max_age_ms == 0U ||
       impl->settings.max_bytes == 0U || impl->sink.append_line == NULL) {
     return false;
   }
@@ -151,7 +170,7 @@ bool lt_gps_batch_writer_append(lt_gps_batch_writer_t *writer,
   }
   must_rotate = impl->active &&
                 (record->ts_ms - impl->first_ts_ms >=
-                     (int64_t)impl->settings.max_age_ms ||
+                     (int64_t)max_age_ms ||
                  line_length > impl->settings.max_bytes - impl->byte_length);
   if (must_rotate) {
     if (impl->sink.rotate == NULL || !impl->sink.rotate(impl->sink.context)) {

@@ -5,12 +5,15 @@
 #include <stdint.h>
 
 #include "lifetrail_gps.h"
+#include "lifetrail_gps_policy.h"
 
 #define LT_GPS_BATCH_DEFAULT_MAX_AGE_MS UINT64_C(300000)
 #define LT_GPS_BATCH_DEFAULT_MAX_BYTES ((size_t)262144)
 
 typedef struct {
   uint64_t max_age_ms;
+  uint64_t max_age_moving_ms;
+  uint64_t max_age_stationary_ms;
   size_t max_bytes;
 } lt_gps_batch_settings_t;
 
@@ -45,3 +48,7 @@ void lt_gps_batch_writer_init(lt_gps_batch_writer_t *writer,
 
 bool lt_gps_batch_writer_append(lt_gps_batch_writer_t *writer,
                                 const lt_gps_record_t *record);
+
+bool lt_gps_batch_writer_append_with_motion(
+    lt_gps_batch_writer_t *writer, const lt_gps_record_t *record,
+    lt_gps_motion_state_t motion_state);

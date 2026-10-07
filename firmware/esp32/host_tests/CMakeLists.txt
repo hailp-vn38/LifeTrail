@@ -13,6 +13,7 @@ add_executable(gps_epoch_batch_tests
 target_include_directories(gps_epoch_batch_tests PRIVATE
     ../components/lifetrail_gps/include
     ../components/lifetrail_gps
+    ../components/lifetrail_gps_policy/include
     ../components/third_party/minmea
     ../components/lifetrail_storage/include)
 
@@ -22,6 +23,17 @@ target_compile_definitions(gps_epoch_batch_tests PRIVATE LT_GPS_TEST_FIXTURES_DI
 
 add_test(NAME gps_epoch_batch_tests COMMAND gps_epoch_batch_tests)
 
+add_executable(gps_policy_tests
+    ../components/lifetrail_gps_policy/lifetrail_gps_policy.c
+    tests/test_gps_policy.c)
+target_include_directories(gps_policy_tests PRIVATE
+    ../components/lifetrail_gps/include
+    ../components/lifetrail_gps_policy/include)
+target_compile_features(gps_policy_tests PRIVATE c_std_11)
+target_compile_options(gps_policy_tests PRIVATE -Wall -Wextra -Werror -pedantic)
+target_link_libraries(gps_policy_tests PRIVATE m)
+add_test(NAME gps_policy_tests COMMAND gps_policy_tests)
+
 add_executable(batch_store_tests
     ../components/lifetrail_storage/lifetrail_gps_batch.c
     ../components/lifetrail_storage/lifetrail_batch_store.c
@@ -30,6 +42,7 @@ add_executable(batch_store_tests
 
 target_include_directories(batch_store_tests PRIVATE
     ../components/lifetrail_gps/include
+    ../components/lifetrail_gps_policy/include
     ../components/lifetrail_storage/include)
 
 target_compile_features(batch_store_tests PRIVATE c_std_11)
@@ -47,6 +60,7 @@ add_executable(provisioning_sync_tests
 
 target_include_directories(provisioning_sync_tests PRIVATE
     ../components/lifetrail_gps/include
+    ../components/lifetrail_gps_policy/include
     ../components/lifetrail_storage/include
     ../components/lifetrail_provisioning/include
     ../components/lifetrail_sync/include)
