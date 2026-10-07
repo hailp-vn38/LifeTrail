@@ -60,15 +60,25 @@ import type {
 } from "../map/route-playback/types";
 import PlaybackBar from "../features/playback/components/PlaybackBar.vue";
 import type { PlaybackSpeed } from "../features/playback/playback.types";
-import { evidenceHoles, gapActivities, stopActivities } from "../features/activity/model";
+import { evidenceHoles, gapActivities, stopActivities, type RoutePart } from "../features/activity/model";
 import { useMapStore } from "../stores/map.store";
 import { useMapPreferencesStore } from "../stores/map-preferences.store";
 import { usePlaybackStore } from "../stores/playback.store";
 import { initialMapCamera, routeFitOptions } from "./map-camera";
 import { initializeWhenMapLoaded } from "./map-lifecycle";
 import { resolveMapStyle } from "./map-style";
+import { displayVertexCount, logMapMetrics } from "../map/map-metrics";
 
-const props = defineProps<{ dailyView: DailyView; dayClock?: boolean }>();
+const props = defineProps<{
+  dailyView: DailyView;
+  dayClock?: boolean;
+  /**
+   * Canonical Route Parts from the lazy Playback resource. Absent until playback
+   * is engaged, so the Daily Map renders `display_geometry` with no controller.
+   */
+  playbackParts?: RoutePart[];
+}>();
+const emit = defineEmits<{ (event: "request-playback"): void }>();
 const mapElement = ref<HTMLDivElement>();
 
 const mapStore = useMapStore();
@@ -80,6 +90,8 @@ let controller: PlaybackController | undefined;
 let followCamera: FollowCamera | undefined;
 let playbackInteraction: PlaybackInteraction | undefined;
 let playbackPoints: PlaybackPoint[] = [];
+// Set when the user presses play before the lazy playback load resolves.
+let pendingPlay = false;
 let lastFrameState: PlaybackState = "idle";
 let lastFrame: PlaybackFrame | undefined;
 let lastFrameTimeMs = 0;
@@ -96,10 +108,13 @@ const startTimeMs = ref(0);
 const interruption = ref<PlaybackBreak>();
 
 const playbackInput = computed(() => {
-  const parts = props.dailyView.route_parts ?? [];
+  // Canonical playback geometry is fetched lazily; until it arrives, a processed
+  // day renders its display geometry with no controller.
+  const parts = props.playbackParts ?? [];
   if (parts.length > 0) {
     return buildRoutePartPlaybackInput(parts, gapActivities(props.dailyView), evidenceHoles(props.dailyView));
   }
+  if (props.dailyView.route_parts?.length) return null;
   const route = props.dailyView.route;
   if (!route) return null;
   return buildPlaybackInput(route);
@@ -164,9 +179,9 @@ function fitRoute(map: MapLibreMap) {
     coordinates.push(props.dailyView.end.geometry.coordinates as MapCoordinate);
   }
   if (!coordinates.length) {
-    // Processed activity: fit the published Route Parts, then any Stop centers.
+    // Processed activity: fit the published display geometry, then any Stop centers.
     for (const part of props.dailyView.route_parts ?? []) {
-      coordinates.push(...(part.geometry.coordinates as MapCoordinate[]));
+      coordinates.push(...(part.display_geometry.coordinates as MapCoordinate[]));
     }
   }
   if (!coordinates.length) {
@@ -237,6 +252,12 @@ function handleOverviewReady() {
 }
 
 function handlePlay() {
+  // Processed days load canonical playback lazily: the first play engages it.
+  if (!controller && !playbackInput.value?.ok && props.dailyView.route_parts?.length) {
+    pendingPlay = true;
+    emit("request-playback");
+    return;
+  }
   // Start Daily playback at route coverage instead of waiting from midnight.
   // A paused cursor (including a Timeline seek) keeps its chosen time.
   if (props.dayClock && controller && (controller.currentState === "idle" || controller.currentState === "finished")) {
@@ -260,6 +281,10 @@ watch(() => playbackStore.restartRequest, () => {
 });
 watch(() => playbackStore.seekRequest, (request) => {
   if (!request) return;
+  // Seeking before the lazy playback load engages it too.
+  if (!controller && !playbackInput.value?.ok && props.dailyView.route_parts?.length) {
+    emit("request-playback");
+  }
   playbackStore.setCameraFollow(false);
   controller?.seek(request.epochMs - startTimeMs.value);
   // Re-selecting the same card still re-centers a manually panned map.
@@ -373,6 +398,55 @@ watch(
   },
 );
 
+/** Build the playback controller from validated canonical input. */
+function createController(input: { points: PlaybackPoint[] }) {
+  controller?.dispose();
+  controller = undefined;
+  playbackPoints = input.points;
+  const bounds = props.dayClock
+    ? dayClockBounds(props.dailyView.date, props.dailyView.timezone)
+    : {
+        startTimeMs: input.points[0].recordedAtMs,
+        endTimeMs: input.points[input.points.length - 1].recordedAtMs,
+      };
+  durationMs.value = bounds.endTimeMs - bounds.startTimeMs;
+  startTimeMs.value = bounds.startTimeMs;
+  controller = new PlaybackController({
+    points: input.points,
+    startTimeMs: bounds.startTimeMs,
+    endTimeMs: bounds.endTimeMs,
+    speed: playbackSpeed.value,
+    events: { onFrame: applyFrame, onOverviewReady: handleOverviewReady },
+  });
+  playbackStore.initialize({ ...bounds });
+  if (map && mapReady.value) attachPlaybackRuntime(map);
+}
+
+/** Wire interaction/follow camera once a controller exists and the map is ready. */
+function attachPlaybackRuntime(activeMap: MapLibreMap) {
+  if (!controller || playbackInteraction) return;
+  playbackInteraction = new PlaybackInteraction(activeMap);
+  followCamera = new FollowCamera(activeMap, {
+    offsetYPx: followOffsetYPx(activeMap.getContainer().clientHeight),
+  });
+}
+
+// Canonical playback geometry arrives lazily. Adopt it once, replacing any prior
+// controller, and auto-start if the user already asked to play.
+watch(
+  () => props.playbackParts,
+  (parts) => {
+    if (!parts?.length) return;
+    const input = buildRoutePartPlaybackInput(parts, gapActivities(props.dailyView), evidenceHoles(props.dailyView));
+    if (!input.ok) return;
+    createController(input);
+    if (pendingPlay) {
+      pendingPlay = false;
+      handlePlay();
+    }
+  },
+);
+
 onMounted(() => {
   if (!mapElement.value) return;
   if (props.dayClock) {
@@ -400,22 +474,7 @@ onMounted(() => {
   );
 
   const input = playbackInput.value;
-  if (input?.ok) {
-    playbackPoints = input.points;
-    const bounds = props.dayClock ? dayClockBounds(props.dailyView.date, props.dailyView.timezone) : { startTimeMs: input.points[0].recordedAtMs, endTimeMs: input.points[input.points.length - 1].recordedAtMs };
-    durationMs.value = bounds.endTimeMs - bounds.startTimeMs;
-    startTimeMs.value = bounds.startTimeMs;
-    controller = new PlaybackController({
-      points: input.points,
-      startTimeMs: bounds.startTimeMs,
-      endTimeMs: bounds.endTimeMs,
-      speed: playbackSpeed.value,
-      events: { onFrame: applyFrame, onOverviewReady: handleOverviewReady },
-    });
-    playbackStore.initialize({
-      ...bounds,
-    });
-  }
+  if (input?.ok) createController(input);
 
   initializeWhenMapLoaded(map, () => {
     const activeMap = map;
@@ -428,12 +487,12 @@ onMounted(() => {
     bindRoutePartSelection(activeMap, mapStore.selectEvent);
     initializeEventDots();
     fitRoute(activeMap);
-    if (controller) {
-      playbackInteraction = new PlaybackInteraction(activeMap);
-      followCamera = new FollowCamera(activeMap, {
-        offsetYPx: followOffsetYPx(activeMap.getContainer().clientHeight),
-      });
-    }
+    attachPlaybackRuntime(activeMap);
+    logMapMetrics("daily_map_loaded", {
+      display_vertices: displayVertexCount(props.dailyView),
+      daily_view_bytes: JSON.stringify(props.dailyView).length,
+      has_playback_parts: Boolean(props.playbackParts?.length),
+    });
     // Map -> selection store (the other half of the Timeline <-> Map bridge).
     // The start/end layers are only added when the daily view has those
     // events (see addRouteLayers), so only wire their click handlers then.

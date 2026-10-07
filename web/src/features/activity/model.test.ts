@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { tripDistanceM, stopActivities, tripActivities, tripParts } from "./model";
-import { tripView, openTrip, rawPart } from "../../test/fixtures/trips";
+import { tripDistanceM, stopActivities, tripActivities, tripDisplayParts } from "./model";
+import { tripView, openTrip, dailyPart } from "../../test/fixtures/trips";
 import { stationaryView, openStop } from "../../test/fixtures/stationary";
 
 describe("published activity model", () => {
@@ -12,11 +12,11 @@ describe("published activity model", () => {
     expect(stopActivities(stationaryView())[0].id).toBe(openStop.id);
   });
 
-  it("returns the published Route Parts of one Trip in movement order", () => {
-    const parts = tripParts(tripView(), openTrip.id);
-    expect(parts).toEqual([rawPart]);
-    expect(parts[0].vertex_distance_m[0]).toBe(0);
-    expect(tripParts(tripView(), "missing")).toEqual([]);
+  it("returns the published display Route Parts of one Trip in movement order", () => {
+    const parts = tripDisplayParts(tripView(), openTrip.id);
+    expect(parts).toEqual([dailyPart]);
+    expect(parts[0].display_geometry.coordinates.length).toBeGreaterThanOrEqual(2);
+    expect(tripDisplayParts(tripView(), "missing")).toEqual([]);
   });
 
   it("sums the server-published daily part lengths instead of recomputing geometry", () => {
@@ -29,7 +29,7 @@ describe("published activity model", () => {
     const view = tripView();
     view.route_parts = [
       {
-        ...rawPart,
+        ...dailyPart,
         // This is the after-midnight projection of a longer source Part. The
         // source distance belongs to UTC history; this Daily View owns only the
         // progress between its visible clipping endpoints.
@@ -37,7 +37,6 @@ describe("published activity model", () => {
         visible_distance_m: 735,
         visible_from_at: "2026-10-06T00:00:00Z",
         visible_until_at: "2026-10-06T00:10:00Z",
-        continues_before: true,
       },
     ];
 

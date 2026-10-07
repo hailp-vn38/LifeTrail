@@ -20,6 +20,7 @@ export const openTrip: components["schemas"]["DailyTrip"] = {
   daily_observed_duration_s: 1200, continues_before: false, continues_after: false,
 };
 
+/** Canonical Route Part, as served by the Playback resource. */
 export const rawPart: components["schemas"]["RoutePart"] = {
   id: `${REVISION}:trip:0:segment:0:part:0`, kind: "route_part",
   trip_id: openTrip.id, movement_segment_id: `${REVISION}:trip:0:segment:0`,
@@ -45,13 +46,40 @@ export const rawPart: components["schemas"]["RoutePart"] = {
   ],
 };
 
-/** One processed day with a Trip, its Route Part and a Stop. */
+/** Canonical parts as the lazy Playback query would return them. */
+export function tripPlayback(): components["schemas"]["RoutePart"][] {
+  return [rawPart];
+}
+
+/** Daily display Route Part: simplified geometry, server-owned distances only. */
+export const dailyPart: components["schemas"]["DailyRoutePart"] = {
+  id: `${REVISION}:trip:0:segment:0:part:0`, kind: "route_part",
+  trip_id: openTrip.id, movement_segment_id: `${REVISION}:trip:0:segment:0`,
+  source: "processed_gps", mode: "unknown", classification_confidence: 0,
+  observed_from_at: "2026-10-05T03:00:00Z", observed_until_at: "2026-10-05T03:20:00Z",
+  distance_m: 2204, visible_distance_m: 2204, source_record_count: 5,
+  visible_from_at: "2026-10-05T03:00:00Z", visible_until_at: "2026-10-05T03:20:00Z",
+  display_geometry: {
+    type: "LineString",
+    coordinates: [
+      [106.7, 10.77], [106.7012, 10.7706], [106.7016, 10.7708],
+    ],
+  },
+};
+
+/** One processed day with a Trip, its display Route Part and a Stop. */
 export function tripView(): DailyView {
   return {
     device_id: "device-1", date: "2026-10-05", timezone: "Asia/Ho_Chi_Minh",
     processing_state: "processed", evidence_state: "sufficient",
     route: null, start: null, end: null,
-    route_parts: [rawPart],
+    route_parts: [dailyPart],
+    provenance: {
+      manifest_version: "01900000-0000-7000-8000-000000000020",
+      source_raw_generation: 2, processed_through_generation: 2,
+      processing_target: "device-1", processing_target_generation: 2,
+      timezone_generation: 0, reducer_version: 1, projection_schema_version: 2,
+    },
     timeline: [
       {
         id: "01900000-0000-7000-8000-000000000001:stop:0", kind: "stop",

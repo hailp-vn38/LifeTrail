@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from "vue";
 import type { DailyView } from "../../../api/queries/daily-view.query";
+import { getPlayback } from "../../../api/queries/playback.query";
+import type { RoutePart } from "../../activity/model";
 import { PLAYBACK_SPEEDS } from "../../../map/route-playback/controller";
 import { useMapPreferencesStore } from "../../../stores/map-preferences.store";
 import { MAX_VIDEO_SECONDS, videoDuration, videoInput } from "../export-plan";
@@ -21,18 +23,34 @@ const error = ref("");
 const supportError = ref("");
 const format = ref("");
 const videoUrl = ref("");
+const parts = ref<RoutePart[] | undefined>();
 let abort: AbortController | undefined;
 let firstMs = 0;
 let totalSeconds = 0;
-try {
-  const points = videoInput(props.dailyView);
-  firstMs = points[0].recordedAtMs;
-  totalSeconds = (points.at(-1)!.recordedAtMs - firstMs) / 1000;
-  const mime = recordingMime();
-  format.value = mime.startsWith("video/mp4") ? "MP4" : "WebM";
-} catch (reason) { supportError.value = reason instanceof Error ? reason.message : String(reason); }
 const from = ref(0);
 const until = ref(totalSeconds);
+
+/** Load canonical playback geometry lazily, then size the export window. */
+async function initialize() {
+  try {
+    if (props.dailyView.route_parts?.length) {
+      const playback = await getPlayback(
+        props.dailyView.device_id,
+        props.dailyView.date,
+        props.dailyView.provenance?.manifest_version,
+      );
+      parts.value = playback.route_parts;
+    }
+    const points = videoInput(props.dailyView, parts.value);
+    firstMs = points[0].recordedAtMs;
+    totalSeconds = (points.at(-1)!.recordedAtMs - firstMs) / 1000;
+    until.value = totalSeconds;
+    const mime = recordingMime();
+    format.value = mime.startsWith("video/mp4") ? "MP4" : "WebM";
+  } catch (reason) {
+    supportError.value = reason instanceof Error ? reason.message : String(reason);
+  }
+}
 const busy = computed(() => ["preparing", "recording", "finalizing"].includes(state.value));
 const duration = computed(() => {
   try { return videoDuration(firstMs + from.value * 1000, firstMs + until.value * 1000, speed.value); }
@@ -59,7 +77,7 @@ async function start() {
     await nextTick();
     abort.signal.throwIfAborted();
     const blob = await recordVideo({
-      view: props.dailyView, container: mapContainer.value, styleId,
+      view: props.dailyView, parts: parts.value, container: mapContainer.value, styleId,
       startMs: firstMs + from.value * 1000, endMs: firstMs + until.value * 1000,
       speed: speed.value, follow: follow.value, signal: abort.signal,
       onState: value => { state.value = value; }, onProgress: value => { progress.value = value; },
@@ -73,7 +91,7 @@ async function start() {
   }
 }
 function close() { abort?.abort(); emit("close"); }
-onMounted(() => dialog.value?.showModal());
+onMounted(() => { dialog.value?.showModal(); void initialize(); });
 onBeforeUnmount(() => { abort?.abort(); if (videoUrl.value) URL.revokeObjectURL(videoUrl.value); });
 </script>
 

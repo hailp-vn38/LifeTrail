@@ -1,5 +1,6 @@
 import type { DailyView } from "../../api/queries/daily-view.query";
 import type { MapStyleId } from "../../map/style-presets";
+import type { RoutePart } from "../activity/model";
 import { PlaybackController } from "../../map/route-playback/controller";
 import { createCompositor, loadMapLogo } from "./compositor";
 import { MAX_VIDEO_SECONDS, videoDuration, videoInput } from "./export-plan";
@@ -8,6 +9,7 @@ import { createRecording, recordingMime } from "./media-recorder";
 
 export interface VideoOptions {
   view: DailyView;
+  parts?: RoutePart[];
   container: HTMLElement;
   styleId: MapStyleId;
   startMs: number;
@@ -23,7 +25,7 @@ export async function recordVideo(options: VideoOptions): Promise<Blob> {
   const { view, signal, startMs, endMs } = options;
   signal.throwIfAborted();
   const mime = recordingMime();
-  const points = videoInput(view);
+  const points = videoInput(view, options.parts);
   if (startMs < points[0].recordedAtMs || endMs > points.at(-1)!.recordedAtMs) throw new Error("Khoảng xuất nằm ngoài dữ liệu GPS.");
   if (videoDuration(startMs, endMs, options.speed) > MAX_VIDEO_SECONDS) throw new Error("Video tối đa 10 phút. Hãy tăng tốc độ hoặc rút ngắn khoảng xuất.");
   const composition = createCompositor(view);

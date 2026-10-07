@@ -1,4 +1,4 @@
-import { mount } from "@vue/test-utils";
+import { mount, flushPromises } from "@vue/test-utils";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { createPinia } from "pinia";
 import type { Feature, FeatureCollection, LineString, Polygon } from "geojson";
@@ -128,9 +128,9 @@ function lastMap(): InstanceType<typeof MockMap> {
   return instances[instances.length - 1];
 }
 
-function mountRouteMap(dailyView: DailyView) {
+function mountRouteMap(dailyView: DailyView, playbackParts?: ReturnType<typeof tripPlayback>) {
   return mount(RouteMap, {
-    props: { dailyView },
+    props: { dailyView, ...(playbackParts ? { playbackParts } : {}) },
     global: { plugins: [createPinia()] },
   });
 }
@@ -395,7 +395,7 @@ import { stopActivities } from "../features/activity/model";
 import { PART_SOURCE } from "../map/route-parts";
 import { STOP_SOURCE } from "../map/stops";
 import { stationaryView, openStop } from "../test/fixtures/stationary";
-import { tripView, openTrip, rawPart } from "../test/fixtures/trips";
+import { tripView, tripPlayback, openTrip, rawPart, dailyPart } from "../test/fixtures/trips";
 
 it("focuses and highlights a Stop disk and selects the same Timeline item from its map feature", async () => {
   const wrapper = mountRouteMap(stationaryView());
@@ -419,11 +419,11 @@ it("focuses and highlights a Stop disk and selects the same Timeline item from i
   wrapper.unmount();
 });
 
-it("highlights and fits a Trip Route Part and selects its Timeline item from the map", async () => {
-  const wrapper = mountRouteMap(tripView());
+it("highlights and fits a Trip display Route Part and selects its Timeline item from the map", async () => {
+  const wrapper = mountRouteMap(tripView(), tripPlayback());
   const map = lastMap();
-  // Processed Route Parts are rendered and their published progress anchors
-  // supply the playback clock (there is deliberately no vertex timestamp).
+  // Processed Route Parts render their display geometry; canonical playback is a
+  // separate lazy resource, so the controller comes from playbackParts.
   expect(map.sources.has("activity-route-parts")).toBe(true);
   expect(map.addedLayers).toEqual(expect.arrayContaining([
     expect.objectContaining({ id: "trip-route-parts", type: "line" }),
@@ -434,10 +434,10 @@ it("highlights and fits a Trip Route Part and selects its Timeline item from the
   const collection = source?.data as FeatureCollection<LineString>;
   expect(collection.features).toHaveLength(1);
   expect(collection.features[0].properties).toEqual({
-    eventId: openTrip.id, partId: rawPart.id,
+    eventId: openTrip.id, partId: dailyPart.id,
   });
   expect(collection.features[0].geometry.coordinates).toEqual(
-    rawPart.geometry.coordinates,
+    dailyPart.display_geometry.coordinates,
   );
 
   const store = useMapStore();
@@ -454,8 +454,26 @@ it("highlights and fits a Trip Route Part and selects its Timeline item from the
   );
   expect(registration).toBeDefined();
   const callback = registration?.[2] as unknown as (event: unknown) => void;
-  callback({ features: [{ properties: { eventId: openTrip.id, partId: rawPart.id } }] });
+  callback({ features: [{ properties: { eventId: openTrip.id, partId: dailyPart.id } }] });
   expect(store.selectedEventId).toBe(openTrip.id);
+  wrapper.unmount();
+});
+
+it("renders display geometry with no controller until playback is engaged", async () => {
+  const wrapper = mountRouteMap(tripView());
+  await flushPromises();
+  const map = lastMap();
+  // Display geometry is drawn; no canonical controller exists yet.
+  expect(map.sources.get("activity-route-parts")?.data).toMatchObject({
+    features: [{ geometry: { coordinates: dailyPart.display_geometry.coordinates } }],
+  });
+  expect(usePlaybackStore().status).toBe("idle");
+  // Pressing play engages the lazy load instead of failing.
+  await wrapper.get('button[aria-label="Phát"]').trigger("click");
+  expect(wrapper.emitted("request-playback")).toHaveLength(1);
+  // Canonical parts arrive: the controller is created and playback starts.
+  await wrapper.setProps({ playbackParts: tripPlayback() });
+  expect(usePlaybackStore().status).toBe("playing");
   wrapper.unmount();
 });
 
@@ -492,8 +510,8 @@ it("draws disconnected geometry across a Gap without a marker per GPS Record", (
   const view = tripView();
   // One Part either side of a GPS Gap, from two Trips of the same day.
   view.route_parts = [
-    rawPart,
-    { ...rawPart, id: "rev:trip:1:segment:0:part:0", trip_id: "rev:trip:1" },
+    dailyPart,
+    { ...dailyPart, id: "rev:trip:1:segment:0:part:0", trip_id: "rev:trip:1" },
   ];
   view.timeline = [
     { ...openTrip },
@@ -559,7 +577,7 @@ it("renders processed Route Parts without deriving length from their coordinates
   // so a Web-side recomputation would contradict the server-owned metric.
   const part = view.route_parts![0];
   expect(part.distance_m).toBe(2204);
-  expect(part.vertex_distance_m[0]).toBe(0);
+  expect(part.visible_distance_m).toBe(2204);
   const wrapper = mountRouteMap(view);
   const map = lastMap();
   expect(map.sources.get("activity-route-parts")).toBeDefined();
@@ -574,7 +592,14 @@ it.each(["raw", "processed"])("plays the %s Daily Route without selecting a Time
   vi.useFakeTimers();
   const view = source === "raw" ? dailyViewFixture(TIMESTAMPS) : tripView();
   const firstObservation = Date.parse(source === "raw" ? TIMESTAMPS[0] : view.route_parts![0].observed_from_at);
-  const wrapper = mount(RouteMap, { props: { dailyView: view, dayClock: true }, global: { plugins: [createPinia()] } });
+  const wrapper = mount(RouteMap, {
+    props: {
+      dailyView: view,
+      dayClock: true,
+      ...(source === "processed" ? { playbackParts: tripPlayback() } : {}),
+    },
+    global: { plugins: [createPinia()] },
+  });
   try {
     await nextTick();
     const playback = usePlaybackStore();

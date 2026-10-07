@@ -38,11 +38,12 @@ export function createExportMap(container: HTMLElement, view: DailyView, points:
     async prepare(signal: AbortSignal) {
       await waitForIdle(map, signal);
       addBuildings(map);
+      // Display geometry is a dim underlay; the canonical points drive playback.
       addRoutePartLayers(map, view);
       map.setPaintProperty(PART_LINE, "line-opacity", 0.3);
       addRouteLayers(map, view, points);
       addStopLayers(map, view);
-      const coordinates = view.route_parts?.length ? view.route_parts.flatMap(part => part.geometry.coordinates) : points.map(point => point.coordinate);
+      const coordinates = points.map(point => point.coordinate);
       const bounds = new LngLatBounds(coordinates[0] as [number, number], coordinates[0] as [number, number]);
       coordinates.forEach(point => bounds.extend(point as [number, number]));
       map.fitBounds(bounds, { padding: { top: 70, bottom: 55, left: 35, right: 35 }, maxZoom: 16, duration: 0, pitch: mapStylePreset(styleId).pitch });

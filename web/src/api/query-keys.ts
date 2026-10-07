@@ -6,5 +6,7 @@ export const queryKeys = {
       ? ["device", deviceId, "day", date, "raw", projectionContext] as const
       : ["device", deviceId, "day", date, projectionContext] as const,
   dailyStatus: (deviceId: string, date: string) => ["device", deviceId, "day", date, "status"] as const,
+  playback: (deviceId: string, date: string, manifestVersion?: string) =>
+    ["device", deviceId, "day", date, "playback", manifestVersion] as const,
   systemStatus: ["system", "status"] as const,
 };

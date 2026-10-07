@@ -22,6 +22,11 @@ vi.mock("../../../api/queries/devices.query", () => ({
   }),
 }));
 
+vi.mock("../../../api/queries/playback.query", () => ({
+  usePlaybackQuery: () => ({ data: ref(undefined) }),
+  getPlayback: vi.fn(),
+}));
+
 vi.mock("../composables/useWeekData", () => ({
   useWeekData: () => ({ daysWithData: ref([]), refresh: vi.fn() }),
 }));

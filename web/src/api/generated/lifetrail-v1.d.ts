@@ -179,6 +179,56 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/devices/{deviceId}/days/{date}/playback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read canonical playback geometry for one Owner-local calendar day.
+         * @description The lazy companion to the Daily display snapshot. Route Parts here are the full canonical processed geometry with server-owned historical progress, matching the canonical resolution: a requested calendar day clips each Part exactly as the Daily Snapshot would, without any display simplification. Web requests this only when playback is engaged; the Daily Map renders `display_geometry` instead.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Pin playback to the manifest version the client already holds. When omitted the current published manifest is served. When the pinned version no longer exists the server answers 410 Gone so the client can drop its cache and reload. */
+                    manifest_version?: string;
+                };
+                header?: never;
+                path: {
+                    deviceId: string;
+                    /** @description Owner-local ISO 8601 calendar date. */
+                    date: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Canonical Route Parts for the requested Owner-local day. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PlaybackView"];
+                    };
+                };
+                400: components["responses"]["Error"];
+                404: components["responses"]["Error"];
+                410: components["responses"]["Error"];
+                500: components["responses"]["Error"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/device": {
         parameters: {
             query?: never;
@@ -313,8 +363,8 @@ export interface components {
             /** @enum {string} */
             evidence_state?: "sufficient" | "partial" | "insufficient";
             provenance?: components["schemas"]["SnapshotProvenance"];
-            /** @description Canonical processed geometry, in movement order. Each part is a drawable portion of one Movement Segment with server-owned progress; Web never recomputes Route length from the coordinates. */
-            route_parts?: components["schemas"]["RoutePart"][];
+            /** @description Simplified display geometry for the Daily Map, in movement order. Each part carries `display_geometry` (visualization-only, never used for distance or playback) plus server-owned distances. Canonical playback geometry is fetched lazily from the Playback resource. */
+            route_parts?: components["schemas"]["DailyRoutePart"][];
             /** @description Projected Trip, Stop and GPS Gap items in chronological observed order. A Gap is an interval without Raw observations: it asserts no movement, Stop or Route connector. */
             timeline?: components["schemas"]["DailyActivity"][];
             /** @description Intervals that contain Raw GPS observations but cannot support reliable activity or geometry. Separate from Timeline events: a hole never becomes a GPS Gap, and the activity beside it keeps open actual boundaries. */
@@ -348,7 +398,7 @@ export interface components {
             quality: "sufficient";
             source_record_count: number;
             usable_record_count: number;
-            source_record_ids: number[];
+            source_record_ids?: number[];
             /** Format: date-time */
             visible_from_at: string;
             /** Format: date-time */
@@ -391,7 +441,51 @@ export interface components {
             route_part_ids: string[];
             source_record_count: number;
         };
-        /** @description A contiguous drawable portion of the derived Route for one Movement Segment, clipped to this day. Geometry comes from usable, quality-processed GPS Records with historical progress anchors. Calendar clipping may add synthetic boundary anchors and interpolated coordinates, without changing Raw GPS or padding a Part to satisfy the LineString contract. */
+        /** @description A drawable Route Part for the Daily Map. `display_geometry` is visualization-only: canonical geometry simplified for display and rounded to 6 decimals. It never feeds distance or playback, and Web never recomputes Route length from it. Canonical playback geometry is fetched lazily from the Playback resource. */
+        DailyRoutePart: {
+            id: string;
+            /** @enum {string} */
+            kind: "route_part";
+            trip_id: string;
+            movement_segment_id: string;
+            /** @enum {string} */
+            source: "processed_gps";
+            /** @enum {string} */
+            mode: "unknown" | "walk" | "bike" | "car";
+            classification_confidence: number;
+            /**
+             * Format: date-time
+             * @description Observed coverage of the whole Movement Segment portion, independent of the day.
+             */
+            observed_from_at: string;
+            /** Format: date-time */
+            observed_until_at: string;
+            /** @description Length of the whole Part in UTC history, canonical and server-owned. */
+            distance_m: number;
+            /** @description The Part's contribution to this day: the difference in original progress at the clipping endpoints. Adjacent days conserve distance_m. */
+            visible_distance_m: number;
+            source_record_count: number;
+            /** Format: date-time */
+            visible_from_at: string;
+            /** Format: date-time */
+            visible_until_at: string;
+            /** @description Simplified display geometry, rounded to 6 decimals. Visualization only: never use it for distance or playback. */
+            display_geometry: components["schemas"]["LineStringGeometry"];
+        };
+        PlaybackView: {
+            /** Format: uuid */
+            device_id: string;
+            /** Format: date */
+            date: string;
+            timezone: string;
+            /** Format: uuid */
+            manifest_version: string;
+            projection_schema_version: number;
+            /** @description Canonical Route Parts for the day at full resolution. */
+            route_parts: components["schemas"]["RoutePart"][];
+            provenance: components["schemas"]["SnapshotProvenance"];
+        };
+        /** @description Canonical full-resolution Route Part returned by the Playback resource. Geometry comes from usable, quality-processed GPS Records with historical progress anchors. Calendar clipping may add synthetic boundary anchors and interpolated coordinates, without changing Raw GPS or padding a Part to satisfy the LineString contract. */
         RoutePart: {
             id: string;
             /** @enum {string} */
@@ -523,6 +617,8 @@ export interface components {
             /** @enum {string|null} */
             deferred_reason: "activity_processing_not_available" | null;
             failure_message: string | null;
+            /** @description True when this day's published snapshot is shaped by an older display projection schema. The view stays a usable, internally-consistent full-resolution snapshot; a projection-only reprojection has been enqueued and the next refresh will be lighter. */
+            display_projection_stale?: boolean;
         };
         SnapshotProvenance: {
             /** Format: uuid */
@@ -534,6 +630,16 @@ export interface components {
             timezone_generation: number;
             reducer_version: number;
             projection_schema_version: number;
+            /** @description Display-only metadata for this day's projection. `projection_schema_version` is authoritative; this block is diagnostic and never affects distance or geometry meaning. */
+            display_geometry?: {
+                /** @enum {string} */
+                algorithm: "rdp-v1";
+                tolerance_m: number;
+                coordinate_decimals: number;
+                /** @description Per-Route-Part display vertex budget. */
+                max_vertices: number;
+                vertices_over_budget: boolean;
+            };
         };
         PointGeometry: {
             /** @enum {string} */

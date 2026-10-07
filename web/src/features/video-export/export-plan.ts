@@ -1,4 +1,5 @@
 import type { DailyView } from "../../api/queries/daily-view.query";
+import type { RoutePart } from "../activity/model";
 import { evidenceHoles, gapActivities } from "../activity/model";
 import { buildRoutePartPlaybackInput } from "../../map/route-playback/parts";
 import { buildPlaybackInput } from "../../map/route-playback/timeline";
@@ -6,9 +7,15 @@ import { ISSUE_TEXT, PART_ISSUE_TEXT } from "../../map/route-playback/messages";
 
 export const MAX_VIDEO_SECONDS = 600;
 
-export function videoInput(view: DailyView) {
+/**
+ * Playback points for the video. Processed days require the canonical Playback
+ * resource (`parts`), fetched lazily by the dialog; display geometry is not a
+ * valid playback source. Raw days use the Raw route directly.
+ */
+export function videoInput(view: DailyView, parts?: RoutePart[]) {
   if (view.route_parts?.length) {
-    const input = buildRoutePartPlaybackInput(view.route_parts, gapActivities(view), evidenceHoles(view));
+    if (!parts?.length) throw new Error("Đang tải dữ liệu playback. Vui lòng thử lại.");
+    const input = buildRoutePartPlaybackInput(parts, gapActivities(view), evidenceHoles(view));
     if (!input.ok) throw new Error(PART_ISSUE_TEXT[input.error]);
     return input.points;
   }

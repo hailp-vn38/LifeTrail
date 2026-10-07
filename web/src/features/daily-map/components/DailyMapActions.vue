@@ -13,7 +13,12 @@ const videoView = ref<DailyView | null>(null);
 const actionMenu = ref<HTMLDetailsElement>();
 
 function exportFile(format: "gpx" | "csv") {
-  if (props.dailyView) downloadDay(props.dailyView, format);
+  if (props.dailyView) {
+    void downloadDay(props.dailyView, format).catch((reason) => {
+      // Canonical playback is required for export; never export display geometry.
+      window.alert(reason instanceof Error ? reason.message : "Không thể xuất dữ liệu.");
+    });
+  }
   if (actionMenu.value) actionMenu.value.open = false;
 }
 
