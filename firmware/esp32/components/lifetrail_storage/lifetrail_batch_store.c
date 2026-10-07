@@ -14,6 +14,7 @@
 #include <unistd.h>
 
 #include "lifetrail_sha256.h"
+#include "lifetrail_buffered_file.h"
 
 #define LT_BATCH_STORE_FILE_PATH_MAX 384U
 
@@ -32,6 +33,7 @@ typedef struct {
   lt_batch_store_free_space_t free_space;
   void *free_space_context;
   lt_batch_store_health_t health;
+  lt_buffered_file_t buffer;
 } store_impl_t;
 
 _Static_assert(sizeof(store_impl_t) <= sizeof(lt_batch_store_t),
@@ -53,7 +55,9 @@ static bool make_path(const store_impl_t *impl, const char *batch_id,
 }
 
 static bool sync_close(FILE *file) {
-  return fflush(file) == 0 && fsync(fileno(file)) == 0 && fclose(file) == 0;
+  bool success = fflush(file) == 0;
+  if (success) success = fsync(fileno(file)) == 0;
+  return fclose(file) == 0 && success;
 }
 
 static bool sync_data_file(const char *path) {
@@ -191,7 +195,7 @@ static bool manifest_exists(const store_impl_t *impl, const char batch_id[37]) {
   return make_path(impl, batch_id, ".manifest", path) && stat(path, &info) == 0;
 }
 
-static bool write_manifest(const store_impl_t *impl, const manifest_t *manifest) {
+static bool write_manifest(store_impl_t *impl, const manifest_t *manifest) {
   char tmp[LT_BATCH_STORE_FILE_PATH_MAX];
   char final[LT_BATCH_STORE_FILE_PATH_MAX];
   FILE *file;
@@ -207,6 +211,8 @@ static bool write_manifest(const store_impl_t *impl, const manifest_t *manifest)
                     manifest->batch_id, manifest->byte_length, manifest->sha256,
                     manifest->record_count, manifest->first_ts_ms, manifest->last_ts_ms);
   if (written < 0 || !sync_close(file)) return false;
+  impl->health.sd_flush_count++;
+  impl->health.sd_fsync_count++;
   return rename(tmp, final) == 0;
 }
 
@@ -326,31 +332,25 @@ static bool refresh_free_space(store_impl_t *impl) {
 static bool open_sink(void *context, const char batch_id[37]) {
   store_impl_t *impl = store_impl(context);
   char path[LT_BATCH_STORE_FILE_PATH_MAX];
-  FILE *file;
   if (impl->health.recording_paused || !valid_batch_id(batch_id) ||
       !make_path(impl, batch_id, ".ndjson.open", path)) return false;
-  file = fopen(path, "wb");
-  if (file == NULL || !sync_close(file)) return false;
+  if (!lt_buffered_file_open(&impl->buffer, path)) return false;
   memcpy(impl->active_batch_id, batch_id, sizeof(impl->active_batch_id));
   return true;
 }
 
 static bool append_sink(void *context, const char *line, size_t line_length) {
   store_impl_t *impl = store_impl(context);
-  char path[LT_BATCH_STORE_FILE_PATH_MAX];
-  FILE *file;
   if (impl->health.recording_paused || impl->active_batch_id[0] == '\0' ||
-      line == NULL || line_length == 0U ||
-      !make_path(impl, impl->active_batch_id, ".ndjson.open", path)) return false;
-  file = fopen(path, "ab");
-  if (file == NULL) return false;
-  return fwrite(line, 1U, line_length, file) == line_length && sync_close(file);
+      line == NULL || line_length == 0U) return false;
+  return lt_buffered_file_append(&impl->buffer, line, line_length);
 }
 
 static bool rotate_sink(void *context) {
   store_impl_t *impl = store_impl(context);
   bool finalized;
   if (impl->active_batch_id[0] == '\0') return false;
+  if (!lt_buffered_file_close(&impl->buffer)) return false;
   finalized = finalize_open(impl, impl->active_batch_id, false);
   if (!finalized) { quarantine(impl, impl->active_batch_id); impl->health.quarantined++; }
   memset(impl->active_batch_id, 0, sizeof(impl->active_batch_id));
@@ -372,6 +372,8 @@ bool lt_batch_store_init(lt_batch_store_t *store,
   memcpy(impl->root_path, config->root_path, strlen(config->root_path) + 1U);
   impl->free_space = config->free_space;
   impl->free_space_context = config->free_space_context;
+  impl->buffer.flush_interval_ms = config->flush_interval_ms == 0U ? UINT64_C(5000) : config->flush_interval_ms;
+  impl->buffer.sync_interval_ms = config->fsync_interval_ms == 0U ? UINT64_C(15000) : config->fsync_interval_ms;
   if (!ensure_directory(impl->root_path) ||
       snprintf(quarantine_path, sizeof(quarantine_path), "%s/quarantine", impl->root_path) <= 0 ||
       !ensure_directory(quarantine_path)) return false;
@@ -544,5 +546,20 @@ void lt_batch_store_maintain(lt_batch_store_t *store) {
 }
 
 lt_batch_store_health_t lt_batch_store_health(const lt_batch_store_t *store) {
-  return store == NULL ? (lt_batch_store_health_t){0} : const_store_impl(store)->health;
+  if (store == NULL) return (lt_batch_store_health_t){0};
+  const store_impl_t *impl = const_store_impl(store);
+  lt_batch_store_health_t health = impl->health;
+  health.sd_append_count = impl->buffer.append_count;
+  health.sd_flush_count += impl->buffer.flush_count;
+  health.sd_fsync_count += impl->buffer.sync_count;
+  return health;
+}
+
+bool lt_batch_store_poll(lt_batch_store_t *store, uint64_t monotonic_ms, bool force_sync) {
+  return lt_buffered_file_maintain(&store_impl(store)->buffer, monotonic_ms, force_sync);
+}
+
+bool lt_batch_store_close(lt_batch_store_t *store) {
+  store_impl_t *impl = store_impl(store);
+  return impl->active_batch_id[0] == '\0' || rotate_sink(store);
 }

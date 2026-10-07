@@ -40,6 +40,7 @@ def generate_route(
     interval_seconds: int = 1,
     batch_records: int = 300,
     seed: str = "lifetrail-phase1-sim",
+    firmware_persistence: bool = False,
 ) -> list[GeneratedBatch]:
     """Generate deterministic ready/manifest pairs that follow the sync/1 contract."""
     if seconds <= 0 or interval_seconds <= 0 or batch_records <= 0:
@@ -60,10 +61,22 @@ def generate_route(
         interval_ms=interval_seconds * 1000,
     )
 
+    if firmware_persistence:
+        from .firmware_policy import filter_observations
+        from .persistence_batches import partition_accepted
+
+        if interval_seconds != 1:
+            raise ValueError("firmware persistence requires acquisition at 1 Hz")
+        accepted, _ = filter_observations(records)
+        groups = partition_accepted(accepted)
+    else:
+        groups = [records[offset:offset + batch_records]
+                  for offset in range(0, len(records), batch_records)]
+
     batches: list[GeneratedBatch] = []
-    for batch_index, offset in enumerate(range(0, len(records), batch_records)):
-        batch = records[offset : offset + batch_records]
-        batch_id = _batch_uuid(seed, date, timezone, batch_index)
+    for batch_index, batch in enumerate(groups):
+        policy_seed = seed + "|firmware-persistence" if firmware_persistence else seed
+        batch_id = _batch_uuid(policy_seed, date, timezone, batch_index)
         body = encode_records(batch)
         batches.append(write_batch(output_dir, batch_id, batch, body))
     return batches
@@ -219,6 +232,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--interval-seconds", type=int, default=1)
     parser.add_argument("--batch-records", type=int, default=300)
     parser.add_argument("--seed", default="lifetrail-phase1-sim")
+    parser.add_argument("--firmware-persistence", action="store_true",
+                        help="Run the compiled Device policy and adaptive batching")
     parser.add_argument("--endpoint")
     parser.add_argument("--token")
     return parser
@@ -237,6 +252,7 @@ def main() -> int:
         interval_seconds=args.interval_seconds,
         batch_records=args.batch_records,
         seed=args.seed,
+        firmware_persistence=args.firmware_persistence,
     )
     result: dict[str, object] = {
         "date": args.date,

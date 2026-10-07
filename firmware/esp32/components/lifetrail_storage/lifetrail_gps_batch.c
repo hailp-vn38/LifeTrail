@@ -188,3 +188,20 @@ bool lt_gps_batch_writer_append_with_motion(
   impl->last_ts_ms = record->ts_ms;
   return true;
 }
+
+bool lt_gps_batch_writer_finish(lt_gps_batch_writer_t *writer) {
+  writer_impl_t *impl = writer_impl(writer);
+  if (!impl->active) return true;
+  if (impl->sink.rotate == NULL || !impl->sink.rotate(impl->sink.context)) return false;
+  impl->active = false;
+  return true;
+}
+
+bool lt_gps_batch_writer_poll(lt_gps_batch_writer_t *writer, int64_t now_ts_ms,
+                              lt_gps_motion_state_t motion_state) {
+  writer_impl_t *impl = writer_impl(writer);
+  uint64_t max_age = max_age_for_motion(&impl->settings, motion_state);
+  if (!impl->active || now_ts_ms < impl->first_ts_ms ||
+      (uint64_t)(now_ts_ms - impl->first_ts_ms) < max_age) return true;
+  return lt_gps_batch_writer_finish(writer);
+}

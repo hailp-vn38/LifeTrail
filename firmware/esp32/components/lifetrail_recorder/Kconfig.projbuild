@@ -1,0 +1,128 @@
+menu "LifeTrail recording"
+config LT_RECORDER_WATCHDOG_S
+    int "GPS/storage progress watchdog timeout (seconds)"
+    range 10 120
+    default 30
+    help
+        Restart if GPS or storage makes no progress within this bound.
+        Allow enough time for SD flush/fsync on the selected card.
+config LT_GPS_UART_NUM
+    int "GPS UART number"
+    range 1 2
+    default 1
+config LT_GPS_UART_BAUD
+    int "GPS UART baud (receiver remains configured at 1 Hz)"
+    default 9600
+config LT_GPS_RX_GPIO
+    int "GPS UART RX GPIO"
+    default 16
+config LT_SD_MOSI_GPIO
+    int "SD SPI MOSI GPIO"
+    default 23
+config LT_SD_MISO_GPIO
+    int "SD SPI MISO GPIO"
+    default 19
+config LT_SD_CLK_GPIO
+    int "SD SPI clock GPIO"
+    default 18
+config LT_SD_CS_GPIO
+    int "SD SPI chip-select GPIO"
+    default 5
+config LT_SD_MOUNT_POINT
+    string "SD mount point"
+    default "/sdcard"
+config LT_GPS_STORAGE_QUEUE_LEN
+    int "Accepted GPS storage queue length"
+    range 6 1024
+    default 256
+config LT_STORAGE_FLUSH_MS
+    int "Buffered storage flush cadence (ms)"
+    range 1000 60000
+    default 5000
+config LT_STORAGE_FSYNC_MS
+    int "Storage fsync cadence (ms)"
+    range 1000 60000
+    default 15000
+config LT_GPS_BATCH_MOVING_S
+    int "Moving/candidate batch maximum age (s)"
+    default 60
+config LT_GPS_BATCH_STATIONARY_S
+    int "Stationary batch maximum age (s)"
+    default 300
+config LT_GPS_PERSIST_MIN_INTERVAL_MS
+    int "persist_min_interval_ms"
+    range 1 600000
+    default 2000
+config LT_GPS_MOVING_MAX_INTERVAL_MS
+    int "moving_max_interval_ms"
+    range 1 600000
+    default 3000
+config LT_GPS_DISTANCE_M
+    int "moving_distance_m"
+    range 1 600000
+    default 15
+config LT_GPS_HEADING_DEG
+    int "heading_degrees"
+    range 1 600000
+    default 25
+config LT_GPS_HEADING_MIN_SPEED_MMPS
+    int "heading_min_speed_mps (mm/s)"
+    range 1 600000
+    default 2000
+config LT_GPS_HEADING_MIN_INTERVAL_MS
+    int "heading_min_interval_ms"
+    range 1 600000
+    default 1000
+config LT_GPS_CANDIDATE_INTERVAL_MS
+    int "candidate_interval_ms"
+    range 1 600000
+    default 30000
+config LT_GPS_STATIONARY_INTERVAL_MS
+    int "stationary_interval_ms"
+    range 1 600000
+    default 120000
+config LT_GPS_CANDIDATE_WINDOW_MS
+    int "candidate_detect_window_ms"
+    range 1 59000
+    default 30000
+config LT_GPS_STATIONARY_CONFIRM_MS
+    int "stationary_confirm_ms"
+    range 1 600000
+    default 120000
+config LT_GPS_CANDIDATE_RATIO_PCT
+    int "candidate_speed_ratio_pct"
+    range 1 100
+    default 80
+config LT_GPS_CANDIDATE_DISPLACEMENT_M
+    int "candidate_displacement_m"
+    range 1 600000
+    default 10
+config LT_GPS_MOVING_SPEED_MMPS
+    int "moving_speed_mps (mm/s)"
+    range 1 600000
+    default 1000
+config LT_GPS_STATIONARY_SPEED_MMPS
+    int "stationary_speed_mps (mm/s)"
+    range 1 600000
+    default 600
+config LT_GPS_DRIFT_ABSORB_M
+    int "stationary_drift_absorb_m"
+    range 1 600000
+    default 10
+config LT_GPS_MOVE_DISTANCE_M
+    int "stationary_move_distance_m"
+    range 1 600000
+    default 20
+config LT_GPS_JUMP_SPEED_MPS
+    int "jump_speed_mps"
+    range 1 600000
+    default 70
+config LT_GPS_BACKFILL_WINDOW_MS
+    int "backfill_window_ms"
+    range 1 59000
+    default 5000
+config LT_GPS_BACKFILL_MAX_RECORDS
+    int "backfill_max_records"
+    range 1 6
+    default 6
+endmenu

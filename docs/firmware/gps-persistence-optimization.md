@@ -2262,3 +2262,40 @@ Playback
 
 Cho đến khi LifeTrail có accelerometer, đây là persistence strategy được khuyến
 nghị cho firmware hiện tại.
+
+---
+
+# 41. Implementation và acceptance Phase 2
+
+Implementation nằm trên branch `integration/phase-2-timeline-osrm`:
+
+- `lifetrail_recorder` composition nối GPS UART → collector → policy → bounded
+  queue → buffered SD writer; GPS task không thực hiện SD I/O.
+- Policy tách history/movement evidence, persistence selection và orchestration;
+  thresholds cấu hình qua settings/Kconfig.
+- Storage giữ file mở, flush 5s/fsync 15s, rotate theo state và cả khi không có
+  record mới; shutdown/restart force sync và hoàn tất Batch.
+- `lt_recorder_health()` expose GPS persistence, SD durability và queue overflow
+  metrics; overflow warning giới hạn một lần/phút.
+- Simulator `--firmware-persistence` chạy policy C thật và xuất Batch adaptive.
+- GPS/storage task được progress watchdog giám sát (mặc định 30s, cấu hình qua
+  Kconfig, panic/restart nếu task bị kẹt); shutdown huỷ đăng ký watchdog.
+- Khi SD chậm và queue có backlog, chỉ rotate theo timestamp của record đang
+  drain. Wall-clock idle rotation chỉ chạy sau khi queue hết dữ liệu.
+- Sau transition vào MOVING, candidate detection cần một window MOVING mới
+  đầy đủ; không tái dùng evidence của Stop trước đó để đổi trạng thái liên tục
+  khi Device bắt đầu đi bộ chậm.
+
+Acceptance bổ sung boundary observations: shutdown ghi observation thật mới nhất
+chưa persist; khi fix hồi phục, giữ observation chưa ghi ngay trước gap rồi ghi
+observation thật đầu tiên sau gap. Timestamp vẫn là GPS acquisition time và
+không có record nào nằm trong khoảng mất fix. Điều này giữ biên Stop/Gap chính
+xác thay vì chờ thêm tới 120s cho heartbeat sau hồi phục.
+
+Server Phase 2 không coi khoảng 30s/120s giữa usable observations là short
+failure: ngưỡng 10s chỉ dùng cho bridging rejected observations. Vì vậy không
+cần thay đổi server thresholds hoặc thêm motion metadata vào protocol.
+
+Xem [ADR firmware](../adr/0001-firmware-gps-persistence-policy.md) và
+[kết quả/commands acceptance](gps-persistence-acceptance.md) cho test matrix,
+record/fsync reduction, geometry và Stop boundary measurements.

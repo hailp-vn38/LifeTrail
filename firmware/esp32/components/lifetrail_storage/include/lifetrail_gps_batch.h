@@ -52,3 +52,6 @@ bool lt_gps_batch_writer_append(lt_gps_batch_writer_t *writer,
 bool lt_gps_batch_writer_append_with_motion(
     lt_gps_batch_writer_t *writer, const lt_gps_record_t *record,
     lt_gps_motion_state_t motion_state);
+bool lt_gps_batch_writer_poll(lt_gps_batch_writer_t *writer, int64_t now_ts_ms,
+                              lt_gps_motion_state_t motion_state);
+bool lt_gps_batch_writer_finish(lt_gps_batch_writer_t *writer);
