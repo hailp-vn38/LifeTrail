@@ -12,10 +12,11 @@ Rev 2 tích hợp toàn bộ 10 findings từ vòng review 2026-10-07 (đối ch
 4. **§34 — provenance ghi effective tolerance** sau escalation, không phải base config.
 5. **§9.6 (mới) — display coordinates làm tròn 6 decimals** (~0.1 m, visually lossless).
 6. **§6.1/§18 — làm rõ semantics:** `distance_m` = full part distance (canonical, không đổi); `visible_distance_m` = phần clipped của ngày.
-7. **§8 — phân biệt 409 vs 410** cho pinned manifest + retention policy; **bounded retry** (3 lần) cho refetch loop.
+7. **§8 — pinned manifest contract 200/410, bỏ 409** cho playback + retention policy; **bounded retry** (3 vòng refresh) cho refetch loop.
 8. **§11 — giữ nguyên `project_part()` hiện tại làm playback path** (rename, không rewrite); display là wrapper strip + simplify → clipping math không thể drift.
 9. **§28 — thêm time-based acceptance target.**
 10. **Tests bổ sung:** S7 (rounding), I5 (historical reprojection), W7 (triple-check race), W8 (bounded manifest retry).
+11. **§19.0 (mới) — layout guardrail:** update web không được phá layout Daily page; state mới của playback/export phải non-reflowing.
 
 ---
 
@@ -512,26 +513,16 @@ Playback response phải có ít nhất:
 }
 ```
 
-Web phải verify:
+Production Web luôn gọi playback ở dạng pinned theo manifest của Daily View:
 
 ```text
-playback.manifest_version
-==
-dailyView.provenance.manifest_version
+Daily View M1
+    ↓
+GET playback?manifest_version=M1
 ```
 
-Nếu không bằng:
-
-```text
-pause playback
-clear playback cache
-refetch Daily View
-request playback lại (bounded retry, tối đa 3 lần)
-```
-
-Nếu sau 3 lần retry vẫn mismatch (publication đổi liên tục), dừng và hiển thị lỗi "dữ liệu đang cập nhật, thử lại sau" — không loop vô hạn.
-
-Không merge dữ liệu giữa hai manifest.
+Nếu response trả về manifest khác M1 (khi không pin) thì vẫn là mismatch và phải
+xử lý như dưới. Không merge dữ liệu giữa hai manifest.
 
 Endpoint playback nhận optional pinned query:
 
@@ -539,11 +530,28 @@ Endpoint playback nhận optional pinned query:
 ?manifest_version=<uuid>
 ```
 
-Server behavior:
+Server behavior (contract đã chốt, **không có `409`**):
 
+- không truyền `manifest_version` → `200` với current publication;
 - pinned manifest còn tồn tại (dù đã bị supersede) → `200` với đúng pinned manifest;
-- request không pin (hoặc pin current) trong khi publication đã đổi → `409 publication_changed` kèm `current_manifest_version` để client refetch;
-- pinned manifest không còn tồn tại (đã prune) → `410 Gone`.
+- pinned manifest không còn tồn tại → `410 Gone`.
+
+Server không có đủ thông tin để kết luận `publication_changed` cho request
+unpinned, nên **không trả `409` cho unpinned playback**. `409` bị loại bỏ khỏi
+contract playback.
+
+Web xử lý `410` (pinned manifest đã mất):
+
+```text
+pause playback
+clear playback cache
+refetch Daily View
+→ nhận manifest M2
+request playback lại pinned M2 (bounded retry, tối đa 3 vòng refresh)
+```
+
+Nếu sau 3 vòng refresh vẫn `410` (publication đổi liên tục), dừng và hiển thị
+lỗi "dữ liệu đang cập nhật, thử lại sau" — không loop vô hạn.
 
 Retention policy Phase 02: Daily Snapshots không bị xóa → pinned manifest luôn servable. Nếu sau này có pruning policy, phải version chính sách đó; `410` là contract cho trường hợp manifest đã mất.
 
@@ -869,15 +877,22 @@ Daily Snapshots là immutable.
 
 Không update JSON body của snapshot cũ.
 
-**Quyết định migration (rev 2): reproject toàn bộ historical snapshots lên schema v2**, thay vì để v1/v2 lẫn lộn:
+**Quyết định migration (rev 2, đã sửa): reproject toàn bộ historical publications lên schema v2**, thay vì để v1/v2 lẫn lộn:
 
 - Raw GPS immutable → reproject từ canonical Activity Revisions là an toàn, không mất dữ liệu;
 - personal app, không lo scale của reproject toàn bộ;
 - web chỉ cần hỗ trợ một schema → giảm complexity và nguy cơ bug dual-shape.
 
-Thực hiện qua **projection-only requeue seam** (không tăng `input_generation` vì Raw GPS không đổi; không bắt buộc rerun quality/Trip/Stop reducer).
+**Ràng buộc immutable (quan trọng):** reproject **không** update JSON body của
+snapshot v1 và **không** xóa row v1. Mỗi day được reproject bằng cách tạo một
+**Daily Snapshot v2 mới** rồi switch `daily_publications` sang v2 atomically.
+Do đó acceptance của migration là **"không còn `daily_publications` trỏ tới
+snapshot v1"**, **không phải** "không còn row snapshot v1 trong DB". Row v1 cũ
+vẫn tồn tại và đọc nguyên vẹn.
 
-Nếu current worker chưa có projection-version requeue seam, agent phải thêm seam projection-only thay vì abuse timezone generation hoặc Raw generation.
+Thực hiện qua **projection-only requeue seam** (không tăng `input_generation` vì Raw GPS không đổi; không bắt buộc rerun quality/Trip/Stop reducer; reuse `active_manifest_id`). Seam này **tách khỏi timezone-generation seam**.
+
+Nếu current worker chưa có projection-version requeue seam, agent phải thêm seam projection-only thay vì abuse timezone generation hoặc Raw generation. Migration mới dùng số **`0016_daily_display_projection.sql`**; **không sửa `0015`** đã nằm trong history.
 
 **Web behavior:** web yêu cầu `projection_schema_version == 2`. Nếu gặp snapshot v1 (migration chưa hoàn tất hoặc lỗi), **fail-fast với error state rõ ràng** ("dữ liệu ngày này cần reproject"), không silent fallback về canonical geometry — silent fallback sẽ âm thầm tải lại payload nặng, đúng thứ tài liệu này muốn loại bỏ.
 
@@ -940,6 +955,7 @@ Phase 02 recommended initial contract:
   "date": "2026-10-05",
   "timezone": "Asia/Ho_Chi_Minh",
   "manifest_version": "uuid",
+  "projection_schema_version": 2,
   "route_parts": [
     {
       "id": "...",
@@ -957,6 +973,11 @@ Phase 02 recommended initial contract:
   ]
 }
 ```
+
+> Ghi chú rev 2: granularity của playback payload (`vertex_distance_m` +
+> `progress_anchors` hay anchor-projected coordinates) chốt ở Ticket 01 —
+> xem §11. Bất kể chọn dạng nào, playback payload **luôn là canonical**, không
+> bao giờ chứa `display_geometry`.
 
 Không cần duplicate toàn bộ Timeline trong playback response.
 
@@ -1007,7 +1028,7 @@ Agent phải:
 2. bỏ playback-only arrays khỏi default Daily View Route Part;
 3. bỏ `source_record_ids` khỏi Daily View public activity schema;
 4. thêm Playback response schemas;
-5. thêm playback endpoint (+ `?manifest_version`, document 409/410);
+5. thêm playback endpoint (+ `?manifest_version`, document 200/410, không có 409);
 6. giữ `visible_distance_m` server-owned;
 7. document `display_geometry` là visualization-only, coordinates rounded 6 decimals;
 8. document Web không được tính distance từ simplified geometry;
@@ -1024,6 +1045,26 @@ Không sửa generated types bằng tay.
 ---
 
 # 19. Web implementation plan
+
+## 19.0 Layout guardrail — không phá layout Daily page
+
+Mọi thay đổi web trong phase này **không được phá layout UI hiện có của Daily
+page**. Cụ thể phải giữ:
+
+- workspace grid 2 cột (`map column` + `timeline column`) và breakpoint hiện có;
+- header grid 3 vùng (`DailyDateContext` | `DailyMapToolbar` | `DailyMapActions`)
+  và các breakpoint 1399px/767px;
+- vị trí toggle `Raw GPS` / `Xem hoạt động` (đây là điều kiện review §17, không
+  phải chỗ để đổi layout);
+- các state `loading` / `empty` / `not-found` / `error` hiện có render trong cùng
+  khung layout, không đẩy cột hay đổi chiều cao đột ngột.
+
+State mới do lazy playback / export thêm vào phải **non-reflowing**: hiển thị
+inline hoặc overlay trong không gian đã dành sẵn, không thêm block full-width
+làm xô lệch grid. `DailyMapPage.test.ts` hiện có phải tiếp tục pass.
+
+Đổi layout là hành vi bị cấm trong scope phase này; muốn đổi phải là một quyết
+định riêng, ngoài các ticket dưới đây.
 
 ## 19.1 Daily Map chỉ dùng display geometry
 
@@ -1523,8 +1564,10 @@ playback request pinned M1/M2
 
 Expected behavior phải deterministic theo contract:
 
-- pinned M1 (còn tồn tại) → 200 với M1;
-- không pin → 409 + current_manifest_version = M2.
+- pinned M1 (còn tồn tại) → 200 với M1; hoặc
+- không pin → 200 với current publication M2. Server **không** trả `409`; việc
+  playback M2 lệch Timeline M1 là mismatch phải xử lý ở web (§8), không encode
+  thành HTTP status ở server.
 
 Không mix route from M1 với Timeline M2.
 
@@ -1533,9 +1576,9 @@ Không mix route from M1 với Timeline M2.
 Sau migration:
 
 ```text
-mọi Daily Snapshot đều projection_schema_version == 2
+mọi Daily Snapshot mà daily_publications trỏ tới đều projection_schema_version == 2
 canonical distance_m / visible_distance_m không đổi vs trước reproject
-không snapshot v1 nào còn lại
+không còn daily_publications trỏ tới snapshot v1 (row v1 cũ vẫn giữ)
 ```
 
 ---
@@ -1607,14 +1650,14 @@ controller KHÔNG init với data ngày A
 không có playback path của A hiển thị trên map ngày B
 ```
 
-## Test W8 — bounded manifest retry (mới trong rev 2)
+## Test W8 — bounded manifest refresh (mới trong rev 2)
 
-Giả lập publication đổi liên tục (mỗi refetch lại ra manifest mới).
+Giả lập publication đổi liên tục (mỗi refetch lại ra manifest mới, playback pinned trả `410`).
 
 Assert:
 
 ```text
-dừng sau 3 retry
+dừng sau 3 vòng refresh
 hiển thị error state rõ ràng
 không loop vô hạn
 ```
@@ -1816,7 +1859,7 @@ DisplayRoutePart
 PlaybackDailyView/PlaybackRoutePart
 ```
 
-và publication consistency (bao gồm 409/410 semantics ở §8).
+và publication consistency (bao gồm pinned `200` / `410` semantics ở §8, **không có `409`**).
 
 Viết contract trước implementation.
 
@@ -1824,15 +1867,18 @@ Viết contract trước implementation.
 
 Implement deterministic metric simplification + rounding + tests (S1–S3, S7).
 
-## Step 4 — projection schema v2
+## Step 4 — playback endpoint
+
+Reuse `project_part_for_playback` (canonical clipping/progress code giữ nguyên).
+
+Playback endpoint **không phụ thuộc snapshot v2** nên đi trước cutover: nó đọc
+canonical qua manifest và có thể ship/verify độc lập.
+
+## Step 5 — projection schema v2
 
 Daily Snapshot chỉ chứa lightweight display data.
 
 Không public source record ID arrays.
-
-## Step 5 — playback endpoint
-
-Reuse `project_part_for_playback` (canonical clipping/progress code giữ nguyên).
 
 ## Step 6 — regenerate API client
 
@@ -1858,7 +1904,7 @@ So sánh trước/sau (payload + render time).
 
 ## Step 10 — historical reprojection (mới trong rev 2)
 
-Chạy projection-only requeue cho toàn bộ historical snapshots lên v2 (test I5). Verify không còn snapshot v1.
+Chạy projection-only requeue cho toàn bộ historical publications lên v2 (test I5). Verify **không còn `daily_publications` trỏ tới snapshot v1** — row snapshot v1 cũ vẫn tồn tại (immutable), chỉ publication được switch sang v2.
 
 ---
 
@@ -1881,9 +1927,10 @@ Task chỉ hoàn thành khi tất cả điều sau đúng:
 - [ ] Playback sử dụng canonical timestamp/progress data.
 - [ ] Controller chỉ init sau triple-check device/date/manifest.
 - [ ] Daily/Playback manifest consistency được verify.
-- [ ] Manifest refetch loop bounded (3 retry).
-- [ ] Publication change reset playback atomically.
-- [ ] Mọi historical snapshot đã reproject lên v2 (không còn v1).
+- [ ] Pinned playback contract: manifest tồn tại → `200`, manifest mất → `410`; **không có `409`**.
+- [ ] Manifest refetch loop bounded (3 vòng refresh).
+- [ ] `410` reset playback atomically (pause + clear cache + refetch Daily View).
+- [ ] Không còn `daily_publications` trỏ tới snapshot v1 (row snapshot v1 cũ vẫn giữ nguyên, immutable).
 - [ ] Provenance ghi effective tolerance + vertices_over_budget.
 - [ ] OpenAPI + generated TypeScript types đồng bộ.
 - [ ] Existing tests pass.
@@ -1891,6 +1938,9 @@ Task chỉ hoàn thành khi tất cả điều sau đúng:
 - [ ] Dense-day payload giảm ít nhất 70% so baseline.
 - [ ] Render-time targets đạt (§28).
 - [ ] Visual route vẫn giữ major shape/turns.
+- [ ] Layout Daily page không đổi: workspace grid, header grid, vị trí toggle
+      Raw GPS, và các state loading/empty/error vẫn render trong cùng khung;
+      state mới của playback/export non-reflowing (§19.0).
 - [ ] Trip/Stop/Gap/Evidence Hole semantics không đổi.
 
 ---
@@ -1913,7 +1963,10 @@ Agent không được:
 - init playback controller khi triple-check (device/date/manifest) fail
 - silent-fallback về canonical geometry khi gặp snapshot v1
 - drop part hoặc merge parts để đạt vertex budget
-- retry manifest refetch vô hạn (tối đa 3 lần)
+- retry manifest refetch vô hạn (tối đa 3 vòng refresh)
+- fallback sang display geometry cho export/video khi playback fetch fail
+- phá layout Daily page (workspace/header grid, vị trí Raw GPS toggle, khung
+  loading/empty/error); state mới của playback/export phải non-reflowing
 ```
 
 Nếu implementation yêu cầu một trong các hành vi trên, dừng và review architecture trước.

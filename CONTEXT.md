@@ -29,7 +29,7 @@ An immutable Device-owned collection of GPS Records that is uploaded and acknowl
 _Avoid_: request, file
 
 **Daily View**:
-A read model for one Owner-local calendar day; its time boundaries are resolved from that Owner's IANA timezone while underlying records remain UTC.
+A read model for one Owner-local calendar day; its time boundaries are resolved from that Owner's IANA timezone while underlying records remain UTC. It publishes a display-oriented Route Part projection rather than canonical geometry.
 _Avoid_: UTC day, device day
 
 **Route**:
@@ -65,8 +65,21 @@ A confirmed Stop or GPS Gap transition with sufficient observations on both side
 _Avoid_: fixed context window, midnight boundary
 
 **Route Part**:
-A contiguous drawable portion of the derived Route for a Movement Segment. A Movement Segment may have several Route Parts; a separation between them does not by itself establish a GPS Gap.
+A contiguous drawable portion of the derived Route for a Movement Segment. A Movement Segment may have several Route Parts; a separation between them does not by itself establish a GPS Gap. Its canonical geometry and progress are authoritative.
 _Avoid_: Movement Segment, GPS Gap
+_Avoid_: Movement Segment, GPS Gap
+
+**Display Geometry**:
+The simplified, coordinate-rounded Route Part geometry that a Daily View publishes for visualization, derived from canonical Route Part geometry. It is never the source of distance, duration or progress.
+_Avoid_: route geometry, canonical geometry
+
+**Effective Tolerance**:
+The actual simplification tolerance used to produce a Display Geometry after any deterministic escalation to fit the vertex budget, recorded so the result is reproducible.
+_Avoid_: baseline tolerance, max tolerance
+
+**Playback Payload**:
+The canonical Route Part geometry and temporal progress served on demand by the Playback API for playback, export and video. It is never simplified, rounded or derived from Display Geometry.
+_Avoid_: display geometry, daily payload
 
 **Activity Revision**:
 An immutable version of derived Device activity for one continuous processing range. It identifies the origin of its events and Route Parts rather than one calendar day's publication.
