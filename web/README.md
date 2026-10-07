@@ -4,6 +4,15 @@ This is the Vue/Vite boundary for the read-oriented local-network Web UI. It con
 
 Copy `.env.example` to `.env.local` and set the MapTiler values for a production basemap. The browser key is public configuration and must be origin-restricted, not treated as a secret.
 
+Set `LT_DEV_HOST=0.0.0.0` in `.env.local` to access `npm run dev` at
+`http://<LAN-IP>:5173` (use the port Vite prints). If unset, the dev server
+listens on `localhost`. Restart the dev server after changing this value.
+
+For development, run `scripts/lifetrail start server postgres` from the repo root,
+then `npm run dev` from `web/`. Vite proxies `/api` to the Docker API at
+`http://127.0.0.1:8081` by default; override it with `LT_API_PROXY_TARGET` in
+`.env.local`. The Docker `web` service can remain stopped.
+
 For the Compose production build, export the same variables before rebuilding so Vite embeds the public browser configuration:
 
 ```sh

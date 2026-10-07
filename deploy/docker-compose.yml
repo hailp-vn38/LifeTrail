@@ -29,6 +29,8 @@ services:
         condition: service_healthy
     expose:
       - "8080"
+    ports:
+      - "127.0.0.1:8081:8080"
 
   web:
     restart: unless-stopped

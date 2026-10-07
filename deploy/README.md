@@ -6,7 +6,8 @@
   only public LAN entrypoint (`http://<LAN-IP>:8080`). `/` and `/assets/*`
   serve the SPA (with an SPA fallback for Vue Router deep links); `/api/*`
   is reverse-proxied to the `server` service (see `deploy/nginx.conf`).
-- `server` — Rust/Axum API on the internal Compose network (`server:8080`).
+- `server` — Rust/Axum API on the internal Compose network (`server:8080`),
+  also published at `127.0.0.1:8081` on the host for the Vite dev proxy.
   The server image no longer builds or contains web assets; static web
   hosting is opt-in via `LT_STATIC_DIR` only.
 - `postgres` — PostgreSQL/PostGIS, internal only, with a persistent volume.
