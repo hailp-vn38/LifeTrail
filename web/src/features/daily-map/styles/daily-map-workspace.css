@@ -1,0 +1,10 @@
+.daily-map-workspace { display: grid; flex: 1; min-height: 0; grid-template-columns: minmax(0, 1fr) clamp(17.5rem, 25vw, 20.5rem); }
+.daily-map-workspace > .map-column,
+.daily-map-workspace > .timeline-column { min-height: 0; }
+@media (max-width: 1279px) and (min-width: 768px) {
+  .daily-map-workspace { grid-template-columns: minmax(0, 1fr) 280px; }
+}
+@media (max-width: 767px) {
+  .daily-map-workspace { grid-template-columns: 1fr; }
+  .daily-map-workspace > .map-column { height: 28rem; }
+}

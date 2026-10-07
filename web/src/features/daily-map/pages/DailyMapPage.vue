@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import "../styles/daily-map-workspace.css";
 import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import AppButton from "../../../components/ui/AppButton.vue";
@@ -7,7 +8,6 @@ import { useUiStore } from "../../../stores/ui.store";
 import { todayForOwner } from "../../../lib/date";
 import TimelinePanel from "../../timeline/components/TimelinePanel.vue";
 import DailyMapCanvas from "../components/DailyMapCanvas.vue";
-import DailyProcessingNotice from "../components/DailyProcessingNotice.vue";
 import DailyMapEmpty from "../components/DailyMapEmpty.vue";
 import DailyMapHeader from "../components/DailyMapHeader.vue";
 import DailyMapLoading from "../components/DailyMapLoading.vue";
@@ -71,41 +71,37 @@ watch(
     />
 
     <template v-else-if="query.data.value">
-      <div>
-        <AppButton
-          :aria-label="rawMode ? 'Xem hoạt động' : 'Xem Raw GPS'"
-          :aria-pressed="rawMode"
-          variant="ghost"
-          size="sm"
-          @click="rawMode = !rawMode"
-        >{{ rawMode ? 'Hoạt động' : 'Raw GPS' }}</AppButton>
-      </div>
-      <DailyProcessingNotice :daily-view="query.data.value" />
       <div class="daily-map-workspace">
-      <div class="map-column">
-        <DailyMapEmpty
-          v-if="isEmpty"
-          @go-today="navigate(deviceId, todayForOwner(timezone ?? 'UTC'))"
-        />
-        <DailyMapCanvas v-else-if="query.data.value.evidence_state !== 'insufficient'" :daily-view="query.data.value" />
-      </div>
-      <div class="timeline-column">
-        <TimelinePanel :daily-view="query.data.value" />
-      </div>
+        <div class="map-column">
+          <AppButton
+            class="daily-map-page__raw-toggle"
+            :aria-label="rawMode ? 'Xem hoạt động' : 'Xem Raw GPS'"
+            :aria-pressed="rawMode"
+            variant="ghost"
+            size="sm"
+            @click="rawMode = !rawMode"
+          >{{ rawMode ? 'Hoạt động' : 'Raw GPS' }}</AppButton>
+
+          <DailyMapEmpty
+            v-if="isEmpty"
+            @go-today="navigate(deviceId, todayForOwner(timezone ?? 'UTC'))"
+          />
+          <DailyMapCanvas v-else-if="query.data.value.evidence_state !== 'insufficient'" :daily-view="query.data.value" />
+        </div>
+        <div class="timeline-column">
+          <TimelinePanel :daily-view="query.data.value" />
+        </div>
       </div>
     </template>
   </div>
 </template>
 
 <style scoped>
-.daily-map-page { height: calc(100dvh - 7rem); min-height: 34rem; gap: .75rem; }
-.daily-map-workspace { flex: 1; min-height: 0; grid-template-columns: minmax(0, 1fr) clamp(17.5rem, 25vw, 20.5rem); }
-.map-column, .timeline-column { min-height: 0; }
-@media (max-width: 1279px) and (min-width: 768px) { .daily-map-workspace { grid-template-columns: minmax(0, 1fr) 280px; } }
+.daily-map-page { height: calc(100dvh - 6rem); min-height: 34rem; gap: 8px; }
+.map-column { position: relative; }
+.daily-map-page__raw-toggle { position: absolute; top: 8px; left: 64px; z-index: 2; background: var(--color-surface); border: 1px solid var(--color-border); }
 @media (max-width: 767px) {
   .daily-map-page { height: auto; min-height: 0; }
-  .daily-map-workspace { grid-template-columns: 1fr; }
-  .map-column { height: 28rem; }
   .timeline-column :deep(.timeline-panel) { height: auto; overflow: visible; }
 }
 </style>

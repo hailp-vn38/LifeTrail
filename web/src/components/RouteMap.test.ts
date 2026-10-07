@@ -570,7 +570,37 @@ it("renders processed Route Parts without deriving length from their coordinates
 
 import { usePlaybackStore } from "../stores/playback.store";
 
-it("reveals Daily Map dots from midnight, hides them again on backward seek and restarts from zero", async () => {
+it.each(["raw", "processed"])("plays the %s Daily Route without selecting a Timeline item", async (source) => {
+  vi.useFakeTimers();
+  const view = source === "raw" ? dailyViewFixture(TIMESTAMPS) : tripView();
+  const firstObservation = Date.parse(source === "raw" ? TIMESTAMPS[0] : view.route_parts![0].observed_from_at);
+  const wrapper = mount(RouteMap, { props: { dailyView: view, dayClock: true }, global: { plugins: [createPinia()] } });
+  try {
+    await nextTick();
+    const playback = usePlaybackStore();
+    expect(useMapStore().selectedEventId).toBeNull();
+    await wrapper.get('button[aria-label="Phát"]').trigger("click");
+    expect(playback.status).toBe("playing");
+    expect(playback.startTimeMs + playback.currentTimeMs).toBe(firstObservation);
+    const current = lastMap().sources.get("daily-route-current")?.setData.mock.calls.at(-1)?.[0] as FeatureCollection;
+    expect(current.features).toHaveLength(2);
+    vi.advanceTimersByTime(1000);
+    expect(playback.startTimeMs + playback.currentTimeMs).toBeGreaterThan(firstObservation);
+    expect(useMapStore().selectedEventId).toBeNull();
+    await wrapper.get('button[aria-label="Tạm dừng"]').trigger("click");
+    const pausedTime = playback.currentTimeMs;
+    await wrapper.get('button[aria-label="Phát"]').trigger("click");
+    expect(playback.currentTimeMs).toBe(pausedTime);
+    await wrapper.get('button[aria-label="Chạy lại từ đầu"]').trigger("click");
+    expect(playback.currentTimeMs).toBe(0);
+    await wrapper.get('button[aria-label="Phát"]').trigger("click");
+    expect(playback.startTimeMs + playback.currentTimeMs).toBe(firstObservation);
+  } finally {
+    wrapper.unmount();
+  }
+});
+
+it("reveals Daily Map dots from midnight, hides them on backward seek and replays from route coverage", async () => {
   const view = dailyViewFixture(TIMESTAMPS);
   const wrapper = mount(RouteMap, { props: { dailyView: view, dayClock: true }, global: { plugins: [createPinia()] } });
   const map = lastMap();
@@ -585,6 +615,8 @@ it("reveals Daily Map dots from midnight, hides them again on backward seek and 
   await nextTick();
   expect(map.setFilter).toHaveBeenCalledWith("timeline-event-dots-circle", ["<=", ["get", "revealedAtMs"], Date.parse(TIMESTAMPS[1])]);
   expect(playback.currentTimeMs).toBe(Date.parse(TIMESTAMPS[1]) - midnight);
+  await wrapper.get('button[aria-label="Phát"]').trigger("click");
+  expect(playback.currentTimeMs).toBe(Date.parse(TIMESTAMPS[1]) - midnight);
   playback.requestSeek(midnight);
   await nextTick();
   expect(map.setFilter).toHaveBeenLastCalledWith("timeline-event-dot-halo", ["<=", ["get", "revealedAtMs"], midnight]);
@@ -594,7 +626,7 @@ it("reveals Daily Map dots from midnight, hides them again on backward seek and 
   playback.requestRestart();
   await nextTick();
   expect(playback.status).toBe('playing');
-  expect(playback.currentTimeMs).toBe(0);
+  expect(playback.currentTimeMs).toBe(Date.parse(TIMESTAMPS[0]) - midnight);
   wrapper.unmount();
 });
 

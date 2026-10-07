@@ -21,7 +21,7 @@ const collapsed = computed(() => ui.sidebarCollapsed || isCompactViewport.value)
     <AppSidebar />
     <div class="app-main">
       <AppTopbar />
-      <main class="app-content">
+      <main class="app-content" :class="{ 'app-content--daily': route.name === 'daily-view' }">
         <RouterView />
       </main>
     </div>
@@ -43,6 +43,8 @@ const collapsed = computed(() => ui.sidebarCollapsed || isCompactViewport.value)
 </template>
 
 <style scoped>
+.app-content--daily { padding: 16px; }
+@media (max-width: 767px) { .app-content--daily { padding: 8px 8px 5.5rem; } }
 .mobile-nav {
   display: none;
 }

@@ -237,6 +237,11 @@ function handleOverviewReady() {
 }
 
 function handlePlay() {
+  // Start Daily playback at route coverage instead of waiting from midnight.
+  // A paused cursor (including a Timeline seek) keeps its chosen time.
+  if (props.dayClock && controller && (controller.currentState === "idle" || controller.currentState === "finished")) {
+    controller.seek(Math.max(0, playbackPoints[0].recordedAtMs - startTimeMs.value));
+  }
   playbackStore.setCameraFollow(true);
   controller?.play();
 }

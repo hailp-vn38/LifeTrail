@@ -22,6 +22,10 @@ vi.mock("../../../api/queries/devices.query", () => ({
   }),
 }));
 
+vi.mock("../composables/useWeekData", () => ({
+  useWeekData: () => ({ daysWithData: ref([]), refresh: vi.fn() }),
+}));
+
 const mockedUseDailyView = vi.mocked(useDailyView);
 
 function dailyViewFixture(pointCount: number): DailyView {
@@ -109,20 +113,19 @@ describe("DailyMapPage", () => {
     };
     mockedUseDailyView.mockReturnValue(queryState({ data: ref(view) }) as never);
     const wrapper = await mountPage();
-    expect(wrapper.text()).toContain("Chưa đủ dữ liệu để xác định hoạt động");
-    expect(wrapper.text()).toContain("Đã xử lý");
+    expect(wrapper.find(".processing-notice").exists()).toBe(false);
     expect(wrapper.text()).not.toContain("Không có dữ liệu GPS cho ngày này");
     expect(wrapper.findAll(".timeline-item")).toHaveLength(0);
     wrapper.unmount();
   });
 
-  it("shows queued processing separately from Raw GPS", async () => {
+  it("keeps the compact workspace free of processing cards", async () => {
     const view = { ...dailyViewFixture(1),
       processing: { state: "queued", data_freshness: "unavailable", published_revision: null },
     };
     mockedUseDailyView.mockReturnValue(queryState({ data: ref(view) }) as never);
     const wrapper = await mountPage();
-    expect(wrapper.text()).toContain("Đang chờ xử lý");
+    expect(wrapper.find(".processing-notice").exists()).toBe(false);
     expect(wrapper.text()).toContain("Raw GPS");
     wrapper.unmount();
   });
@@ -131,11 +134,27 @@ describe("DailyMapPage", () => {
     vi.clearAllMocks();
   });
 
-  it("renders the loading state", async () => {
-    mockedUseDailyView.mockReturnValue(queryState({ isPending: ref(true) }) as never);
+  it("keeps date navigation available while map and timeline are loading", async () => {
+    const pending = ref(true);
+    const data = ref<DailyView | null>(null);
+    mockedUseDailyView.mockReturnValue(queryState({ isPending: pending, data }) as never);
     const wrapper = await mountPage();
 
     expect(wrapper.text()).toContain("Đang tải Daily View");
+    expect(wrapper.get(".daily-map-loading").attributes("aria-busy")).toBe("true");
+    expect(wrapper.find(".daily-header-loading").exists()).toBe(false);
+    expect(wrapper.find(".daily-map-loading__map").exists()).toBe(true);
+    expect(wrapper.find(".daily-timeline-loading").exists()).toBe(true);
+    expect(wrapper.find(".daily-map-header").exists()).toBe(true);
+    await wrapper.get('[aria-label="Tuần sau"]').trigger("click");
+    await flushPromises();
+    expect(wrapper.get(".daily-date-context summary").text()).toContain("12 tháng 10, 2026");
+    data.value = dailyViewFixture(4);
+    pending.value = false;
+    await flushPromises();
+    expect(wrapper.find(".daily-map-loading").exists()).toBe(false);
+    expect(wrapper.find(".daily-map-header").exists()).toBe(true);
+    expect(wrapper.find(".route-map-stub").exists()).toBe(true);
 
     wrapper.unmount();
   });
@@ -230,7 +249,7 @@ it("shows a stationary Stop map, observed daily totals and synchronized Timeline
   Reflect.deleteProperty(HTMLElement.prototype, "scrollIntoView");
 });
 
-it("distinguishes unreliable observations from absent GPS beside a published Stop", async () => {
+it("keeps GPS Gaps in the Timeline after removing the processing card", async () => {
   const view = stationaryView();
   view.evidence_state = "partial";
   view.evidence_holes = [{ observed_from_at: "2026-10-05T16:40:00Z", observed_until_at: "2026-10-05T16:45:00Z", reason: "insufficient_quality", source_record_count: 3 }];
@@ -255,21 +274,11 @@ it("distinguishes unreliable observations from absent GPS beside a published Sto
   ];
   mockedUseDailyView.mockReturnValue(queryState({ data: ref(view) }) as never);
   const wrapper = await mountPage();
-  // The unreliable interval keeps its own explanation and record count.
-  expect(wrapper.text()).toContain("Có GPS nhưng chất lượng chưa đủ");
-  expect(wrapper.text()).toContain("3 bản ghi GPS");
   // The absent interval is a distinct Timeline item explaining the absence.
   expect(wrapper.findAll(".timeline-item--gap")).toHaveLength(1);
   expect(wrapper.text()).toContain("Thiếu quan sát GPS");
   expect(wrapper.text()).toContain("Không suy ra di chuyển");
-  // An Evidence Hole notice never claims observations are missing.
-  const notice = wrapper.find(".evidence-notice");
-  expect(notice.exists()).toBe(true);
-  expect(notice.text()).not.toContain("Thiếu quan sát GPS");
-  // The two poorer quality classes are named separately, so a poor record is
-  // never presented as an impossible position.
-  expect(notice.text()).toContain("2 bản ghi GPS chất lượng thấp");
-  expect(notice.text()).toContain("1 bản ghi GPS có vị trí không hợp lý");
+  expect(wrapper.find(".processing-notice").exists()).toBe(false);
   expect(wrapper.findAll(".timeline-item--stop")).toHaveLength(1);
   wrapper.unmount();
 });
