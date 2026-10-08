@@ -1,0 +1,235 @@
+{
+  "id": "phase2-web-server-map-performance-fw-v1",
+  "seed": "lifetrail-map-perf-fw-v1",
+  "timezone": "Asia/Ho_Chi_Minh",
+  "started_at": "2026-10-05T00:00:00+07:00",
+  "activities": [
+    {
+      "label": "home overnight",
+      "kind": "stop",
+      "at": [
+        106.6895,
+        10.7821
+      ],
+      "duration_s": 21600
+    },
+    {
+      "label": "morning walk",
+      "kind": "move",
+      "coordinates": [
+        [
+          106.6895,
+          10.7821
+        ],
+        [
+          106.694,
+          10.7821
+        ],
+        [
+          106.7001,
+          10.7758
+        ]
+      ],
+      "duration_s": 900,
+      "mode": "walk"
+    },
+    {
+      "label": "cafe",
+      "kind": "stop",
+      "at": [
+        106.7001,
+        10.7758
+      ],
+      "duration_s": 900
+    },
+    {
+      "label": "drive before traffic pause",
+      "kind": "move",
+      "coordinates": [
+        [
+          106.7001,
+          10.7758
+        ],
+        [
+          106.71,
+          10.7758
+        ],
+        [
+          106.71,
+          10.815
+        ]
+      ],
+      "duration_s": 1200,
+      "mode": "car"
+    },
+    {
+      "label": "20 second traffic pause",
+      "kind": "stop",
+      "at": [
+        106.71,
+        10.815
+      ],
+      "duration_s": 20
+    },
+    {
+      "label": "drive after traffic pause",
+      "kind": "move",
+      "coordinates": [
+        [
+          106.71,
+          10.815
+        ],
+        [
+          106.75,
+          10.815
+        ],
+        [
+          106.78,
+          10.84
+        ]
+      ],
+      "duration_s": 1180,
+      "mode": "car"
+    },
+    {
+      "label": "office morning",
+      "kind": "stop",
+      "at": [
+        106.78,
+        10.84
+      ],
+      "duration_s": 17400
+    },
+    {
+      "label": "walk to lunch",
+      "kind": "move",
+      "coordinates": [
+        [
+          106.78,
+          10.84
+        ],
+        [
+          106.785,
+          10.837
+        ]
+      ],
+      "duration_s": 600,
+      "mode": "walk"
+    },
+    {
+      "label": "lunch",
+      "kind": "stop",
+      "at": [
+        106.785,
+        10.837
+      ],
+      "duration_s": 1800
+    },
+    {
+      "label": "walk to office",
+      "kind": "move",
+      "coordinates": [
+        [
+          106.785,
+          10.837
+        ],
+        [
+          106.78,
+          10.84
+        ]
+      ],
+      "duration_s": 600,
+      "mode": "walk"
+    },
+    {
+      "label": "office afternoon",
+      "kind": "stop",
+      "at": [
+        106.78,
+        10.84
+      ],
+      "duration_s": 16200
+    },
+    {
+      "label": "commute with 10 minute GNSS loss",
+      "kind": "move",
+      "coordinates": [
+        [
+          106.78,
+          10.84
+        ],
+        [
+          106.75,
+          10.815
+        ],
+        [
+          106.71,
+          10.815
+        ],
+        [
+          106.71,
+          10.7821
+        ],
+        [
+          106.6895,
+          10.7821
+        ]
+      ],
+      "duration_s": 1800,
+      "mode": "car",
+      "degradations": [
+        {
+          "kind": "gnss_loss",
+          "from_s": 600,
+          "until_s": 1200
+        }
+      ]
+    },
+    {
+      "label": "home evening",
+      "kind": "stop",
+      "at": [
+        106.6895,
+        10.7821
+      ],
+      "duration_s": 21900
+    },
+    {
+      "label": "cross midnight drive",
+      "kind": "move",
+      "coordinates": [
+        [
+          106.6895,
+          10.7821
+        ],
+        [
+          106.71,
+          10.7821
+        ],
+        [
+          106.71,
+          10.815
+        ],
+        [
+          106.75,
+          10.815
+        ],
+        [
+          106.78,
+          10.84
+        ]
+      ],
+      "duration_s": 900,
+      "mode": "car"
+    },
+    {
+      "label": "open final stop",
+      "kind": "stop",
+      "at": [
+        106.78,
+        10.84
+      ],
+      "duration_s": 600
+    }
+  ]
+}

@@ -37,6 +37,11 @@ See [`../docs/development/simulated-gps-data.md`](../docs/development/simulated-
 
 Use the deterministic [Phase 2 fixture suite](lifetrail-phase2-testdata/README.md) and `server/tests/phase2_acceptance.rs`. These tests run ingestion, processing and Daily View publication without network routing.
 
+For Daily display geometry and lazy playback with the current firmware, use
+[the map performance dataset](fixtures/phase2-web-server-map-performance/README.md).
+`generate_map_performance_data.py` produces firmware-adaptive and dense comparator
+archives from the same offline 1 Hz observations through the real C policy.
+
 ## Future routing tools (outside Phase 2)
 
 The following tools and their Python modules are retained for a future optional routing phase: `prepare_osrm.py`, `download_osrm_vietnam.sh`, `generate_routed_scenario.py`, `generate_realistic_osrm_day.py`, `lifetrail_batch/osrm_client.py` and associated scenario/provenance files. They do not participate in Phase 2 runtime, worker configuration or acceptance. Existing graph data is retained; the canonical Compose topology has no routing services.

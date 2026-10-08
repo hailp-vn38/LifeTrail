@@ -1,0 +1,290 @@
+{
+  "scenario_id": "phase2-web-server-map-performance-fw-v1",
+  "timezone": "Asia/Ho_Chi_Minh",
+  "acquisition_hz": 1,
+  "firmware": {
+    "batch_count": 342,
+    "record_count": 3268
+  },
+  "dense": {
+    "batch_count": 1450,
+    "record_count": 87000
+  },
+  "firmware_policy_source_sha256": "9dfce5612b2e9bc07e2923260266931bd4e3c36f6596898001408919acf6a3be",
+  "firmware_metrics": {
+    "raw_navigation_epochs": 87000,
+    "persisted_records": 3268,
+    "motion_state_transition_count": 20,
+    "no_fix_periods_total_s": 600.0
+  },
+  "persist_reasons": {
+    "PERIODIC": 1071,
+    "STATE_TRANSITION": 20,
+    "HEARTBEAT": 659,
+    "BACKFILL": 30,
+    "HEADING": 10,
+    "DISTANCE": 1475,
+    "SESSION_BOUNDARY": 2,
+    "FIX_RECOVERY": 1
+  },
+  "raw_record_reduction_percent": 96.24,
+  "activities": [
+    {
+      "label": "home overnight",
+      "kind": "stop",
+      "at": [
+        106.6895,
+        10.7821
+      ],
+      "duration_s": 21600,
+      "from_ts_ms": 1791133200000,
+      "until_ts_ms": 1791154800000
+    },
+    {
+      "label": "morning walk",
+      "kind": "move",
+      "coordinates": [
+        [
+          106.6895,
+          10.7821
+        ],
+        [
+          106.694,
+          10.7821
+        ],
+        [
+          106.7001,
+          10.7758
+        ]
+      ],
+      "duration_s": 900,
+      "mode": "walk",
+      "from_ts_ms": 1791154800000,
+      "until_ts_ms": 1791155700000
+    },
+    {
+      "label": "cafe",
+      "kind": "stop",
+      "at": [
+        106.7001,
+        10.7758
+      ],
+      "duration_s": 900,
+      "from_ts_ms": 1791155700000,
+      "until_ts_ms": 1791156600000
+    },
+    {
+      "label": "drive before traffic pause",
+      "kind": "move",
+      "coordinates": [
+        [
+          106.7001,
+          10.7758
+        ],
+        [
+          106.71,
+          10.7758
+        ],
+        [
+          106.71,
+          10.815
+        ]
+      ],
+      "duration_s": 1200,
+      "mode": "car",
+      "from_ts_ms": 1791156600000,
+      "until_ts_ms": 1791157800000
+    },
+    {
+      "label": "20 second traffic pause",
+      "kind": "stop",
+      "at": [
+        106.71,
+        10.815
+      ],
+      "duration_s": 20,
+      "from_ts_ms": 1791157800000,
+      "until_ts_ms": 1791157820000
+    },
+    {
+      "label": "drive after traffic pause",
+      "kind": "move",
+      "coordinates": [
+        [
+          106.71,
+          10.815
+        ],
+        [
+          106.75,
+          10.815
+        ],
+        [
+          106.78,
+          10.84
+        ]
+      ],
+      "duration_s": 1180,
+      "mode": "car",
+      "from_ts_ms": 1791157820000,
+      "until_ts_ms": 1791159000000
+    },
+    {
+      "label": "office morning",
+      "kind": "stop",
+      "at": [
+        106.78,
+        10.84
+      ],
+      "duration_s": 17400,
+      "from_ts_ms": 1791159000000,
+      "until_ts_ms": 1791176400000
+    },
+    {
+      "label": "walk to lunch",
+      "kind": "move",
+      "coordinates": [
+        [
+          106.78,
+          10.84
+        ],
+        [
+          106.785,
+          10.837
+        ]
+      ],
+      "duration_s": 600,
+      "mode": "walk",
+      "from_ts_ms": 1791176400000,
+      "until_ts_ms": 1791177000000
+    },
+    {
+      "label": "lunch",
+      "kind": "stop",
+      "at": [
+        106.785,
+        10.837
+      ],
+      "duration_s": 1800,
+      "from_ts_ms": 1791177000000,
+      "until_ts_ms": 1791178800000
+    },
+    {
+      "label": "walk to office",
+      "kind": "move",
+      "coordinates": [
+        [
+          106.785,
+          10.837
+        ],
+        [
+          106.78,
+          10.84
+        ]
+      ],
+      "duration_s": 600,
+      "mode": "walk",
+      "from_ts_ms": 1791178800000,
+      "until_ts_ms": 1791179400000
+    },
+    {
+      "label": "office afternoon",
+      "kind": "stop",
+      "at": [
+        106.78,
+        10.84
+      ],
+      "duration_s": 16200,
+      "from_ts_ms": 1791179400000,
+      "until_ts_ms": 1791195600000
+    },
+    {
+      "label": "commute with 10 minute GNSS loss",
+      "kind": "move",
+      "coordinates": [
+        [
+          106.78,
+          10.84
+        ],
+        [
+          106.75,
+          10.815
+        ],
+        [
+          106.71,
+          10.815
+        ],
+        [
+          106.71,
+          10.7821
+        ],
+        [
+          106.6895,
+          10.7821
+        ]
+      ],
+      "duration_s": 1800,
+      "mode": "car",
+      "degradations": [
+        {
+          "kind": "gnss_loss",
+          "from_s": 600,
+          "until_s": 1200
+        }
+      ],
+      "from_ts_ms": 1791195600000,
+      "until_ts_ms": 1791197400000
+    },
+    {
+      "label": "home evening",
+      "kind": "stop",
+      "at": [
+        106.6895,
+        10.7821
+      ],
+      "duration_s": 21900,
+      "from_ts_ms": 1791197400000,
+      "until_ts_ms": 1791219300000
+    },
+    {
+      "label": "cross midnight drive",
+      "kind": "move",
+      "coordinates": [
+        [
+          106.6895,
+          10.7821
+        ],
+        [
+          106.71,
+          10.7821
+        ],
+        [
+          106.71,
+          10.815
+        ],
+        [
+          106.75,
+          10.815
+        ],
+        [
+          106.78,
+          10.84
+        ]
+      ],
+      "duration_s": 900,
+      "mode": "car",
+      "from_ts_ms": 1791219300000,
+      "until_ts_ms": 1791220200000
+    },
+    {
+      "label": "open final stop",
+      "kind": "stop",
+      "at": [
+        106.78,
+        10.84
+      ],
+      "duration_s": 600,
+      "from_ts_ms": 1791220200000,
+      "until_ts_ms": 1791220800000
+    }
+  ]
+}
